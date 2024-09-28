@@ -1,0 +1,26 @@
+<Bindings>
+	<Binding name="EART_OPEN" header="EART" category="Demo Raid Tools">
+		GART.Options:Open()
+	</Binding>
+	<Binding name="EART_FIGHTLOG_OPEN" category="Demo Raid Tools">
+		GART.F.FightLog_Open()
+	</Binding>
+	<Binding name="CLICK EARTWM1:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM2:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM3:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM4:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM5:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM6:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM7:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM8:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTCWM:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTTOGGLENOTE:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM1CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM2CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM3CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM4CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM5CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM6CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM7CURSOR:LeftButton" category="Demo Raid Tools" />
+	<Binding name="CLICK EARTWM8CURSOR:LeftButton" category="Demo Raid Tools" />
+</Bindings>

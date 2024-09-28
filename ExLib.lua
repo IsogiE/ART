@@ -1,13 +1,13 @@
 --[=[
 version 1.0
 
-ExRT.lib.AddShadowComment(self,hide,moduleName,userComment,userFontSize,userOutline)
-ExRT.lib.CreateHoverHighlight(parent[,prefix,drawLayer])
-ExRT.lib.SetAlphas(alpha,...)
+EART.lib.AddShadowComment(self,hide,moduleName,userComment,userFontSize,userOutline)
+EART.lib.CreateHoverHighlight(parent[,prefix,drawLayer])
+EART.lib.SetAlphas(alpha,...)
 
-ExRT.lib.CreateColorPickButton(parent,width,height,relativePoint,x,y,cR,cG,cB,cA)
-ExRT.lib.CreateGraph(parent,width,height,relativePoint,x,y)
-ExRT.lib.CreateHelpButton(parent,helpPlateArray,isTab)
+EART.lib.CreateColorPickButton(parent,width,height,relativePoint,x,y,cR,cG,cB,cA)
+EART.lib.CreateGraph(parent,width,height,relativePoint,x,y)
+EART.lib.CreateHelpButton(parent,helpPlateArray,isTab)
 
 version 2.0
 
@@ -131,48 +131,48 @@ Tooltips:
 -> ELib.Tooltip:HideAdd()			[hide all additional tooltips]
 
 Templates
-Font		ExRTFontNormal
-Font 		ExRTFontGrayTemplate
-Button		ExRTUIChatDownButtonTemplate
-Frame		ExRTTranslucentFrameTemplate
-Button		ExRTDropDownMenuButtonTemplate
-Button		ExRTDropDownListTemplate
-Button		ExRTDropDownListModernTemplate
-Button		ExRTButtonTransparentTemplate
-Button		ExRTButtonModernTemplate
-Frame		ExRTBWInterfaceFrame
-Button		ExRTTabButtonTransparentTemplate
-Button		ExRTTabButtonTemplate
-Frame		ExRTDialogTemplate
-Frame		ExRTDialogModernTemplate
-Frame		ExRTDropDownMenuTemplate
-Frame		ExRTDropDownMenuModernTemplate
-EditBox		ExRTInputBoxTemplate
-EditBox		ExRTInputBoxModernTemplate
-Slider		ExRTSliderTemplate
-Slider		ExRTSliderModernTemplate
-Slider		ExRTSliderModernVerticalTemplate
-Frame		ExRTTrackingButtonModernTemplate
-CheckButton	ExRTCheckButtonModernTemplate
-Button		ExRTButtonDownModernTemplate
-Button		ExRTButtonUpModernTemplate
-Button		ExRTUIChatDownButtonModernTemplate
-CheckButton	ExRTRadioButtonModernTemplate
+Font		EARTFontNormal
+Font 		EARTFontGrayTemplate
+Button		EARTUIChatDownButtonTemplate
+Frame		EARTTranslucentFrameTemplate
+Button		EARTDropDownMenuButtonTemplate
+Button		EARTDropDownListTemplate
+Button		EARTDropDownListModernTemplate
+Button		EARTButtonTransparentTemplate
+Button		EARTButtonModernTemplate
+Frame		EARTBWInterfaceFrame
+Button		EARTTabButtonTransparentTemplate
+Button		EARTTabButtonTemplate
+Frame		EARTDialogTemplate
+Frame		EARTDialogModernTemplate
+Frame		EARTDropDownMenuTemplate
+Frame		EARTDropDownMenuModernTemplate
+EditBox		EARTInputBoxTemplate
+EditBox		EARTInputBoxModernTemplate
+Slider		EARTSliderTemplate
+Slider		EARTSliderModernTemplate
+Slider		EARTSliderModernVerticalTemplate
+Frame		EARTTrackingButtonModernTemplate
+CheckButton	EARTCheckButtonModernTemplate
+Button		EARTButtonDownModernTemplate
+Button		EARTButtonUpModernTemplate
+Button		EARTUIChatDownButtonModernTemplate
+CheckButton	EARTRadioButtonModernTemplate
 
 ]=]
 
-local GlobalAddonName, ExRT = ...
-local isExRT = GlobalAddonName == "MRT"
+local GlobalAddonName, EART = ...
+local isEART = GlobalAddonName == "ART"
 
 local libVersion = 45
 
 if type(ELib)=='table' and type(ELib.V)=='number' and ELib.V > libVersion then return end
 
 local ELib = {}
-if isExRT then		--Disable global if not ExRT addon, only local usage
+if isEART then		--Disable global if not EART addon, only local usage
 	_G.ELib = ELib
 end
-ExRT.lib = ELib
+EART.lib = ELib
 
 ELib.V = libVersion
 
@@ -282,8 +282,8 @@ end
 --==============================  LOCALS ================================
 --=======================================================================
 
-local DEFAULT_FONT = ExRT.F and ExRT.F.defFont or "Interface\\AddOns\\"..GlobalAddonName.."\\media\\skurri.ttf"
-local DEFAULT_BORDER = ExRT.F and ExRT.F.defBorder or "Interface\\AddOns\\"..GlobalAddonName.."\\media\\border.tga"
+local DEFAULT_FONT = EART.F and EART.F.defFont or "Interface\\AddOns\\"..GlobalAddonName.."\\media\\skurri.ttf"
+local DEFAULT_BORDER = EART.F and EART.F.defBorder or "Interface\\AddOns\\"..GlobalAddonName.."\\media\\border.tga"
 
 local function Round(i)
 	return floor(i+0.5)
@@ -334,8 +334,8 @@ do
 	end
 end
 
-local UIDropDownMenu_StartCounting = UIDropDownMenu_StartCounting or ExRT.NULLfunc or function()end
-local UIDropDownMenu_StopCounting = UIDropDownMenu_StopCounting or ExRT.NULLfunc or function()end
+local UIDropDownMenu_StartCounting = UIDropDownMenu_StartCounting or EART.NULLfunc or function()end
+local UIDropDownMenu_StopCounting = UIDropDownMenu_StopCounting or EART.NULLfunc or function()end
 
 --=======================================================================
 --============================  TEMPLATES ===============================
@@ -352,23 +352,23 @@ function ELib:Template(name,parent)
 	return obj
 end
 
-if not ExRTFontNormal then
-	local ExRTFontNormal = CreateFont("ExRTFontNormal")
-	ExRTFontNormal:SetFont(GameFontNormal:GetFont())
-	ExRTFontNormal:SetShadowColor(0,0,0)
-	ExRTFontNormal:SetShadowOffset(1,-1)
-	ExRTFontNormal:SetTextColor(1,.82,0)
+if not EARTFontNormal then
+	local EARTFontNormal = CreateFont("EARTFontNormal")
+	EARTFontNormal:SetFont(GameFontNormal:GetFont())
+	EARTFontNormal:SetShadowColor(0,0,0)
+	EARTFontNormal:SetShadowOffset(1,-1)
+	EARTFontNormal:SetTextColor(1,.82,0)
 end
-if not ExRTFontGrayTemplate then
-	local ExRTFontGrayTemplate = CreateFont("ExRTFontGrayTemplate")
-	ExRTFontGrayTemplate:SetFont(GameFontHighlightSmall:GetFont())
-	ExRTFontGrayTemplate:SetShadowColor(0,0,0)
-	ExRTFontGrayTemplate:SetShadowOffset(1,-1)
-	ExRTFontGrayTemplate:SetTextColor(0.63,0.68,0.69)
+if not EARTFontGrayTemplate then
+	local EARTFontGrayTemplate = CreateFont("EARTFontGrayTemplate")
+	EARTFontGrayTemplate:SetFont(GameFontHighlightSmall:GetFont())
+	EARTFontGrayTemplate:SetShadowColor(0,0,0)
+	EARTFontGrayTemplate:SetShadowOffset(1,-1)
+	EARTFontGrayTemplate:SetTextColor(0.63,0.68,0.69)
 end
 --if IsTestBuild() then
---	ExRTFontNormal:SetFont(DEFAULT_FONT,select(2,ExRTFontNormal:GetFont()))
---	ExRTFontGrayTemplate:SetFont(DEFAULT_FONT,select(2,ExRTFontGrayTemplate:GetFont()))
+--	EARTFontNormal:SetFont(DEFAULT_FONT,select(2,EARTFontNormal:GetFont()))
+--	EARTFontGrayTemplate:SetFont(DEFAULT_FONT,select(2,EARTFontGrayTemplate:GetFont()))
 --end
 
 do
@@ -478,7 +478,7 @@ do
 		ToggleDropDownMenu(nil, nil, self:GetParent())
 		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 	end
-	function Templates:ExRTUIChatDownButtonTemplate(parent)
+	function Templates:EARTUIChatDownButtonTemplate(parent)
 		local self = CreateFrame("Button",nil,parent)
 		self:SetSize(24,24)
 
@@ -513,7 +513,7 @@ do
 	end
 end
 
-function Templates:ExRTTranslucentFrameTemplate(parent)
+function Templates:EARTTranslucentFrameTemplate(parent)
 	local self = CreateFrame("Frame",nil,parent)
 	self:SetSize(338,424)
 
@@ -583,7 +583,7 @@ do
 	local function OnLoad(self)
 		self:SetFrameLevel(self:GetParent():GetFrameLevel()+2)
 	end
-	function Templates:ExRTDropDownMenuButtonTemplate(parent)
+	function Templates:EARTDropDownMenuButtonTemplate(parent)
 		local self = CreateFrame("Button",nil,parent)
 		self:SetSize(100,16)
 
@@ -649,7 +649,7 @@ do
 	local function OnUpdate(self, elapsed)
 		ELib.ScrollDropDown.Update(self, elapsed)
 	end
-	function Templates:ExRTDropDownListTemplate(parent)
+	function Templates:EARTDropDownListTemplate(parent)
 		local self = CreateFrame("Button",nil,parent)
 		self:SetFrameStrata("TOOLTIP")
 		self:EnableMouse(true)
@@ -679,7 +679,7 @@ do
 		self:SetScript("OnUpdate",OnUpdate)
 		return self
 	end
-	function Templates:ExRTDropDownListModernTemplate(parent)
+	function Templates:EARTDropDownListModernTemplate(parent)
 		local self = CreateFrame("Button",nil,parent)
 		self:SetFrameStrata("TOOLTIP")
 		self:EnableMouse(true)
@@ -702,7 +702,7 @@ do
 	end
 end
 
-function Templates:ExRTButtonTransparentTemplate(parent,isSecure)
+function Templates:EARTButtonTransparentTemplate(parent,isSecure)
 	local self = isSecure and CreateFrame("Button",nil,parent,isSecure) or CreateFrame("Button",nil,parent)
 	self:SetSize(40,18)
 
@@ -725,8 +725,8 @@ function Templates:ExRTButtonTransparentTemplate(parent,isSecure)
 	return self
 end
 
-function Templates:ExRTButtonModernTemplate(parent,isSecure)
-	local self = Templates:ExRTButtonTransparentTemplate(parent,isSecure)
+function Templates:EARTButtonModernTemplate(parent,isSecure)
+	local self = Templates:EARTButtonTransparentTemplate(parent,isSecure)
 
 	Templates:Border(self,0,0,0,1,1)
 
@@ -745,8 +745,8 @@ function Templates:ExRTButtonModernTemplate(parent,isSecure)
 	return self
 end
 
-Templates["ExRTButtonModernTemplate,SecureHandlerClickTemplate"] = function(self,parent)
-	return Templates:ExRTButtonModernTemplate(parent,"SecureHandlerClickTemplate")
+Templates["EARTButtonModernTemplate,SecureHandlerClickTemplate"] = function(self,parent)
+	return Templates:EARTButtonModernTemplate(parent,"SecureHandlerClickTemplate")
 end
 
 do
@@ -754,10 +754,10 @@ do
 		self:GetParent():Hide()
 	end
 	local function backToInterface_OnClick(self)
-		GMRT.Options:Open()
+		GART.Options:Open()
 		self:GetParent():Hide()
 	end
-	function Templates:ExRTBWInterfaceFrame(parent)
+	function Templates:EARTBWInterfaceFrame(parent)
 		local self = CreateFrame("Frame",nil,parent, BackdropTemplateMixin and "BackdropTemplate")
 		self:SetSize(858,660)
 		self:SetFrameStrata("HIGH")
@@ -765,7 +765,7 @@ do
 		self:EnableMouse(true)
 		self:SetPoint("CENTER")
 		self:SetBackdrop({bgFile="Interface\\Addons\\"..GlobalAddonName.."\\media\\White"})
-		self:SetBackdropColor(0.05,0.05,0.07,0.9)
+		self:SetBackdropColor(0.05, 0.05, 0.2,1)
 
 		self.HeaderText = self:CreateFontString(nil,"ARTWORK","GameFontNormal")
 		self.HeaderText:SetPoint("TOP",0,-3)
@@ -781,7 +781,7 @@ do
 		self.backToInterface:SetPoint("BOTTOMRIGHT",self.buttonClose,"BOTTOMLEFT",-1,1)
 		self.backToInterface:SetScript("OnClick",backToInterface_OnClick)
 
-		self.bossButton = ELib:Template("ExRTButtonTransparentTemplate",self)
+		self.bossButton = ELib:Template("EARTButtonTransparentTemplate",self)
 		self.bossButton:SetSize(250,18)
 		self.bossButton:SetPoint("TOPLEFT",4,-18)
 		self.bossButton:SetScript("OnClick",buttonClose_OnClick)
@@ -801,7 +801,7 @@ do
 		self.deselectedTextY = -3
 		self.selectedTextY = -2
 	end
-	function Templates:ExRTTabButtonTransparentTemplate(parent)
+	function Templates:EARTTabButtonTransparentTemplate(parent)
 		local self = CreateFrame("Button",nil,parent)
 		self:SetSize(115,24)
 
@@ -834,7 +834,7 @@ do
 
 		self:SetFontString(self.Text)
 
-		self:SetNormalFontObject("ExRTFontGrayTemplate")
+		self:SetNormalFontObject("EARTFontGrayTemplate")
 		self:SetHighlightFontObject("GameFontHighlightSmall")
 		self:SetDisabledFontObject("GameFontNormalSmall")
 
@@ -848,8 +848,8 @@ do
 		self:SetScript("OnLoad",OnLoad)
 		return self
 	end
-	function Templates:ExRTTabButtonTemplate(parent)
-		local self = Templates:ExRTTabButtonTransparentTemplate(parent)
+	function Templates:EARTTabButtonTemplate(parent)
+		local self = Templates:EARTTabButtonTransparentTemplate(parent)
 
 		self.LeftDisabled:SetTexture("Interface\\OptionsFrame\\UI-OptionsFrame-ActiveTab")
 		self.LeftDisabled:SetSize(20,24)
@@ -885,7 +885,7 @@ do
 	end
 end
 
-function Templates:ExRTDialogTemplate(parent)
+function Templates:EARTDialogTemplate(parent)
 	local self = CreateFrame("Frame",nil,parent)
 
 	self.TopLeft = self:CreateTexture(nil,"OVERLAY")
@@ -965,7 +965,7 @@ do
 	local function buttonClose_OnClick(self)
 		self:GetParent():Hide()
 	end
-	function Templates:ExRTDialogModernTemplate(parent)
+	function Templates:EARTDialogModernTemplate(parent)
 		local self = CreateFrame("Frame",nil,parent, BackdropTemplateMixin and "BackdropTemplate")
 		self:SetBackdrop({bgFile="Interface\\Addons\\"..GlobalAddonName.."\\media\\White"})
 		self:SetBackdropColor(0.05,0.05,0.07,0.98)
@@ -989,7 +989,7 @@ do
 	local function OnHide(self)
 		CloseDropDownMenus()
 	end
-	function Templates:ExRTDropDownMenuTemplate(parent)
+	function Templates:EARTDropDownMenuTemplate(parent)
 		local self = CreateFrame("Frame",nil,parent)
 		self:SetSize(40,32)
 
@@ -1022,7 +1022,7 @@ do
 		self.Icon:SetPoint("LEFT",30,2)
 		self.Icon:SetSize(16,16)
 
-		self.Button = ELib:Template("ExRTUIChatDownButtonTemplate",self)
+		self.Button = ELib:Template("EARTUIChatDownButtonTemplate",self)
 		self.Button:SetPoint("TOPRIGHT",self.Right,-16,-18)
 		self.Button:SetMotionScriptsWhileDisabled(true)
 
@@ -1030,8 +1030,8 @@ do
 
 		return self
 	end
-	function Templates:ExRTDropDownButtonModernTemplate(parent)
-		local self = ELib:Template("ExRTUIChatDownButtonTemplate",parent)
+	function Templates:EARTDropDownButtonModernTemplate(parent)
+		local self = ELib:Template("EARTUIChatDownButtonTemplate",parent)
 		self:SetSize(16,16)
 		self:SetMotionScriptsWhileDisabled(true)
 
@@ -1075,7 +1075,7 @@ do
 
 		return self
 	end
-	function Templates:ExRTDropDownMenuModernTemplate(parent)
+	function Templates:EARTDropDownMenuModernTemplate(parent)
 		local self = CreateFrame("Frame",nil,parent)
 		self:SetSize(40,20)
 
@@ -1094,7 +1094,7 @@ do
 		self.Background:SetPoint("TOPLEFT")
 		self.Background:SetPoint("BOTTOMRIGHT")
 
-		self.Button = ELib:Template("ExRTDropDownButtonModernTemplate",self)
+		self.Button = ELib:Template("EARTDropDownButtonModernTemplate",self)
 		self.Button:SetPoint("RIGHT",-2,0)
 
 		self:SetScript("OnHide",OnHide)
@@ -1113,7 +1113,7 @@ do
 	local function OnEditFocusGained(self)
 		self:HighlightText()
 	end
-	function Templates:ExRTInputBoxTemplate(parent)
+	function Templates:EARTInputBoxTemplate(parent)
 		local self = CreateFrame("EditBox",nil,parent)
 		self:EnableMouse(true)
 
@@ -1144,7 +1144,7 @@ do
 
 		return self
 	end
-	function Templates:ExRTInputBoxModernTemplate(parent)
+	function Templates:EARTInputBoxModernTemplate(parent)
 		local self = CreateFrame("EditBox",nil,parent, BackdropTemplateMixin and "BackdropTemplate")
 		self:EnableMouse(true)
 
@@ -1183,7 +1183,7 @@ do
 	local function OnLeave(self)
 		GameTooltip:Hide()
 	end
-	function Templates:ExRTSliderTemplate(parent)
+	function Templates:EARTSliderTemplate(parent)
 		local self = CreateFrame("Slider",nil,parent, BackdropTemplateMixin and "BackdropTemplate")
 		self:SetOrientation("HORIZONTAL")
 		self:SetSize(144,17)
@@ -1222,7 +1222,7 @@ do
 
 		return self
 	end
-	function Templates:ExRTSliderModernTemplate(parent)
+	function Templates:EARTSliderModernTemplate(parent)
 		local self = CreateFrame("Slider",nil,parent)
 		self:SetOrientation("HORIZONTAL")
 		self:SetSize(144,10)
@@ -1248,7 +1248,7 @@ do
 
 		return self
 	end
-	function Templates:ExRTSliderModernVerticalTemplate(parent)
+	function Templates:EARTSliderModernVerticalTemplate(parent)
 		local self = CreateFrame("Slider",nil,parent)
 		self:SetOrientation("VERTICAL")
 		self:SetSize(10,144)
@@ -1287,7 +1287,7 @@ do
 		parent.Icon:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6)
 		parent.IconOverlay:Hide()
 	end
-	function Templates:ExRTTrackingButtonModernTemplate(parent)
+	function Templates:EARTTrackingButtonModernTemplate(parent)
 		local self = CreateFrame("Frame",nil,parent)
 		self:SetSize(32,32)
 		self:SetHitRectInsets(0, 0, -10, -10)
@@ -1329,7 +1329,7 @@ do
 	end
 end
 
-function Templates:ExRTCheckButtonModernTemplate(parent)
+function Templates:EARTCheckButtonModernTemplate(parent)
 	local self = CreateFrame("CheckButton",nil,parent)
 	self:SetSize(20,20)
 
@@ -1377,7 +1377,7 @@ function Templates:ExRTCheckButtonModernTemplate(parent)
 end
 
 do
-	local function ExRTButtonModernTemplate(id,parent)
+	local function EARTButtonModernTemplate(id,parent)
 		local self = Templates:GUIcons(id,parent)
 		self:SetSize(16,16)
 
@@ -1406,11 +1406,11 @@ do
 		return self
 	end
 
-	function Templates:ExRTButtonDownModernTemplate(parent)
-		return ExRTButtonModernTemplate(3,parent)
+	function Templates:EARTButtonDownModernTemplate(parent)
+		return EARTButtonModernTemplate(3,parent)
 	end
-	function Templates:ExRTButtonUpModernTemplate(parent)
-		return ExRTButtonModernTemplate(4,parent)
+	function Templates:EARTButtonUpModernTemplate(parent)
+		return EARTButtonModernTemplate(4,parent)
 	end
 
 	local function OnEnter(self)
@@ -1431,8 +1431,8 @@ do
 		ToggleDropDownMenu(nil, nil, self:GetParent())
 		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 	end
-	function Templates:ExRTUIChatDownButtonModernTemplate(parent)
-		local self = ExRTButtonModernTemplate(3,parent)
+	function Templates:EARTUIChatDownButtonModernTemplate(parent)
+		local self = EARTButtonModernTemplate(3,parent)
 		self:SetSize(20,20)
 
 		self:SetScript("OnEnter",OnEnter)
@@ -1443,7 +1443,7 @@ do
 	end
 end
 
-function Templates:ExRTRadioButtonModernTemplate(parent)
+function Templates:EARTRadioButtonModernTemplate(parent)
 	local self = CreateFrame("CheckButton",nil,parent)
 	self:SetSize(16,16)
 
@@ -1772,9 +1772,9 @@ do
 
 	function ELib:Slider(parent,text,isVertical,template)
 		if template == 0 then
-			template = "ExRTSliderTemplate"
+			template = "EARTSliderTemplate"
 		elseif not template then
-			template = isVertical and "ExRTSliderModernVerticalTemplate" or "ExRTSliderModernTemplate"
+			template = isVertical and "EARTSliderModernVerticalTemplate" or "EARTSliderModernTemplate"
 		end
 		local self = ELib:Template(template,parent) or CreateFrame("Slider",nil,parent,template)
 		self.text = self.Text
@@ -1806,7 +1806,7 @@ do
 		self.Tooltip = Widget_SetTooltip
 		self.SetObey = Widget_SetObey
 
-		if template and template:find("^ExRTSliderModern") then
+		if template and template:find("^EARTSliderModern") then
 			self._Size = self.Size
 			self.Size = Widget_Size
 
@@ -2032,14 +2032,14 @@ do
 			self.borderRight:SetColorTexture(0.24,0.25,0.30,1)
 		end
 
-		self.buttonUP = ELib:Template(isOld and "UIPanelScrollUPButtonTemplate" or "ExRTButtonUpModernTemplate",self) or CreateFrame("Button",nil,self,isOld and "UIPanelScrollUPButtonTemplate" or "ExRTButtonUpModernTemplate")
+		self.buttonUP = ELib:Template(isOld and "UIPanelScrollUPButtonTemplate" or "EARTButtonUpModernTemplate",self) or CreateFrame("Button",nil,self,isOld and "UIPanelScrollUPButtonTemplate" or "EARTButtonUpModernTemplate")
 		self.buttonUP:SetSize(16,16)
 		self.buttonUP:SetPoint("TOP",0,0) 
 		self.buttonUP:SetScript("OnClick",ScrollBarButtonUpClick)
 		self.buttonUP:SetScript("OnMouseDown",ScrollBarButtonUpMouseHoldDown)
 		self.buttonUP:SetScript("OnMouseUp",ScrollBarButtonUpMouseHoldUp)
 
-		self.buttonDown = ELib:Template(isOld and "UIPanelScrollDownButtonTemplate" or "ExRTButtonDownModernTemplate",self) or CreateFrame("Button",nil,self,isOld and "UIPanelScrollDownButtonTemplate" or "ExRTButtonDownModernTemplate")
+		self.buttonDown = ELib:Template(isOld and "UIPanelScrollDownButtonTemplate" or "EARTButtonDownModernTemplate",self) or CreateFrame("Button",nil,self,isOld and "UIPanelScrollDownButtonTemplate" or "EARTButtonDownModernTemplate")
 		self.buttonDown:SetPoint("BOTTOM",0,0) 
 		self.buttonDown:SetSize(16,16)
 		self.buttonDown:SetScript("OnClick",ScrollBarButtonDownClick)
@@ -2134,7 +2134,7 @@ do
 		GameTooltip:Show()
 	end
 	function Tooltip:Edit_Click(linkData,link,button)
-		ExRT.F.LinkItem(nil,link)
+		EART.F.LinkItem(nil,link)
 	end
 
 	--- additional tooltips
@@ -2468,7 +2468,7 @@ do
 			}
 		end
 		dropDownList[#dropDownList + 1] = {
-			text = ExRT.L.BossWatcherSelectFightClose,
+			text = EART.L.BossWatcherSelectFightClose,
 			notCheckable = true,
 			func = function() 
 				CloseDropDownMenus() 
@@ -2502,7 +2502,7 @@ do
 	end
 
 	function ELib:Tabs(parent,template,...)
-		template = template == 0 and "ExRTTabButtonTransparentTemplate" or template or "ExRTTabButtonTemplate"
+		template = template == 0 and "EARTTabButtonTransparentTemplate" or template or "EARTTabButtonTemplate"
 
 		local self = CreateFrame("Frame",nil,parent, BackdropTemplateMixin and "BackdropTemplate")
 		self:SetBackdrop({bgFile = "Interface/DialogFrame/UI-DialogBox-Background", edgeFile = "Interface/Tooltips/UI-Tooltip-Border",tile = true, tileSize = 16, edgeSize = 16, insets = { left = 5, right = 5, top = 5, bottom = 5 }})
@@ -2532,7 +2532,7 @@ do
 			if i == 1 then
 				self.tabs[i].button:SetPoint("TOPLEFT", 10, 24)
 			else
-				self.tabs[i].button:SetPoint("LEFT", self.tabs[i-1].button, "RIGHT", template ~= "ExRTTabButtonTemplate" and 0 or -16, 0)
+				self.tabs[i].button:SetPoint("LEFT", self.tabs[i-1].button, "RIGHT", template ~= "EARTTabButtonTemplate" and 0 or -16, 0)
 				self.tabs[i]:Hide()
 			end
 			TabFrame_DeselectTab(self.tabs[i].button)
@@ -2636,7 +2636,7 @@ do
 		if template == 0 then 
 			template = nil 
 		elseif not template then
-			template = "ExRTFontNormal"
+			template = "EARTFontNormal"
 		end
 		local self = parent:CreateFontString(nil,"ARTWORK",template)
 		if template and size then
@@ -2834,11 +2834,11 @@ do
 
 	function ELib:Edit(parent,maxLetters,onlyNum,template)
 		if template == 0 then
-			template = "ExRTInputBoxTemplate"
+			template = "EARTInputBoxTemplate"
 		elseif template == 1 then
 			template = nil
 		elseif not template then
-			template = "ExRTInputBoxModernTemplate"
+			template = "EARTInputBoxModernTemplate"
 		end
 		local self = ELib:Template(template,parent) or CreateFrame("EditBox",nil,parent,template or (BackdropTemplateMixin and "BackdropTemplate"))
 		if not template then
@@ -3166,7 +3166,7 @@ do
 		elseif template == 1 then
 			template = nil
 		elseif not template then
-			template = "ExRTButtonModernTemplate"
+			template = "EARTButtonModernTemplate"
 		end
 		local self = ELib:Template(template,parent) or CreateFrame("Button",nil,parent,template)
 		self:SetText(text)
@@ -3308,7 +3308,7 @@ do
 		if template == 0 then
 			template = "UICheckButtonTemplate"
 		elseif not template then
-			template = "ExRTCheckButtonModernTemplate"
+			template = "EARTCheckButtonModernTemplate"
 		end
 		local self = ELib:Template(template,parent) or CreateFrame("CheckButton",nil,parent,template)  
 		self.text:SetText(text or "")
@@ -3372,7 +3372,7 @@ do
 		if template == 0 then
 			template = "UIRadioButtonTemplate"
 		elseif not template then
-			template = "ExRTRadioButtonModernTemplate"
+			template = "EARTRadioButtonModernTemplate"
 		end
 
 		local self = ELib:Template(template,parent) or CreateFrame("CheckButton",nil,parent,template)  
@@ -3386,7 +3386,7 @@ do
 		return self
 	end
 	function ELib.CreateRadioButton(parent,relativePoint,x,y,text,checked,isModern)
-		return ELib:Radio(parent,text,checked,isModern and "ExRTRadioButtonModernTemplate" or "UIRadioButtonTemplate"):Point(relativePoint or "TOPLEFT",x,y)
+		return ELib:Radio(parent,text,checked,isModern and "EARTRadioButtonModernTemplate" or "UIRadioButtonTemplate"):Point(relativePoint or "TOPLEFT",x,y)
 	end
 end
 
@@ -3783,7 +3783,7 @@ do
 		line.iconRight:SetSize(self.LINE_HEIGHT or 16,self.LINE_HEIGHT or 16)
 
 		if self.isCheckList then
-			line.chk = ELib:Template("ExRTCheckButtonModernTemplate",line)  
+			line.chk = ELib:Template("EARTCheckButtonModernTemplate",line)  
 			line.chk:SetSize(14,14)
 			line.chk:SetPoint("LEFT",4,0)
 			line.chk:SetScript("OnClick", ScrollList_Check_Click)
@@ -4087,11 +4087,12 @@ do
 	end
 	function ELib:Popup(title,template)
 		if template == 0 then
-			template = "ExRTDialogTemplate"
+			template = "EARTDialogTemplate"
 		elseif not template then
-			template = "ExRTDialogModernTemplate"
+			template = "EARTDialogModernTemplate"
 		end
 		local self = ELib:Template(template,UIParent) or CreateFrame("Frame",nil,UIParent,template)
+		self:SetBackdropColor(0.05, 0.05, 0.2,1)
 		self:SetPoint("CENTER")
 		self:SetFrameStrata("DIALOG")
 		self:SetClampedToScreen(true)
@@ -4109,7 +4110,7 @@ do
 		self:SetScript("OnShow", PopupFrameOnShow)
 
 		self.ShowClick = PopupFrameShow
-		if template == "ExRTDialogModernTemplate" then
+		if template == "EARTDialogModernTemplate" then
 			self.border = ELib:Shadow(self,20)
 		else
 			self.title:SetTextColor(1,1,1,1)
@@ -4286,7 +4287,7 @@ do
 	end
 
 	function ELib:DropDown(parent,width,lines,template)
-		template = template == 0 and "ExRTDropDownMenuTemplate" or template or "ExRTDropDownMenuModernTemplate"
+		template = template == 0 and "EARTDropDownMenuTemplate" or template or "EARTDropDownMenuModernTemplate"
 		local self = ELib:Template(template, parent) or CreateFrame("Frame", nil, parent, template)
 
 		self.Button:SetScript("OnClick",DropDown_OnClick)
@@ -4299,7 +4300,7 @@ do
 			self.Lines = nil
 		end
 
-		if template == "ExRTDropDownMenuModernTemplate" then
+		if template == "EARTDropDownMenuModernTemplate" then
 			self.isModern = true
 		end
 
@@ -4351,7 +4352,7 @@ ELib.ScrollDropDown.List = {}
 local ScrollDropDown_Blizzard,ScrollDropDown_Modern = {},{}
 
 for i=1,2 do
-	ScrollDropDown_Modern[i] = ELib:Template("ExRTDropDownListModernTemplate",UIParent)
+	ScrollDropDown_Modern[i] = ELib:Template("EARTDropDownListModernTemplate",UIParent)
 	_G[GlobalAddonName.."DropDownListModern"..i] = ScrollDropDown_Modern[i]
 	ScrollDropDown_Modern[i]:SetClampedToScreen(true)
 	ScrollDropDown_Modern[i].border = ELib:Shadow(ScrollDropDown_Modern[i],20)
@@ -4403,7 +4404,7 @@ for i=1,2 do
 end
 
 for i=1,2 do
-	ScrollDropDown_Blizzard[i] = ELib:Template("ExRTDropDownListTemplate",UIParent)
+	ScrollDropDown_Blizzard[i] = ELib:Template("EARTDropDownListTemplate",UIParent)
 	_G[GlobalAddonName.."DropDownList"..i] = ScrollDropDown_Blizzard[i]
 	ScrollDropDown_Blizzard[i].Buttons = {}
 	ScrollDropDown_Blizzard[i].MaxLines = 0
@@ -4452,7 +4453,7 @@ do
 		if dropDown.Buttons[i] then
 			return
 		end
-		dropDown.Buttons[i] = ELib:Template("ExRTDropDownMenuButtonTemplate",dropDown)
+		dropDown.Buttons[i] = ELib:Template("EARTDropDownMenuButtonTemplate",dropDown)
 		if dropDown.isModern then
 			dropDown.Buttons[i]:SetPoint("TOPLEFT",8,-8 - (i-1) * 16)
 		else
@@ -4461,11 +4462,11 @@ do
 		dropDown.Buttons[i].NormalText:SetMaxLines(1) 
 
 		if dropDown.isModern then
-			dropDown.Buttons[i].checkButton = ELib:Template("ExRTCheckButtonModernTemplate",dropDown.Buttons[i])
+			dropDown.Buttons[i].checkButton = ELib:Template("EARTCheckButtonModernTemplate",dropDown.Buttons[i])
 			dropDown.Buttons[i].checkButton:SetPoint("LEFT",1,0)
 			dropDown.Buttons[i].checkButton:SetSize(12,12)
 
-			dropDown.Buttons[i].radioButton = ELib:Template("ExRTRadioButtonModernTemplate",dropDown.Buttons[i])
+			dropDown.Buttons[i].radioButton = ELib:Template("EARTRadioButtonModernTemplate",dropDown.Buttons[i])
 			dropDown.Buttons[i].radioButton:SetPoint("LEFT",1,0)
 			dropDown.Buttons[i].radioButton:SetSize(12,12)
 			dropDown.Buttons[i].radioButton:EnableMouse(false)
@@ -4843,9 +4844,9 @@ do
 	end
 	function ELib:ListButton(parent,text,width,lines,template)
 		if template == 0 then
-			template = "ExRTUIChatDownButtonTemplate"
+			template = "EARTUIChatDownButtonTemplate"
 		elseif not template then
-			template = "ExRTUIChatDownButtonModernTemplate"
+			template = "EARTUIChatDownButtonModernTemplate"
 		end
 		local self = ELib:Template(template,parent) or CreateFrame("Button",nil,parent,template)
 		self.isButton = true
@@ -4855,7 +4856,7 @@ do
 		self.List = {}
 		self.Lines = lines
 		self.Width = width
-		self.isModern = template == "ExRTUIChatDownButtonModernTemplate"
+		self.isModern = template == "EARTUIChatDownButtonModernTemplate"
 
 		Mod(self,
 			'Left',Widget_Left
@@ -5106,7 +5107,7 @@ do
 									lastY = Y
 
 									if nodeNow > 10000 then
-										ExRT.F.dprint("Graph: Error: Too much nodes")
+										EART.F.dprint("Graph: Error: Too much nodes")
 										return
 									end
 								end
@@ -5152,7 +5153,7 @@ do
 				end
 			end
 		end
-		ExRT.F.dprint("Graph: Nodes count:",nodeNow)
+		EART.F.dprint("Graph: Nodes count:",nodeNow)
 		return true
 	end
 	local function GraphReload(self)
@@ -5229,11 +5230,11 @@ do
 			minY = minY,
 			maxY = maxY,
 		}
-		ExRT.F.dprint("Graph: minX,maxX,minY,maxY:",minX,maxX,minY,maxY)
+		EART.F.dprint("Graph: minX,maxX,minY,maxY:",minX,maxX,minY,maxY)
 
 		if maxY then
 			if not self.IsYIsTime then
-				self.MaxTextY:SetText(maxY < 1000 and (maxY % 1 == 0 and tostring(maxY) or format("%.1f",maxY)) or ExRT.F.shortNumber(maxY))
+				self.MaxTextY:SetText(maxY < 1000 and (maxY % 1 == 0 and tostring(maxY) or format("%.1f",maxY)) or EART.F.shortNumber(maxY))
 			else
 				self.MaxTextY:SetFormattedText("%d:%02d",maxY / 60,maxY % 60)
 			end
@@ -5364,7 +5365,7 @@ do
 		end
 	end
 	local function GraphOnUpdate_Zoom(self,elapsed)
-		local x = ExRT.F.GetCursorPos(self)
+		local x = EART.F.GetCursorPos(self)
 		local width = x - self.mouseDowned
 		if width > 0 then
 			width = min(width,self:GetWidth()-self.mouseDowned)
@@ -5451,7 +5452,7 @@ do
 		self.selectingTexture:SetHeight(self:GetHeight())
 		self.selectingTexture:Hide()
 
-		self.ResetZoom = ELib.CreateButton(self,170,20,"TOPRIGHT",-2,-2,ExRT.L.BossWatcherGraphZoomReset,nil,nil,"ExRTButtonModernTemplate")
+		self.ResetZoom = ELib.CreateButton(self,170,20,"TOPRIGHT",-2,-2,EART.L.BossWatcherGraphZoomReset,nil,nil,"EARTButtonModernTemplate")
 		self.ResetZoom:SetScript("OnClick",GraphResetZoom)
 		self.ResetZoom:Hide()
 
@@ -5491,7 +5492,7 @@ do
 	end
 	local function GraphTextYButtonOnClick(self)
 		local parent = self:GetParent()
-		ExRT.F.ShowInput("Set Max Y",GraphSetMaxY,parent)
+		EART.F.ShowInput("Set Max Y",GraphSetMaxY,parent)
 	end
 	local function GraphTextYButtonOnEnter(self)
 		local parent = self:GetParent()
