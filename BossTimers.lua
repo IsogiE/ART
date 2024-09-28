@@ -27,14 +27,15 @@ BossTimers = {
     },
     ["Ovinax"] = {
         {time = {12}, ability = "Volatile Concoction"},
-        {time = {18}, ability = "Ingest Black Blood"},
+        {time = {18}, ability = "Ingest Black Blood"}, duration = "1",
     },
     ["Kyveza"] = {
-        {time = {26, 56, 86, 156, 186, 216, 286, 316, 346}, ability = "Nether Rift"},
-        {time = {41, 71, 171, 201, 301, 331}, ability = "Twilight Massacre"},
-        {time = {101, 109, 117, 231, 239, 247}, ability = "Starless Night"},
-        {time = {125, 255}, ability = "Starless Night End"},
-        {time = {361, 369, 377}, ability = "Eternal Night"},
+		{time = {8}, ability = "Assassination", spellid = "436870", duration = "9"},
+		{time = {35, 65, 165, 195, 295, 325}, ability = "Twilight Massacre", spellid = "438245", duration = "5"},
+		{time = {17, 40, 70, 147, 170, 200, 277, 300, 330}, ability = "Queensbane", spellid = "437343", duration = "9"},
+        {time = {26, 56, 86, 156, 186, 216, 286, 316, 346}, ability = "Nether Rift", spellid = "437620", duration = "1"},
+        {time = {101, 231}, ability = "Starless Night", duration = "24", spellid = "435405", duration = "1"},
+        {time = {361, 369, 377}, ability = "Eternal Night", spellid = "464923", duration = "8"},
     },
     ["Silken Court"] = {
         {time = {8, 45, 83, 119}, ability = "Venomous Rain"},
@@ -54,7 +55,7 @@ BossTimers = {
         {time = {20, 67, 114, 139}, ability = "Web Blades"},
         {time = {35, 91, 147}, ability = "Venom Nova"},
         {time = {44, 100, 156}, ability = "Frothy Toxin"},
-        {time = {62, 110, 126, 524}, ability = "Silken Tomb"},
+        {time = {62, 110, 126}, ability = "Silken Tomb"},
     },
 }
 

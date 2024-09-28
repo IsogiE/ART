@@ -19,12 +19,21 @@ function module.main:ADDON_LOADED()
     VART.BossTimeline = VART.BossTimeline or {}
 end
 
+SlashCmdList["ARTSlash"] = function (arg)
+	local argL = strlower(arg)
+	if argL == "open" then
+		module:CreateBossTimelineWindow()
+	end
+end
+
+SLASH_ARTSlash2 = "/tl"
+
 -- Load and customize the UI when the options panel is loaded
 function module.options:Load()
     self:CreateTilte("Boss Timeline")
 
     -- Use ELib:DropDown to create the dropdown for selecting bosses
-    self.bossDropdown = ELib:DropDown(self, 200, 3):Point("TOPLEFT", 10, -25)
+    self.bossDropdown = ELib:DropDown(self, 200, 10):Point(10, -25):Size(216)
     self.bossDropdown:SetText("Select Boss")
     
     -- Add options to the dropdown dynamically from BossTimers
@@ -82,30 +91,20 @@ function module:CreateBossTimelineWindow(boss)
     local windowHeight = (#timeline * rowHeight) + 100  -- Dynamically scale height based on number of rows
 
     -- Create a new frame for the pop-out window
-    local window = CreateFrame("Frame", "BossTimelineWindow", UIParent)
-    window:SetFrameStrata("DIALOG")
-    window:SetSize(windowWidth, windowHeight)
-    window:SetPoint("CENTER")
-    window:SetMovable(true)
-    window:EnableMouse(true)
-    window:RegisterForDrag("LeftButton")
-    window:SetScript("OnDragStart", window.StartMoving)
-    window:SetScript("OnDragStop", window.StopMovingOrSizing)
+	local window = ELib:Popup(""):Size(windowWidth, windowHeight):Point("CENTER", UIParent, "CENTER", 0, 0)
+	
+	window.title = window:CreateFontString(nil, "OVERLAY")
+    window.title:SetFontObject("GameFontHighlight")
+    window.title:SetPoint("TOP", window, "TOP", 0, -10)
+    window.title:SetText(boss)
 
-    -- Background and border
-    local bgTexture = window:CreateTexture(nil, "BACKGROUND")
-    bgTexture:SetAllPoints()
-    bgTexture:SetColorTexture(0, 0, 0, 0.8)
-
-    local borderSize = 32
-    local borderTexture = window:CreateTexture(nil, "BORDER")
-    borderTexture:SetPoint("TOPLEFT", window, "TOPLEFT", -borderSize / 2, borderSize / 2)
-    borderTexture:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", borderSize / 2, -borderSize / 2)
-    borderTexture:SetColorTexture(0.8, 0.8, 0.8, 1)
-
-    -- Add a close button
-    local closeButton = CreateFrame("Button", nil, window, "UIPanelCloseButton")
-    closeButton:SetPoint("TOPRIGHT", window, "TOPRIGHT")
+    window.message = window:CreateFontString(nil, "OVERLAY")
+    window.message:SetFontObject("GameFontNormal")
+    window.message:SetPoint("TOP", window.title, "BOTTOM", 0, -10)
+    window.message:SetWidth(windowWidth - 2)
+    window.message:SetJustifyH("LEFT")
+	
+	window:Show()
 
     -- Calculate the dynamic content width based on the maximum time
     local graphWidth = max(baseGraphWidth, (timeMax * 10))  -- Scale graph width based on timeMax
@@ -113,17 +112,17 @@ function module:CreateBossTimelineWindow(boss)
 
     -- Create a scrollable content frame for long timelines (horizontal scrolling only)
     local scrollFrame = CreateFrame("ScrollFrame", nil, window)
-    scrollFrame:SetPoint("TOPLEFT", 20, -40)
-    scrollFrame:SetSize(baseGraphWidth + bufferWidth, windowHeight - 100)
+    scrollFrame:SetPoint("TOPLEFT", 140, -40)
+    scrollFrame:SetSize(baseGraphWidth, windowHeight - 100)
 
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetSize(contentWidth, (#timeline * rowHeight))  -- Adjust content width dynamically
     scrollFrame:SetScrollChild(content)
 
     -- Horizontal scrollbar setup
-    local horizontalScrollbar = CreateFrame("Slider", "CustomHorizontalScrollBar", window)
+    horizontalScrollbar = CreateFrame("Slider", "CustomHorizontalScrollBar", window)
     horizontalScrollbar:SetOrientation('HORIZONTAL')  -- Make it horizontal
-    horizontalScrollbar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMLEFT", 0, -20)
+    horizontalScrollbar:SetPoint("BOTTOMLEFT", scrollFrame, "BOTTOMLEFT", 0, -30)
     horizontalScrollbar:SetSize(baseGraphWidth, 20)  -- Horizontal size
 
     -- Set range for horizontal scrolling and min/max values based on content width
@@ -156,33 +155,65 @@ function module:CreateBossTimelineWindow(boss)
     -- **Dynamic scaling factor for time markers** (this is where we fix the issue)
     local effectiveGraphWidth = graphWidth - bufferWidth -- Only the actual timeline area (excluding buffer)
     local scaleFactor = effectiveGraphWidth / timeMax  -- Scale based only on the graph area
-
+	
+	local tcount = 1
+	
     -- Add time interval lines at 30-second intervals
-    for t = 30, timeMax, 30 do
+    for t = 60, timeMax, 60 do
         local intervalLine = content:CreateTexture(nil, "BACKGROUND")
         local intervalPosition = (t / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
         intervalLine:SetSize(2, #timeline * rowHeight)
         intervalLine:SetPoint("TOPLEFT", intervalPosition, 0)
         intervalLine:SetColorTexture(0.6, 0.6, 0.6, 1)  -- Light gray for interval lines
     end
-
-    -- Create row container for each ability and its associated markers
+	
+	--Create Export Button
+	local showExportMRTButton = ELib:Button(scrollFrame, "Export"):Size(100, 20):Point("LEFT", horizontalScrollbar, "LEFT", -120, 0)
+	
+	--Start custom colors
+	local count = 0
+	local cR = 0
+	local cG = 0
+	local cB = 0
+	
     for i, event in ipairs(timeline) do
-        -- Create a row container (Frame) for each ability
+	
+		if count == 0 then
+			cR = 0.8
+			cG = 0.3
+			cB = 0.3
+		elseif count == 1 then
+			cR = 0
+			cG = 0.8
+			cB = 1
+		elseif count == 2 then
+			cR = 0.2
+			cG = 0.6
+			cB = 0.4
+		end
+	
+        -- Create a row label container (Frame) for each ability
+		local rowLabelContainer = CreateFrame("Frame", nil, scrollFrame)
+		rowLabelContainer:SetSize(bufferWidth, rowHeight)
+		rowLabelContainer:SetPoint("TOPLEFT", -bufferWidth, -(i - 1) * rowHeight)  -- Ensure proper vertical alignment based on index
+		
+		 -- Create a row container (Frame) for each ability
         local rowContainer = CreateFrame("Frame", nil, content)
-        rowContainer:SetSize(graphWidth + bufferWidth, rowHeight)
+        rowContainer:SetSize(graphWidth, rowHeight)
         rowContainer:SetPoint("TOPLEFT", 0, -(i - 1) * rowHeight)  -- Ensure proper vertical alignment based on index
+		
+		spell = C_Spell.GetSpellInfo(event.spellid)
 
         -- Add ability name label inside the row container
-        local abilityText = rowContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        local abilityText = rowLabelContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         abilityText:SetPoint("LEFT", 10, 0)  -- Align ability name within the row
         abilityText:SetText(event.ability)
         abilityText:SetTextColor(1, 1, 0)  -- Yellow color for ability names
 
         -- Create a background for the ability row
         local abilityRowBackground = rowContainer:CreateTexture(nil, "BACKGROUND")
-        abilityRowBackground:SetSize(graphWidth, rowHeight)
-        abilityRowBackground:SetPoint("LEFT", bufferWidth, 0)
+        abilityRowBackground:SetSize(graphWidth + bufferWidth, rowHeight)
+        abilityRowBackground:SetPoint("LEFT", 0)
         abilityRowBackground:SetColorTexture(0.2, 0.2, 0.2, 0.8)
 
         -- Create a horizontal row divider inside the row container
@@ -193,21 +224,33 @@ function module:CreateBossTimelineWindow(boss)
 
         -- Correctly position event markers in their respective rows (fix for markers falling out)
         for _, time in ipairs(event.time) do
+			
+			local duration = event.duration
+			local minutes = floor(mod(time, 3600) / 60)
+			local seconds = floor(mod(time, 60))
             local eventMarker = rowContainer:CreateTexture(nil, "OVERLAY")
+			local eventMask = rowContainer:CreateTexture(nil, "OVERLAY")
             local eventPosition = (time / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
-            eventMarker:SetSize(20, rowHeight)
-            eventMarker:SetPoint("LEFT", eventPosition, 0)  -- Now based on effectiveGraphWidth
-            eventMarker:SetColorTexture(1, 0, 0, 1)  -- Red color for event markers
+            eventMarker:SetSize(10 * event.duration, rowHeight - 3)
+            eventMarker:SetPoint("LEFT", eventPosition, 1, 0)  -- Now based on effectiveGraphWidth
+            eventMarker:SetColorTexture(cR, cG, cB, 1)  -- Red color for event markers
+			
 
             -- Optional: Add a tooltip to show exact time
             eventMarker:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText("Time: " .. time .. "s", nil, nil, nil, nil, true)
+                GameTooltip:SetText(minutes .. ":" .. seconds .. "-" .. minutes .. ":" .. seconds + duration, nil, nil, nil, nil, true)
                 GameTooltip:Show()
             end)
             eventMarker:SetScript("OnLeave", function()
                 GameTooltip:Hide()
             end)
         end
+		
+		if count == 2 then
+		count = 0 
+		else 
+			count = count + 1
+		end
     end
 end

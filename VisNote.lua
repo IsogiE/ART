@@ -3334,6 +3334,7 @@ function module.options:Load()
 		self:LoadData(new)
 	end)
 
+	--Mini Note Popup code
 	local SCALE = 1 / 4
 
 	local frame = ELib:Popup(L.message):Size(790*SCALE+6,535*SCALE+15+3):Point("LEFT",UIParent,"LEFT",100,0)
