@@ -1138,12 +1138,16 @@ function module.options:Load()
 		
 		--275+
 		{"Broodtwister",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Broodtwister_Custom"}},
+		{"Nexus-Princess - 1",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_1"}},
+		{"Nexus-Princess - 2",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_2"}},
+		{"Nexus-Princess - 3",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_3"}},
+		{"Nexus-Princess - 4",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_4"}},
+		{"Nexus-Princess - 5",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_5"}},
 
 	}
 	local mapsSorted = {
-		1,
 		{"Nerub-Ar - Default", 264,265,266,267,268,269,270,271,272,273,274},
-		{"Nerub-Ar - Custom", 275},
+		{"Nerub-Ar - Custom", 275,276,277,278,279,280},
 	}
 	if ART.isCata then
 		mapsSorted = {

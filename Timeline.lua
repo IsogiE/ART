@@ -9,24 +9,17 @@ end
 -- Create a new module for Boss Timeline
 local module = ART:New("BossTimeline", "Boss Timeline")
 local ELib = ART.lib
+local GetSpellInfo = ART.F.GetSpellInfo or GetSpellInfo
 
 -- Initialize variables for storing custom timelines
 local VART = nil
 local selectedBoss = nil  -- Local variable to store the selected boss
 
+
 function module.main:ADDON_LOADED()
     VART = _G.VART
     VART.BossTimeline = VART.BossTimeline or {}
 end
-
-SlashCmdList["ARTSlash"] = function (arg)
-	local argL = strlower(arg)
-	if argL == "open" then
-		module:CreateBossTimelineWindow()
-	end
-end
-
-SLASH_ARTSlash2 = "/tl"
 
 -- Load and customize the UI when the options panel is loaded
 function module.options:Load()
@@ -52,7 +45,7 @@ function module.options:Load()
             end
         })
     end
-
+	
     -- Create a button to show the boss timeline in a new window
     local showTimelineButton = ELib:Button(self, "Show Timeline"):Size(100, 30):Point("TOPLEFT", 10, -60)
     showTimelineButton:SetScript("OnClick", function()
@@ -170,11 +163,12 @@ function module:CreateBossTimelineWindow(boss)
 	--Create Export Button
 	local showExportMRTButton = ELib:Button(scrollFrame, "Export"):Size(100, 20):Point("LEFT", horizontalScrollbar, "LEFT", -120, 0)
 	
-	--Start custom colors
+	--Start custom colors & time
 	local count = 0
 	local cR = 0
 	local cG = 0
 	local cB = 0
+	local fightTime = 0
 	
     for i, event in ipairs(timeline) do
 	
@@ -202,8 +196,6 @@ function module:CreateBossTimelineWindow(boss)
         rowContainer:SetSize(graphWidth, rowHeight)
         rowContainer:SetPoint("TOPLEFT", 0, -(i - 1) * rowHeight)  -- Ensure proper vertical alignment based on index
 		
-		spell = C_Spell.GetSpellInfo(event.spellid)
-
         -- Add ability name label inside the row container
         local abilityText = rowLabelContainer:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         abilityText:SetPoint("LEFT", 10, 0)  -- Align ability name within the row
@@ -221,18 +213,50 @@ function module:CreateBossTimelineWindow(boss)
         rowDivider:SetSize(graphWidth + bufferWidth, 2)
         rowDivider:SetPoint("BOTTOMLEFT", 0, 0)  -- Place divider at the bottom of the row
         rowDivider:SetColorTexture(0.5, 0.5, 0.5, 0.8)  -- Gray row divider
+		
+		local startPoint = 0
 
         -- Correctly position event markers in their respective rows (fix for markers falling out)
         for _, time in ipairs(event.time) do
-			
 			local duration = event.duration
 			local minutes = floor(mod(time, 3600) / 60)
 			local seconds = floor(mod(time, 60))
+			
             local eventMarker = rowContainer:CreateTexture(nil, "OVERLAY")
-			local eventMask = rowContainer:CreateTexture(nil, "OVERLAY")
-            local eventPosition = (time / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
+            --local eventPosition = (time / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
+			
+			
+while(fightTime < time) do
+    -- Create a frame that will hold the texture and handle click events
+    local markerFrame = CreateFrame("Frame", nil, rowContainer)
+    markerFrame:SetSize(10, rowHeight - 3)
+    markerFrame:SetPoint("LEFT", startPoint, 1, 0)
+	
+	local emptyText = markerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	emptyText:SetPoint("CENTER", markerFrame, "CENTER", 0, 0)
+	emptyText:SetText(fightTime)
+	local fontName, fontHeight, fontFlags = emptyText:GetFont()
+	emptyText:SetFont(fontName, 4, fontFlags)
+	emptyText:SetTextColor(0.2, 0.2, 0.2, 0)
+
+    -- Create the texture for the emptyMarker inside the frame
+    local emptyMarker = markerFrame:CreateTexture(nil, "BACKGROUND")
+    emptyMarker:SetAllPoints(markerFrame) -- Make the texture fill the frame
+    emptyMarker:SetColorTexture(0.2, 0.2, 0.2, 0)
+	
+
+    -- Set a clickable script on the frame
+    markerFrame:SetScript("OnMouseDown", function(self, button)
+        if button == "LeftButton" then
+        end
+    end)
+
+    fightTime = fightTime + 1
+    startPoint = startPoint + 10
+end
+			
             eventMarker:SetSize(10 * event.duration, rowHeight - 3)
-            eventMarker:SetPoint("LEFT", eventPosition, 1, 0)  -- Now based on effectiveGraphWidth
+            eventMarker:SetPoint("LEFT", startPoint, 1, 0)  -- Now based on effectiveGraphWidth
             eventMarker:SetColorTexture(cR, cG, cB, 1)  -- Red color for event markers
 			
 
@@ -245,7 +269,13 @@ function module:CreateBossTimelineWindow(boss)
             eventMarker:SetScript("OnLeave", function()
                 GameTooltip:Hide()
             end)
+			
+			startPoint = startPoint + (10 * event.duration)
+			
         end
+		
+		fightTime = 0
+		startPoint = 0
 		
 		if count == 2 then
 		count = 0 

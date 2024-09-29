@@ -30,7 +30,7 @@ BossTimers = {
         {time = {18}, ability = "Ingest Black Blood"}, duration = "1",
     },
     ["Kyveza"] = {
-		{time = {8}, ability = "Assassination", spellid = "436870", duration = "9"},
+		{time = {10, 140, 270,}, ability = "Assassination", spellid = "436870", duration = "8"},
 		{time = {35, 65, 165, 195, 295, 325}, ability = "Twilight Massacre", spellid = "438245", duration = "5"},
 		{time = {17, 40, 70, 147, 170, 200, 277, 300, 330}, ability = "Queensbane", spellid = "437343", duration = "9"},
         {time = {26, 56, 86, 156, 186, 216, 286, 316, 346}, ability = "Nether Rift", spellid = "437620", duration = "1"},
