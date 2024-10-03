@@ -25,7 +25,7 @@ function module.options:Load()
     -- Create input for import string
     self.base64Input = ELib:Edit(self):Size(660, 20):Point("TOPLEFT", 10, -25)
 	
-    -- Create the frame to display the imported characters in  
+    -- Create the frame to display the imported characters  
     self.resultFrame = ELib:ScrollFrame(self):Size(660, 450):Point("TOPLEFT", 10, -120)
     self.resultFrame.content = CreateFrame("Frame", nil, self.resultFrame)
     self.resultFrame.content:SetSize(660, 450)
@@ -35,29 +35,29 @@ function module.options:Load()
     self.resultFrame.text:SetJustifyV("TOP")
     self.resultFrame.text:SetWordWrap(true)
 
-    -- Make a button to trigger the import 
+    -- Import button
     self.importButton = ELib:Button(self, "Import"):Size(100, 20):Point("BOTTOMLEFT", self.base64Input, "BOTTOMLEFT", 0, -25)
     self.importButton:OnClick(function()
-		local check = self.base64Input:GetText()
-		if check == "" then
-		self.HandlingText:SetText("Error: Input box cannot be empty.")
-		else 
-			local base64String = self.base64Input:GetText()
-			module:ProcessBase64String(base64String)
-			self.base64Input:SetText("") -- Clear the text box
-			module:DisplayImportedCharacters()
-		end
+        local check = self.base64Input:GetText()
+        if check == "" then
+            self.HandlingText:SetText("Error: Input box cannot be empty.")
+        else 
+            local base64String = self.base64Input:GetText()
+            module:ProcessBase64String(base64String)
+            self.base64Input:SetText("") -- Clear the text box
+            module:DisplayImportedCharacters()
+        end
     end)
 
-    -- Create a dropdown for selecting the split
+    -- Dropdown for selecting the split
     self.splitDropdown = ELib:DropDown(self, 660, 10):Point("BOTTOMLEFT", self.importButton, "BOTTOMLEFT", 0, -40):Size(660)
     self.splitDropdown:SetText("Select Split")
     self.splitDropdown:Tooltip("Select a split profile to load")
 
-    -- Some text to show users some errors and feedback
+    -- Some text to show errors and feedback
     self.HandlingText = ELib:Text(self, "", 11):Size(660, 20):Point("BOTTOMLEFT", self.resultFrame, "BOTTOMLEFT", 0, -30):Color()
 
-    -- Make a button to delete an imported split 
+    -- Delete button
     self.clearButton = ELib:Button(self, "Delete"):Size(100, 20):Point("RIGHT", self.importButton, "RIGHT", 110, 0)
     self.clearButton:OnClick(function()
         local selectedIndex = self.splitDropdown.selectedIndex
@@ -66,7 +66,7 @@ function module.options:Load()
         end
     end)
 
-    -- Make a button to rename an imported split 
+    -- Rename button
     self.renameButton = ELib:Button(self, "Rename"):Size(100, 20):Point("RIGHT", self.clearButton, "RIGHT", 110, 0)
     self.renameButton:OnClick(function()
         local selectedIndex = self.splitDropdown.selectedIndex
@@ -75,7 +75,7 @@ function module.options:Load()
         end
     end)
 
-    -- Make a button to check raid characters against the imported split 
+    -- Check button for raid characters
     self.checkButton = ELib:Button(self, "Check"):Size(100, 20):Point("RIGHT", self.renameButton, "RIGHT", 110, 0)
     self.checkButton:OnClick(function()
         module:CheckCharacters()
@@ -109,7 +109,6 @@ function module:ParseCharacterString(characterString)
     return characters
 end
 
--- Getting the characters names 
 function module:GetRaidCharacters()
     local raidCharacters = {}
     for i = 1, GetNumGroupMembers() do
@@ -121,7 +120,6 @@ function module:GetRaidCharacters()
     return raidCharacters
 end
 
--- Stripping realm names cause that causes issues 
 function module:StripRealmNames(characters)
     local strippedCharacters = {}
     for _, character in ipairs(characters) do
@@ -131,7 +129,6 @@ function module:StripRealmNames(characters)
     return strippedCharacters
 end
 
--- Check characters based on status versus the import 
 function module:CompareAndColorCharacters(raidCharacters, sheetCharacters)
     local inBoth = {}
     local inSheetNotRaid = {}
@@ -162,7 +159,6 @@ function module:CompareAndColorCharacters(raidCharacters, sheetCharacters)
     return inBoth, inSheetNotRaid, inRaidNotSheet
 end
 
--- Color code characters based on status versus the import 
 function module:PrintColoredCharacters(inBoth, inSheetNotRaid, inRaidNotSheet)
     local result = ""
 
@@ -180,7 +176,6 @@ function module:PrintColoredCharacters(inBoth, inSheetNotRaid, inRaidNotSheet)
     return result
 end
 
--- Processing base64
 function module:ProcessBase64String(base64String)
     local decodedString = self:DecodeBase64(base64String)
     local characters = self:ParseCharacterString(decodedString)
@@ -188,7 +183,6 @@ function module:ProcessBase64String(base64String)
     self:UpdateDropdown()
 end
 
--- Updates the dropdown
 function module:UpdateDropdown()
     local dropdown = self.options.splitDropdown
     dropdown.List = {} 
@@ -208,21 +202,25 @@ function module:UpdateDropdown()
     ELib:DropDownClose() -- Close any open dropdowns
 end
 
--- Load the imported split from the selected dropdown
 function module:LoadImport(index)
     self.sheetCharacters = VART.Splits.profiles[index].characters
     self:DisplayImportedCharacters()
     ELib:DropDownClose() -- Close the dropdown after loading the import
 end
 
--- Display imported characters
 function module:DisplayImportedCharacters()
+    -- Ensure self.sheetCharacters is initialized
+    if not self.sheetCharacters then
+        self.sheetCharacters = {} -- Initialize as an empty table if nil
+    end
+
+    -- Concatenate and display the characters
     local result = table.concat(self.sheetCharacters, "\n")
     self.options.resultFrame.text:SetText(result)
     self:UpdateScrollFrame()
 end
 
--- Check characters and display results after the checks are done
+
 function module:CheckCharacters()
     local raidCharacters = self:GetRaidCharacters()
 
@@ -237,7 +235,7 @@ end
 -- Clearing the selected split after hitting the delete button 
 function module:ClearData(index)
     if index and VART.Splits.profiles[index] then
-		self.options.HandlingText:SetText("Import: '".. index .. "' deleted.")
+        self.options.HandlingText:SetText("Import: '".. index .. "' deleted.")
         table.remove(VART.Splits.profiles, index)
         self.sheetCharacters = nil
         self.options.resultFrame.text:SetText("")
@@ -271,9 +269,18 @@ function module:ShowRenamePopup(index)
     popupFrame:Show()
 end
 
--- Trying to get the scrollbar to work but honestly who knows at this point 
+-- Update the scroll frame after text changes
 function module:UpdateScrollFrame()
+    -- Get the total height of the content (text)
     local textHeight = self.options.resultFrame.text:GetStringHeight()
-    self.options.resultFrame.content:SetHeight(textHeight)
+
+    -- Ensure the content frame is at least as tall as the scroll frame to avoid issues
+    local minHeight = self.options.resultFrame:GetHeight()
+    local buffer = 10  -- Add a small buffer to avoid clipping the last entry
+    local contentHeight = math.max(textHeight + buffer, minHeight)
+
+    -- Update the scroll frame's content height and ensure the scroll bar is refreshed
+    self.options.resultFrame.content:SetHeight(contentHeight)
     self.options.resultFrame:UpdateScrollChildRect()
+    self.options.resultFrame.ScrollBar:SetMinMaxValues(0, math.max(0, contentHeight - minHeight))
 end

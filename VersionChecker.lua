@@ -92,7 +92,7 @@ function module:OnCommReceived(prefix, message, distribution, sender)
 end
 
 function module:CheckForNonResponders()
-    local groupType = IsInRaid() and "raid" or "party"
+    local groupType = IsInRaid() and "RAID" or "PARTY"
     local numGroupMembers = GetNumGroupMembers()
 
     for i = 1, numGroupMembers do

@@ -3,7 +3,7 @@
 ## Author: ykiigor
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 4932
+## Version: 4933
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua
@@ -32,10 +32,12 @@ RaidGroups.lua
 Marks.lua
 BattleRes.lua
 Bindings.lua
+Timers.lua
 VisNote.lua
 WAChecker.lua
 Splits.lua
-VersionChecker.lua
 BossTimers.lua
 Timeline.lua
+AddonChecker.lua
+VersionChecker.lua
 Profiles.lua
