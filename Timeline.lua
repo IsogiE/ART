@@ -45,8 +45,8 @@ function module.options:Load()
             text = bossName, 
             func = function() 
                 selectedBoss = bossName
-                self.bossDropdown:SetText(bossName) 
-					ELib:DropDownClose() 
+                self.bossDropdown:SetText(bossName)
+				ELib:DropDownClose() 
             end
         })
     end
@@ -266,7 +266,7 @@ function ShowPopupForTime(time)
     currentPopup.title = currentPopup:CreateFontString(nil, "OVERLAY")
     currentPopup.title:SetFontObject("GameFontHighlight")
     currentPopup.title:SetPoint("TOP", currentPopup, "TOP", 0, -10)
-    currentPopup.title:SetText("Event at Time: " .. time)
+    currentPopup.title:SetText("Note Planner")
     
     -- Get the player's class (localized name)
     local _, playerClass = UnitClass("player")
@@ -286,31 +286,56 @@ function ShowPopupForTime(time)
     currentPopup.timeLabel:SetFontObject("GameFontNormal")
     currentPopup.timeLabel:SetPoint("BOTTOMLEFT", classBox, "BOTTOMLEFT", 0, -30)
     currentPopup.timeLabel:SetText("Time")
+	
+	local sMinutes = floor(mod(time, 3600) / 60)
+	local sSeconds = floor(mod(time, 60))
+			
+	if sSeconds < 10 then
+		sSeconds = ("0" .. sSeconds)
+	end
+			
+	local eMinutes = floor(mod(time, 3600) / 60)
+	local eSeconds = floor(mod(time, 60))
+			
+	if eSeconds < 10 then
+		eSeconds = ("0" .. eSeconds)
+	end
+	
+	local noteEntryTime = eMinutes .. ":" .. eSeconds
     
     -- Create an ELib EditBox to display the time selected
     local timeBox = ELib:Edit(currentPopup):Size(100, 20):Point("TOPLEFT", currentPopup.timeLabel, "TOPLEFT", 0, -15)
-    timeBox:SetText(time)
-    
+    timeBox:SetText(noteEntryTime)
+	
     -- Type label
     currentPopup.typeLabel = currentPopup:CreateFontString(nil, "OVERLAY")
     currentPopup.typeLabel:SetFontObject("GameFontNormal")
     currentPopup.typeLabel:SetPoint("BOTTOMLEFT", timeBox, "BOTTOMLEFT", 0, -30)
     currentPopup.typeLabel:SetText("Type")
 
-    -- Add a message or input inside the popup
-    currentPopup.message = currentPopup:CreateFontString(nil, "OVERLAY")
-    currentPopup.message:SetFontObject("GameFontNormal")
-    currentPopup.message:SetPoint("CENTER", currentPopup, "CENTER", 0, 0)
-    currentPopup.message:SetText("You clicked on time: " .. time .. "s")
+	-- Create the new dropdown for selecting "Spell ID" and "Text"
+	currentPopup.dropDown = ELib:DropDown(currentPopup, 84, 2):Point("TOPLEFT", currentPopup.typeLabel, "TOPLEFT", 0, -15):Size(100)
+	currentPopup.dropDown:SetText("Select Type")
 
-    -- Optionally: Add a close button
-    local closeButton = CreateFrame("Button", nil, currentPopup, "UIPanelButtonTemplate")
-    closeButton:SetSize(80, 22)
-    closeButton:SetPoint("BOTTOM", currentPopup, "BOTTOM", 0, 10)
-    closeButton:SetText("Close")
-    closeButton:SetScript("OnClick", function() 
-        currentPopup:Hide() 
-    end)
+	-- Add options to the new dropdown
+	currentPopup.dropDown.List = {
+		{ 
+			text = "Spell ID", 
+			func = function() 
+				currentPopup.dropDown:SetText("Spell ID")
+				ELib:DropDownClose() 
+			end 
+		},
+		{ 
+			text = "Text", 
+			func = function() 
+				currentPopup.dropDown:SetText("Text")
+				ELib:DropDownClose() 
+			end 
+		},
+		
+		
+	}
 
     -- Show the newly created popup
     currentPopup:Show()
@@ -361,6 +386,8 @@ end
 		for dcount = 1, duration do
 			local eventMarker = rowContainer:CreateTexture(nil, "OVERLAY")
 			
+			local eventText = fightTime
+			
             eventMarker:SetSize(10, rowHeight - 3)
             eventMarker:SetPoint("LEFT", startPoint, 1, 0)  -- Now based on effectiveGraphWidth
             eventMarker:SetColorTexture(cR, cG, cB, 1)  -- Red color for event markers
@@ -375,6 +402,13 @@ end
             eventMarker:SetScript("OnLeave", function()
                 GameTooltip:Hide()
             end)
+			
+			-- **Add an OnClick event for the emptyMarker**
+			eventMarker:SetScript("OnMouseDown", function(self, button)
+				if button == "LeftButton" then
+					ShowPopupForTime(eventText)  -- Call function to show popup window
+				end
+			end)
 			
 			fightTime = fightTime + 1
 			startPoint = startPoint + 10
