@@ -258,7 +258,7 @@ function module:slash(arg,msgDeformatted)
 			CreateTimers(time_needed,L.timerattack)
 		end
 	elseif arg:find("^cleutimer ") then
-		--/rt cleutimer UNIT_DIED 177286 240 sound
+		--/art cleutimer UNIT_DIED 177286 240 sound
 		local u_event,filter,time = msgDeformatted:match("^cleutimer ([^ ]+) (%d+) (%d+)")
 		if time then
 			filter = tonumber(filter)
@@ -293,12 +293,12 @@ function module:slash(arg,msgDeformatted)
 			print('wrong syntax')
 		end
 	elseif arg == "help" then
-		print("|cff00ff00/rt pull|r - run pull timer with 10 seconds")
-		print("|cff00ff00/rt pull X|r - run pull timer with X seconds")
-		print("|cff00ff00/rt afk X|r - run afk timer with X minutes")
-		print("|cff00ff00/rt timer TIMERNAME X|r - run custom timer with name TIMERNAME and X seconds")
-		print("|cff00ff00/rt mytimer X|r - set countdown for timer frame with X seconds")
-		print("|cff00ff00/rt dpt|r - run dynamic pull timer")
+		print("|cff00ff00/art pull|r - run pull timer with 10 seconds")
+		print("|cff00ff00/art pull X|r - run pull timer with X seconds")
+		print("|cff00ff00/art afk X|r - run afk timer with X minutes")
+		print("|cff00ff00/art timer TIMERNAME X|r - run custom timer with name TIMERNAME and X seconds")
+		print("|cff00ff00/art mytimer X|r - set countdown for timer frame with X seconds")
+		print("|cff00ff00/art dpt|r - run dynamic pull timer")
 	end
 end
 
