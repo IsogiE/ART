@@ -3,7 +3,7 @@
 ## Author: ykiigor
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 4933
+## Version: 4946
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua
@@ -20,7 +20,6 @@ localization\localization.it.lua
 localization\localization.lua
 libs\AceComm-3.0\AceComm-3.0.xml
 libs\AceTimer-3.0\AceTimer-3.0.lua
-libs\LibSerialize-main\LibSerialize.lua
 Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
 BlizzFix.lua

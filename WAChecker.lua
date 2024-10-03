@@ -9,16 +9,16 @@ local weakAurasLoaded = false
 local isPromptShown = false
 local sendTimeoutFrame
 
--- data storage
+-- Data storage
 AdvanceWeakAuraUpdaterDB = AdvanceWeakAuraUpdaterDB or {}
 
-local function ShowWeakAuraImportScreen(data, senderName)
+-- Function to show the import screen
+local function ShowWeakAuraImportScreen(data, senderName, description)
     if isPromptShown then return end
     isPromptShown = true
 
     local popupFrame = ELib:Popup(""):Size(300, 220):Point("CENTER", UIParent, "CENTER", 0, 300)
-    -- frame:SetFrameStrata("DIALOG")
-
+    
     popupFrame.title = popupFrame:CreateFontString(nil, "OVERLAY")
     popupFrame.title:SetFontObject("GameFontHighlight")
     popupFrame.title:SetPoint("TOP", popupFrame, "TOP", 0, -10)
@@ -29,9 +29,13 @@ local function ShowWeakAuraImportScreen(data, senderName)
     popupFrame.message:SetPoint("TOP", popupFrame.title, "BOTTOM", 0, -10)
     popupFrame.message:SetWidth(280)
     popupFrame.message:SetJustifyH("LEFT")
-    popupFrame.message:SetText("Sender: " .. senderName .. "\nAura: ")
-	
-	image = ELib:Texture(popupFrame,"Interface\\AddOns\\ART\\media\\lumldn"):Point("CENTER",popupFrame.message,"CENTER",0,-60):Size(347*0.7,98*0.7)
+    popupFrame.message:SetText("Sender: " .. senderName .. "\nDescription: " .. description)
+
+    -- Dynamically adjust the position of the image based on the description text's height
+    local messageHeight = popupFrame.message:GetHeight()
+    local imageOffsetY = -messageHeight - 50
+    local image = ELib:Texture(popupFrame, "Interface\\AddOns\\ART\\media\\lumldn")
+    image:Point("CENTER", popupFrame.message, "CENTER", 0, imageOffsetY):Size(347 * 0.7, 98 * 0.7)
 
     popupFrame.importButton = ELib:Button(popupFrame, "Import"):Size(120, 40):Point("BOTTOMLEFT", popupFrame, "BOTTOMLEFT", 10, 10)
     popupFrame.importButton:SetScript("OnClick", function()
@@ -49,7 +53,6 @@ local function ShowWeakAuraImportScreen(data, senderName)
         isPromptShown = false
     end)
 
-    -- Handle the OnHide event to reset the isPromptShown flag
     popupFrame:SetScript("OnHide", function()
         isPromptShown = false
     end)
@@ -57,10 +60,10 @@ local function ShowWeakAuraImportScreen(data, senderName)
     popupFrame:Show()
 end
 
--- Sends the WA data thru acecomm
-local function DistributeWeakAura(weakAuraData)
+-- Sends the WeakAura data and description through AceComm
+local function DistributeWeakAura(weakAuraData, description)
     local messagePrefix = "WEAKAURA_UPDATE:"
-    local message = messagePrefix .. weakAuraData
+    local message = messagePrefix .. weakAuraData .. "|DESC:" .. description  -- Append description to the message
     AceComm:SendCommMessage("ADVANCEWEAKAURA", message, "RAID")
     
     -- Create a timeout in case sending takes too long
@@ -68,23 +71,22 @@ local function DistributeWeakAura(weakAuraData)
         sendTimeoutFrame:Cancel()
     end
     sendTimeoutFrame = C_Timer.NewTimer(60, function()
-        -- In case it bricks, inform whoever sent it 
-        print("Sending WeakAura data timed out.")
     end)
 end
 
--- Reassemble incoming WA data
+-- Handle incoming WeakAura data and description
 local function HandleIncomingWeakAura(prefix, msg, distribution, sender)
     if prefix == "ADVANCEWEAKAURA" then
-        -- Remove the prefix from the message to make sure WA knows whatever the fuck its importing 
+        -- Split the message into WeakAura data and description
         local messagePrefix = "WEAKAURA_UPDATE:"
-        local data = msg:match("^" .. messagePrefix .. "(.*)")
+        local descriptionPrefix = "|DESC:"
+        local data, description = msg:match("^" .. messagePrefix .. "(.*)" .. descriptionPrefix .. "(.*)$")
         
-        -- If the data is assmebled correctly 
         if data then
             if weakAurasLoaded then
                 AdvanceWeakAuraUpdaterDB.pendingWeakAuraData = data
-                ShowWeakAuraImportScreen(data, sender)
+                -- Use the received description
+                ShowWeakAuraImportScreen(data, sender, description or "No Description")
             end
         end
     end
@@ -97,35 +99,44 @@ function module.options:Load()
     local editBox = ELib:MultiEdit(self):Size(540, 300):Point("TOP", 0, -40)
     self.editBox = editBox
 	
-	self.HandlingText = ELib:Text(self,"",11):Size(650,200):Point("CENTER",editBox, "BOTTOM", 55, -15):Color()
+    -- Description box added below the edit box
+    local descriptionBox = ELib:Edit(self):Size(540, 30):Point("TOP", self.editBox, "BOTTOM", 0, -10):Text("Enter description here")
+    self.DescriptionBox = descriptionBox  -- Ensure DescriptionBox is initialized
 
-    local sendButton = ELib:Button(self, "Send"):Size(120, 40):Point("BOTTOMLEFT", self.editBox, "BOTTOMLEFT", 0, -55)
+    -- Error text moved above the buttons
+    self.HandlingText = ELib:Text(self, "", 11):Size(650, 200):Point("CENTER", descriptionBox, "BOTTOM", 55, -15):Color()
+
+    -- Send button moved down to avoid overlap with the error text
+    local sendButton = ELib:Button(self, "Send"):Size(120, 40):Point("BOTTOMLEFT", self.DescriptionBox, "BOTTOMLEFT", 0, -75)
     sendButton:SetScript("OnClick", function()
         local weakAuraData = self.editBox:GetText()
+        local description = self.DescriptionBox:GetText()
         if weakAuraData and weakAuraData ~= "" then
             if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
-                DistributeWeakAura(weakAuraData)
-				self.editBox:SetText("")
-				self.HandlingText:SetText("Weakaura pushed.")
+                DistributeWeakAura(weakAuraData, description)  -- Include description in the transmission
+                self.editBox:SetText("")
+                self.HandlingText:SetText("WeakAura pushed.")
             else
                 self.editBox:SetText("")
-				self.HandlingText:SetText("You must be the raid leader or have assist to use this feature.")
+                self.HandlingText:SetText("You must be the raid leader or have assist to use this feature.")
             end
         else
             self.editBox:SetText("")
-			self.HandlingText:SetText("Please paste a valid WeakAura string.")
+            self.HandlingText:SetText("Please paste a valid WeakAura string.")
         end
     end)
 
+    -- Clear button moved down to match the new layout
     local clearButton = ELib:Button(self, "Clear"):Size(120, 40):Point("RIGHT", sendButton, "RIGHT", 140, 0)
     clearButton:SetScript("OnClick", function()
         AdvanceWeakAuraUpdaterDB.pendingWeakAuraData = nil
         self.editBox:SetText("")
-		self.HandlingText:SetText("")
+        self.DescriptionBox:SetText("")
+        self.HandlingText:SetText("")
     end)
 end
 
--- Register AceComm to use its shit
+-- Register AceComm to handle incoming WeakAura data
 AceComm:RegisterComm("ADVANCEWEAKAURA", HandleIncomingWeakAura)
 
 -- Sanity check to see if WA has loaded yet 
@@ -139,7 +150,7 @@ local addonLoadedFrame = CreateFrame("Frame")
 addonLoadedFrame:RegisterEvent("ADDON_LOADED")
 addonLoadedFrame:SetScript("OnEvent", OnAddonLoaded)
 
--- Double safety check for WA having loaded cause god this addon takes forever
+-- Double-check WeakAuras loading status
 local function CheckWeakAurasLoaded()
     if _G.WeakAuras then
         weakAurasLoaded = true

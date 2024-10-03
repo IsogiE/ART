@@ -1,5 +1,8 @@
 local GlobalAddonName, ART = ...
 
+-- Declare a global variable to hold the current popup
+local currentPopup = nil
+
 -- Ensure BossTimers is available
 if not BossTimers then
     print("Error: BossTimers.lua was not loaded correctly.")
@@ -14,6 +17,7 @@ local GetSpellInfo = ART.F.GetSpellInfo or GetSpellInfo
 -- Initialize variables for storing custom timelines
 local VART = nil
 local selectedBoss = nil  -- Local variable to store the selected boss
+local selectedOption = nil
 
 
 function module.main:ADDON_LOADED()
@@ -42,6 +46,7 @@ function module.options:Load()
             func = function() 
                 selectedBoss = bossName
                 self.bossDropdown:SetText(bossName) 
+					ELib:DropDownClose() 
             end
         })
     end
@@ -65,16 +70,16 @@ function module:CreateBossTimelineWindow(boss)
     end
 
     local timeline = BossTimers[boss]
+	
+	local currentBossData = BossData[boss]
 
     -- Find the maximum time from all the events
-    local timeMax = 0
-    for _, event in ipairs(timeline) do
-        for _, time in ipairs(event.time) do
-            if time > timeMax then
-                timeMax = time
-            end
-        end
-    end
+    --local timeMax = 390
+	
+	-- Retrieve the enrage timer for Kyveza
+	local timeMax = tonumber(BossData[boss][1].enrage[1])
+	
+	--timeMax = tonumber(currentBossData.enrage)
 
     -- Dynamically scale the window based on the maximum time
     local baseGraphWidth = 850  -- Base width for the graph (excluding buffer for ability names)
@@ -91,7 +96,7 @@ function module:CreateBossTimelineWindow(boss)
     window.title:SetPoint("TOP", window, "TOP", 0, -10)
     window.title:SetText(boss)
 
-    window.message = window:CreateFontString(nil, "OVERLAY")
+    window.message = window:CreateFontString(nil, "OVERLAY")	
     window.message:SetFontObject("GameFontNormal")
     window.message:SetPoint("TOP", window.title, "BOTTOM", 0, -10)
     window.message:SetWidth(windowWidth - 2)
@@ -151,17 +156,9 @@ function module:CreateBossTimelineWindow(boss)
 	
 	local tcount = 1
 	
-    -- Add time interval lines at 30-second intervals
-    for t = 60, timeMax, 60 do
-        local intervalLine = content:CreateTexture(nil, "BACKGROUND")
-        local intervalPosition = (t / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
-        intervalLine:SetSize(2, #timeline * rowHeight)
-        intervalLine:SetPoint("TOPLEFT", intervalPosition, 0)
-        intervalLine:SetColorTexture(0.6, 0.6, 0.6, 1)  -- Light gray for interval lines
-    end
-	
 	--Create Export Button
 	local showExportMRTButton = ELib:Button(scrollFrame, "Export"):Size(100, 20):Point("LEFT", horizontalScrollbar, "LEFT", -120, 0)
+	
 	
 	--Start custom colors & time
 	local count = 0
@@ -169,6 +166,7 @@ function module:CreateBossTimelineWindow(boss)
 	local cG = 0
 	local cB = 0
 	local fightTime = 0
+	local lineCount = 0
 	
     for i, event in ipairs(timeline) do
 	
@@ -214,48 +212,156 @@ function module:CreateBossTimelineWindow(boss)
         rowDivider:SetPoint("BOTTOMLEFT", 0, 0)  -- Place divider at the bottom of the row
         rowDivider:SetColorTexture(0.5, 0.5, 0.5, 0.8)  -- Gray row divider
 		
+		
+		local totalLines = floor(timeMax/60) + 1
+		local runIndex = 0
+			
+		-- Add time interval lines at 60-second intervals
+		while runIndex < totalLines do
+			local intervalLine = content:CreateTexture(nil, "BACKGROUND")
+			local intervalPosition = ((runIndex) * 600) -- Adjusted for buffer width
+			intervalLine:SetSize(2, #timeline * rowHeight)
+			intervalLine:SetPoint("TOPLEFT", intervalPosition, 0)
+			intervalLine:SetColorTexture(0.6, 0.6, 0.6, 1)  -- Light gray for interval lines
+			runIndex = runIndex + 1
+		end
+		
 		local startPoint = 0
 
         -- Correctly position event markers in their respective rows (fix for markers falling out)
         for _, time in ipairs(event.time) do
 			local duration = event.duration
-			local minutes = floor(mod(time, 3600) / 60)
-			local seconds = floor(mod(time, 60))
 			
-            local eventMarker = rowContainer:CreateTexture(nil, "OVERLAY")
-            --local eventPosition = (time / timeMax) * effectiveGraphWidth + bufferWidth  -- Adjusted for buffer width
+			local sMinutes = floor(mod(time, 3600) / 60)
+			local sSeconds = floor(mod(time, 60))
 			
+			if sSeconds < 10 then
+			sSeconds = ("0" .. sSeconds)
+			end
 			
-while(fightTime < time) do
-    -- Create a frame that will hold the texture and handle click events
-    local markerFrame = CreateFrame("Frame", nil, rowContainer)
-    markerFrame:SetSize(10, rowHeight - 3)
-    markerFrame:SetPoint("LEFT", startPoint, 1, 0)
-	
-	local emptyText = markerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	emptyText:SetPoint("CENTER", markerFrame, "CENTER", 0, 0)
-	emptyText:SetText(fightTime)
-	local fontName, fontHeight, fontFlags = emptyText:GetFont()
-	emptyText:SetFont(fontName, 4, fontFlags)
-	emptyText:SetTextColor(0.2, 0.2, 0.2, 0)
+			local eMinutes = floor(mod(time + duration, 3600) / 60)
+			local eSeconds = floor(mod(time + duration, 60))
+			
+			if eSeconds < 10 then
+			eSeconds = ("0" .. eSeconds)
+			end
+			
+function ShowPopupForTime(time)
+    -- Check if there is already a popup open
+    if currentPopup and currentPopup:IsShown() then
+        currentPopup:Hide() -- Hide the existing popup
+    end
 
-    -- Create the texture for the emptyMarker inside the frame
-    local emptyMarker = markerFrame:CreateTexture(nil, "BACKGROUND")
-    emptyMarker:SetAllPoints(markerFrame) -- Make the texture fill the frame
-    emptyMarker:SetColorTexture(0.2, 0.2, 0.2, 0)
-	
+    -- Create a simple popup window
+    local popupWidth, popupHeight = 200, 400
+    currentPopup = ELib:Popup(""):Size(popupWidth, popupHeight):Point("TOPLEFT", window, "TOPLEFT", -210, 0)
 
-    -- Set a clickable script on the frame
-    markerFrame:SetScript("OnMouseDown", function(self, button)
-        if button == "LeftButton" then
-        end
+    -- Set the frame strata to HIGH to ensure it appears in front
+    currentPopup:SetFrameStrata("HIGH")
+
+    -- Set the frame level to a high number to ensure it's on top of other elements
+    currentPopup:SetFrameLevel(100)
+    
+    -- Set the title of the popup window
+    currentPopup.title = currentPopup:CreateFontString(nil, "OVERLAY")
+    currentPopup.title:SetFontObject("GameFontHighlight")
+    currentPopup.title:SetPoint("TOP", currentPopup, "TOP", 0, -10)
+    currentPopup.title:SetText("Event at Time: " .. time)
+    
+    -- Get the player's class (localized name)
+    local _, playerClass = UnitClass("player")
+
+    -- Create an ELib EditBox to display the player's class
+    local classBox = ELib:Edit(currentPopup):Size(100, 20):Point("TOPLEFT", currentPopup, "TOPLEFT", 20, -50)
+    classBox:SetText(playerClass)
+
+    -- Class label
+    currentPopup.classLabel = currentPopup:CreateFontString(nil, "OVERLAY")
+    currentPopup.classLabel:SetFontObject("GameFontNormal")
+    currentPopup.classLabel:SetPoint("TOPLEFT", classBox, "TOPLEFT", 0, 15)
+    currentPopup.classLabel:SetText("Class")
+    
+    -- Time label
+    currentPopup.timeLabel = currentPopup:CreateFontString(nil, "OVERLAY")
+    currentPopup.timeLabel:SetFontObject("GameFontNormal")
+    currentPopup.timeLabel:SetPoint("BOTTOMLEFT", classBox, "BOTTOMLEFT", 0, -30)
+    currentPopup.timeLabel:SetText("Time")
+    
+    -- Create an ELib EditBox to display the time selected
+    local timeBox = ELib:Edit(currentPopup):Size(100, 20):Point("TOPLEFT", currentPopup.timeLabel, "TOPLEFT", 0, -15)
+    timeBox:SetText(time)
+    
+    -- Type label
+    currentPopup.typeLabel = currentPopup:CreateFontString(nil, "OVERLAY")
+    currentPopup.typeLabel:SetFontObject("GameFontNormal")
+    currentPopup.typeLabel:SetPoint("BOTTOMLEFT", timeBox, "BOTTOMLEFT", 0, -30)
+    currentPopup.typeLabel:SetText("Type")
+
+    -- Add a message or input inside the popup
+    currentPopup.message = currentPopup:CreateFontString(nil, "OVERLAY")
+    currentPopup.message:SetFontObject("GameFontNormal")
+    currentPopup.message:SetPoint("CENTER", currentPopup, "CENTER", 0, 0)
+    currentPopup.message:SetText("You clicked on time: " .. time .. "s")
+
+    -- Optionally: Add a close button
+    local closeButton = CreateFrame("Button", nil, currentPopup, "UIPanelButtonTemplate")
+    closeButton:SetSize(80, 22)
+    closeButton:SetPoint("BOTTOM", currentPopup, "BOTTOM", 0, 10)
+    closeButton:SetText("Close")
+    closeButton:SetScript("OnClick", function() 
+        currentPopup:Hide() 
     end)
 
-    fightTime = fightTime + 1
-    startPoint = startPoint + 10
+    -- Show the newly created popup
+    currentPopup:Show()
 end
+
 			
-            eventMarker:SetSize(10 * event.duration, rowHeight - 3)
+			
+			
+		while(fightTime < time) do
+		
+			local emptyText = fightTime
+
+			-- Create the texture for the emptyMarker inside the frame
+			local emptyMarker = rowContainer:CreateTexture(nil, "OVERLAY")
+			emptyMarker:SetPoint("LEFT", startPoint, 1, 0) -- Make the texture fill the frame
+			emptyMarker:SetSize(10, rowHeight - 3)
+			emptyMarker:SetColorTexture(0.2, 0.2, 0.2, 0)
+			
+
+			-- Optional: Add a tooltip to show exact time
+					emptyMarker:SetScript("OnEnter", function(self)
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+						GameTooltip:SetText(emptyText)
+						GameTooltip:Show()
+					end)
+					emptyMarker:SetScript("OnLeave", function()
+						GameTooltip:Hide()
+					end)
+					
+					-- **Add an OnClick event for the emptyMarker**
+					emptyMarker:SetScript("OnMouseDown", function(self, button)
+						if button == "LeftButton" then
+							ShowPopupForTime(emptyText)  -- Call function to show popup window
+						end
+					end)
+					
+
+			fightTime = fightTime + 1
+			startPoint = startPoint + 10
+			
+			
+		end
+		
+		local dcount = 0
+		local dur = tonumber(event.duration)
+		local beenThere = 0
+		
+		for dcount = 1, duration do
+			local eventMarker = rowContainer:CreateTexture(nil, "OVERLAY")
+			
+            eventMarker:SetSize(10, rowHeight - 3)
             eventMarker:SetPoint("LEFT", startPoint, 1, 0)  -- Now based on effectiveGraphWidth
             eventMarker:SetColorTexture(cR, cG, cB, 1)  -- Red color for event markers
 			
@@ -263,19 +369,53 @@ end
             -- Optional: Add a tooltip to show exact time
             eventMarker:SetScript("OnEnter", function(self)
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:SetText(minutes .. ":" .. seconds .. "-" .. minutes .. ":" .. seconds + duration, nil, nil, nil, nil, true)
+                GameTooltip:SetText(sMinutes .. ":" .. sSeconds .. "-" .. eMinutes .. ":" .. eSeconds, nil, nil, nil, nil, true)
                 GameTooltip:Show()
             end)
             eventMarker:SetScript("OnLeave", function()
                 GameTooltip:Hide()
             end)
 			
-			startPoint = startPoint + (10 * event.duration)
+			fightTime = fightTime + 1
+			startPoint = startPoint + 10
+			
+			dcount = dcount + 1
+			
+		end
+		
 			
         end
 		
+		while (fightTime < timeMax) do
+		
+		local emptyText = fightTime
+
+			-- Create the texture for the emptyMarker inside the frame
+			local emptyMarker = rowContainer:CreateTexture(nil, "OVERLAY")
+			emptyMarker:SetPoint("LEFT", startPoint, 1, 0) -- Make the texture fill the frame
+			emptyMarker:SetSize(10, rowHeight - 3)
+			emptyMarker:SetColorTexture(0.2, 0.2, 0.2, 0)
+			
+
+			-- Optional: Add a tooltip to show exact time
+					emptyMarker:SetScript("OnEnter", function(self)
+						GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+						GameTooltip:SetText(emptyText)
+						GameTooltip:Show()
+					end)
+					emptyMarker:SetScript("OnLeave", function()
+						GameTooltip:Hide()
+					end)
+					
+
+			fightTime = fightTime + 1
+			startPoint = startPoint + 10
+		
+		end
+		
 		fightTime = 0
 		startPoint = 0
+		dcount = 0
 		
 		if count == 2 then
 		count = 0 
@@ -283,4 +423,5 @@ end
 			count = count + 1
 		end
     end
+	
 end
