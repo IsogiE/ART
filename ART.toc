@@ -1,9 +1,9 @@
-## Interface: 11503, 11504, 40400, 40401, 110002
+## Interface: 11503, 11504, 40400, 40401, 110005
 ## Title: Advance Raid Tools
 ## Author: ykiigor
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 4946
+## Version: 4947
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua
