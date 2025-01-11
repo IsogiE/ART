@@ -464,3 +464,232 @@ ART.NicknameAPI = {
         return ART.F.table_copy2(nicknamesMap or {})
     end,
 }
+
+--- frames --- 
+
+-- cell --
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+
+frame:SetScript("OnEvent", function(_, event, addonName)
+    if addonName == "Cell" then
+        UpdateCellNicknames()
+    end
+end)
+
+function UpdateCellNicknames()
+    if not C_AddOns.IsAddOnLoaded("Cell") then return end
+
+    CellDB.nicknames.list = CellDB.nicknames.list or {}
+    CellDB.nicknames.custom = true
+
+    local existingNicknames = {}
+    for _, entry in ipairs(CellDB.nicknames.list) do
+        existingNicknames[entry] = true
+    end
+
+    local nicknameData = ART.NicknameAPI:GetAllNicknames()
+
+    for nickname, data in pairs(nicknameData) do
+        if data.characters then
+            for _, charData in ipairs(data.characters) do
+                if charData.character then
+                    local entry = charData.character .. ":" .. nickname
+                    if not existingNicknames[entry] then
+                        table.insert(CellDB.nicknames.list, entry)
+                        existingNicknames[entry] = true
+                    end
+                end
+            end
+        end
+    end
+
+    if Cell.funcs and Cell.funcs.UpdateNicknames then
+        Cell.funcs.UpdateNicknames()
+    end
+end
+
+if C_AddOns.IsAddOnLoaded("Cell") then
+    UpdateCellNicknames()
+end
+
+
+-- elv -- 
+
+local function UpdateElvUFTagsWithNicknames()
+    if not (ElvUF and ElvUF.Tags) then return end
+
+    if not ART or not ART.NicknameAPI then
+        return
+    end
+
+    local function GetNickname(unit)
+        local name = UnitName(unit)
+        if name and ART.NicknameAPI then
+            local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
+            return nickname or name
+        end
+        return name
+    end
+
+    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Methods['nickname'] = function(unit)
+        return GetNickname(unit)
+    end
+
+    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
+        return string.sub(GetNickname(unit), 1, 5)
+    end
+
+    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Methods['nickname:short'] = function(unit)
+        return string.sub(GetNickname(unit), 1, 8)
+    end
+
+    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Methods['nickname:medium'] = function(unit)
+        return string.sub(GetNickname(unit), 1, 10)
+    end
+
+end
+
+local elvFrame = CreateFrame("Frame")
+elvFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+elvFrame:SetScript("OnEvent", function()
+    UpdateElvUFTagsWithNicknames()
+end)
+
+if ElvUF and ElvUF.Tags then
+    UpdateElvUFTagsWithNicknames()
+end
+
+
+-- grid2 --
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("ADDON_LOADED")
+
+frame:SetScript("OnEvent", function(_, event, addonName)
+    if addonName == "Grid2" then
+        OverrideGrid2NameStatusWithNicknames()
+    end
+end)
+
+function OverrideGrid2NameStatusWithNicknames()
+    if not Grid2 then return end
+    if not (ART and ART.NicknameAPI) then return end
+
+    local function GetNickname(unit)
+        local name = UnitName(unit)
+        if name then
+            local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
+            return nickname or name
+        end
+        return name
+    end
+
+    local NicknameStatus = Grid2.statusPrototype:new("name")
+
+    NicknameStatus.IsActive = Grid2.statusLibrary.IsActive
+
+    function NicknameStatus:UNIT_NAME_UPDATE(_, unit)
+        self:UpdateIndicators(unit)
+    end
+
+    function NicknameStatus:OnEnable()
+        self:RegisterEvent("UNIT_NAME_UPDATE")
+    end
+
+    function NicknameStatus:OnDisable()
+        self:UnregisterEvent("UNIT_NAME_UPDATE")
+    end
+
+    function NicknameStatus:GetText(unit)
+        return GetNickname(unit)
+    end
+
+    local function RegisterNicknameStatus(baseKey, dbx)
+        Grid2:RegisterStatus(NicknameStatus, {"text"}, baseKey, dbx)
+        return NicknameStatus
+    end
+
+    Grid2.setupFunc["name"] = RegisterNicknameStatus
+
+    Grid2:DbSetStatusDefaultValue("name", {type = "name"})
+end
+
+if C_AddOns.IsAddOnLoaded("Grid2") then
+    OverrideGrid2NameStatusWithNicknames()
+end
+
+-- default frames --
+
+local f = CreateFrame("Frame")
+
+f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:RegisterEvent("GROUP_ROSTER_UPDATE")
+f:RegisterEvent("PLAYER_REGEN_ENABLED")
+f:RegisterEvent("UNIT_NAME_UPDATE")
+
+local inCombat = false
+
+local function GetNickname(unit)
+    if not unit or not UnitExists(unit) then return nil end
+    local name = UnitName(unit)
+    if name and ART and ART.NicknameAPI then
+        local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
+        return nickname or name
+    end
+    return name
+end
+
+local function ApplyNicknameToFrame(frame)
+    if not frame or not frame.unit or not UnitIsPlayer(frame.unit) then return end
+    if frame.name then
+        local nickname = GetNickname(frame.unit)
+        if nickname then
+            frame.name:SetText(nickname)
+        end
+    end
+end
+
+local function HookCompactFrames()
+    for i = 1, 40 do
+        local raidFrame = _G["CompactRaidFrame" .. i]
+        if raidFrame then
+            ApplyNicknameToFrame(raidFrame)
+        end
+    end
+
+    for i = 1, 8 do
+        local partyFrame = _G["CompactPartyFrameMember" .. i]
+        if partyFrame then
+            ApplyNicknameToFrame(partyFrame)
+        end
+    end
+end
+
+local function ForceNameUpdate()
+    if CompactUnitFrame_UpdateName then
+        hooksecurefunc("CompactUnitFrame_UpdateName", function(frame)
+            ApplyNicknameToFrame(frame)
+        end)
+    end
+end
+
+f:SetScript("OnEvent", function(_, event, ...)
+    if event == "PLAYER_REGEN_ENABLED" then
+        inCombat = false
+        HookCompactFrames()
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "GROUP_ROSTER_UPDATE" or event == "UNIT_NAME_UPDATE" then
+        if InCombatLockdown() then
+            inCombat = true
+        else
+            HookCompactFrames()
+        end
+    end
+end)
+
+ForceNameUpdate()
