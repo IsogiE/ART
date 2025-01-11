@@ -1,9 +1,9 @@
-## Interface: 11503, 11504, 40400, 40401, 110005
+## Interface: 110005, 110007, 110100
 ## Title: Advance Raid Tools
-## Author: ykiigor
+## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 4947
+## Version: 5145
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua
@@ -24,6 +24,7 @@ Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
 BlizzFix.lua
 Options.lua
+Nickname.lua
 Note.lua
 ExCD2.lua
 InviteTool.lua
@@ -35,8 +36,6 @@ Timers.lua
 VisNote.lua
 WAChecker.lua
 Splits.lua
-BossTimers.lua
-Timeline.lua
 AddonChecker.lua
 VersionChecker.lua
 Profiles.lua

@@ -118,6 +118,7 @@ local predefSpellIcons = {	--some talents can replace icons for basic spells
 	[1022] = 135964,
 }
 
+
 local function GSUB_Icon(spellID,iconSize)
 	spellID = tonumber(spellID)
 
@@ -136,23 +137,66 @@ local function GSUB_Icon(spellID,iconSize)
 	return "|T"..(spellTexture or "Interface\\Icons\\INV_MISC_QUESTIONMARK")..":"..iconSize.."|t"
 end
 
-local function GSUB_Player(anti,list,msg)
-	list = {strsplit(",",list)}
-	local found = false
-	local myName = (ART.SDB.charName):lower()
-	for i=1,#list do
-		list[i] = list[i]:gsub("|?|c........",""):gsub("|?|r",""):lower()
-		if strsplit("-",list[i]) == myName then
-			found = true
-			break
-		end
-	end
+function GSUB_Player(anti, list, msg)
+    if not list or type(list) ~= "string" then return "" end
+    
+    local listTable = {strsplit(",", list)}
+    local found = false
+    local myName = ART.SDB and ART.SDB.charName and (ART.SDB.charName):lower()
+    if not myName then return "" end
 
-	if (found and anti == "") or (not found and anti == "!") then
-		return msg
-	else
-		return ""
-	end
+    -- Get current player's nickname
+    local myNickname = ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(myName)
+
+    for i = 1, #listTable do
+        if listTable[i] and type(listTable[i]) == "string" then
+            local playerName = listTable[i]:gsub("|?|c........", ""):gsub("|?|r", ""):trim():lower()
+            
+            -- Remove realm name if present for comparison
+            local myNameNoRealm = strsplit("-", myName)
+            local playerNameNoRealm = strsplit("-", playerName)
+            
+            -- Direct name match check
+            if myNameNoRealm == playerNameNoRealm then
+                found = true
+                break
+            end
+
+            -- Check if target name is current player's nickname
+            if myNickname and myNickname:lower() == playerNameNoRealm then
+                found = true
+                break
+            end
+            
+            -- Check if player name is current player's nickname
+            if ART.NicknameAPI and ART.NicknameAPI.IsCharacterInNickname then
+                if ART.NicknameAPI:IsCharacterInNickname(myName, playerName) or
+                   ART.NicknameAPI:IsCharacterInNickname(myNameNoRealm, playerNameNoRealm) then
+                    found = true
+                    break
+                end
+            end
+
+            -- Check if this target is a nickname with characters
+            if ART.NicknameAPI then
+                local targetCharacters = ART.NicknameAPI:GetAllCharactersByNickname(playerName)
+                for _, character in ipairs(targetCharacters) do
+                    local charNameNoRealm = strsplit("-", character:lower())
+                    if myNameNoRealm == charNameNoRealm then
+                        found = true
+                        break
+                    end
+                end
+                if found then break end
+            end
+        end
+    end
+
+    if (found and anti == "") or (not found and anti == "!") then
+        return msg
+    else
+        return ""
+    end
 end
 
 local function GSUB_Encounter(list,msg)
@@ -329,122 +373,141 @@ formats:
 {time:2:30,wa:nzoth_hs1}	--run weakauras custom event ART_NOTE_TIME_EVENT with arg1 = nzoth_hs1, arg2 = time left (event runs every second when timer has 5 seconds or lower), arg3 = note line text
 ]]
 
-local function GSUB_Time(preText,t,msg,newlinesym)
-	local timeText, opts = strsplit(",", t, 2)
+local function GSUB_Time(preText, t, msg, newlinesym)
+    local timeText, opts = strsplit(",", t, 2)
 
-	local time = tonumber(timeText)
-	if not time then
-		local min, sec = strsplit(":", timeText)
-		if min and sec then
-			time = (tonumber(min) or 0) * 60 + (tonumber(sec) or 0)
-		else
-			time = -1
-		end
-	end
-	local prefixText
+    local time = tonumber(timeText)
+    if not time then
+        local min, sec = strsplit(":", timeText)
+        if min and sec then
+            time = (tonumber(min) or 0) * 60 + (tonumber(sec) or 0)
+        else
+            time = -1
+        end
+    end
+    local prefixText
 
-	local anyType
-	local now = GetTime()
-	local waEventID
-	local addGlow
-	local isAllParam
-	
-	local optNow
-	while opts do
-		optNow, opts = strsplit(",", opts, 2)
+    local anyType
+    local now = GetTime()
+    local waEventID
+    local addGlow
+    local isAllParam
+    
+    local optNow
+    while opts do
+        optNow, opts = strsplit(",", opts, 2)
 
-		if optNow == "e" then
-			if opts then
-				optNow, opts = strsplit(",", opts, 2)
-			else
-				optNow = nil
-			end
-			if optNow then
-				local customEventStart = encounter_time_c[optNow]
-				if customEventStart then
-					time = customEventStart + time - now
-					--prefixText = "C "
-					anyType = 1
-				else
-					anyType = 2
-				end
-			end
-		elseif optNow:sub(1,1) == "p" then
-			local isGlobalPhase,phase = optNow:match("^p(g?):?(.-)$")
-			if phase and phase ~= "" then
-				local prefixText = "P"..phase.." "
+        if optNow == "e" then
+            if opts then
+                optNow, opts = strsplit(",", opts, 2)
+            else
+                optNow = nil
+            end
+            if optNow then
+                local customEventStart = encounter_time_c[optNow]
+                if customEventStart then
+                    time = customEventStart + time - now
+                    --prefixText = "C "
+                    anyType = 1
+                else
+                    anyType = 2
+                end
+            end
+        elseif optNow:sub(1,1) == "p" then
+            local isGlobalPhase,phase = optNow:match("^p(g?):?(.-)$")
+            if phase and phase ~= "" then
+                local prefixText = "P"..phase.." "
 
-				local phaseStart = encounter_time_p[(isGlobalPhase == "g" and "g" or "")..phase]
+                local phaseStart = encounter_time_p[(isGlobalPhase == "g" and "g" or "")..phase]
 
-				if phaseStart then
-					time = phaseStart + time - now
-					anyType = 1
-				else
-					anyType = 2
-				end			
-			end
-		elseif optNow == "glow" then
-			addGlow = 1
-		elseif optNow == "glowall" then
-			addGlow = 2
-			isAllParam = true
-		elseif optNow == "all" then
-			isAllParam = true
-		else
-			local prefix, arg1 = strsplit(":", optNow, 2)
-			if prefix == "wa" then
-				waEventID = (waEventID and waEventID.."," or "")..arg1
-			elseif prefix == "SCC" or prefix == "SCS" or prefix == "SAA" or prefix == "SAR" then
-				local eventStart = module.db.encounter_counters_time[optNow]
-				if eventStart then
-					time = eventStart + time - now
-					--prefixText = "E "
-					anyType = 1
-				else
-					anyType = 2
-				end
-			end
-		end
-	end
+                if phaseStart then
+                    time = phaseStart + time - now
+                    anyType = 1
+                else
+                    anyType = 2
+                end           
+            end
+        elseif optNow == "glow" then
+            addGlow = 1
+        elseif optNow == "glowall" then
+            addGlow = 2
+            isAllParam = true
+        elseif optNow == "all" then
+            isAllParam = true
+        else
+            local prefix, arg1 = strsplit(":", optNow, 2)
+            if prefix == "wa" then
+                waEventID = (waEventID and waEventID.."," or "")..arg1
+            elseif prefix == "SCC" or prefix == "SCS" or prefix == "SAA" or prefix == "SAR" then
+                local eventStart = module.db.encounter_counters_time[optNow]
+                if eventStart then
+                    time = eventStart + time - now
+                    --prefixText = "E "
+                    anyType = 1
+                else
+                    anyType = 2
+                end
+            end
+        end
+    end
 
-	if not anyType and module.db.encounter_time then
-		time = module.db.encounter_time + time - now
-	end
+    if not anyType and module.db.encounter_time then
+        time = module.db.encounter_time + time - now
+    end
 
-	if waEventID and time <= 20 and type(WeakAuras)=="table" and ((module.db.encounter_time and not anyType) or anyType == 1) then
-		local timeleft = time < 0 and 0 or ceil(time)
-		if timeleft <= 5 or timeleft % 5 == 0 then
-			for waEventIDnow in string_gmatch(waEventID, "[^,]+") do
-				local wa_event_uid_cache = waEventIDnow..":"..timeleft..":"..preText..t..msg..newlinesym
-				if not encounter_time_wa_uids[wa_event_uid_cache] then
-					encounter_time_wa_uids[wa_event_uid_cache] = true
-					if WeakAuras.ScanEvents and type(WeakAuras.ScanEvents)=="function" then
-						WeakAuras.ScanEvents("EART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
-						WeakAuras.ScanEvents("ART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
-					end
-				end
-			end
-		end
-	end
+    if waEventID and time <= 20 and type(WeakAuras)=="table" and ((module.db.encounter_time and not anyType) or anyType == 1) then
+        local timeleft = time < 0 and 0 or ceil(time)
+        if timeleft <= 5 or timeleft % 5 == 0 then
+            for waEventIDnow in string_gmatch(waEventID, "[^,]+") do
+                local wa_event_uid_cache = waEventIDnow..":"..timeleft..":"..preText..t..msg..newlinesym
+                if not encounter_time_wa_uids[wa_event_uid_cache] then
+                    encounter_time_wa_uids[wa_event_uid_cache] = true
+                    if WeakAuras.ScanEvents and type(WeakAuras.ScanEvents)=="function" then
+                        WeakAuras.ScanEvents("EART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
+                        WeakAuras.ScanEvents("ART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
+                    end
+                end
+            end
+        end
+    end
 
-	if not msg:find(ART.SDB.charName) and not msg:find("{everyone}") and VART.Note.TimerOnlyMy and not isAllParam then
-		return ""
-	end
+    -- First check if timer has expired
+    if time <= 0 then
+        if VART.Note.TimerPassedHide then
+            return ""
+        else
+            if VART.Note.TimerOnlyMy and not isAllParam then
+                -- For expired timers with TimerOnlyMy, check if it's for the player
+                if not msg:find(ART.SDB.charName) and not msg:find("{everyone}") and
+                   not (ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName) and 
+                        msg:find(ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName))) then
+                    return ""
+                end
+            end
+            return preText.."|cff555555"..(prefixText or "")..msg:gsub("|c........",""):gsub("|r","").."|r"..newlinesym
+        end
+    end
 
-	if time > 10 or not module.db.encounter_time or anyType == 2 then
-		return preText.."|cffffed88"..(prefixText or "")..format("%d:%02d|r ",floor(time/60),time % 60)..msg..newlinesym
-	elseif time < 0 then
-		if VART.Note.TimerPassedHide then
-			return ""
-		else
-			return preText.."|cff555555"..(prefixText or "")..msg:gsub("|c........",""):gsub("|r","").."|r"..newlinesym
-		end
-	else
-		if time <= 5 and ((msg:find(ART.SDB.charName) and (VART.Note.TimerGlow or addGlow == 1)) or (addGlow == 2)) then
-			module.db.glowStatus = true
-		end
-		return preText.."|cff00ff00"..(prefixText or "")..format("%d:%02d ",floor(time/60),time % 60)..msg:gsub("|c........",""):gsub("|r",""):gsub(ART.SDB.charName,"|r|cffff0000>%1<|r|cff00ff00").."|r"..newlinesym
-	end
+    -- Then check TimerOnlyMy for active timers
+    if VART.Note.TimerOnlyMy and not isAllParam then
+        -- Check for player name or {everyone}
+        if not msg:find(ART.SDB.charName) and not msg:find("{everyone}") then
+            -- If not found, check for any nicknames the player might have
+            local myNickname = ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName)
+            if not (myNickname and msg:find(myNickname)) then
+                return ""
+            end
+        end
+    end
+
+    if time > 10 or not module.db.encounter_time or anyType == 2 then
+        return preText.."|cffffed88"..(prefixText or "")..format("%d:%02d|r ",floor(time/60),time % 60)..msg..newlinesym
+    else
+        if time <= 5 and ((msg:find(ART.SDB.charName) and (VART.Note.TimerGlow or addGlow == 1)) or (addGlow == 2)) then
+            module.db.glowStatus = true
+        end
+        return preText.."|cff00ff00"..(prefixText or "")..format("%d:%02d ",floor(time/60),time % 60)..msg:gsub("|c........",""):gsub("|r",""):gsub(ART.SDB.charName,"|r|cffff0000>%1<|r|cff00ff00").."|r"..newlinesym
+    end
 end
 
 local function GSUB_Phase(anti,phase,msg)
@@ -488,6 +551,28 @@ end
 
 local function GSUB_RaidIcon(text)
 	return allIcons[text]
+end
+
+local function GSUB_ReplaceNicknameToChar(token)
+    local ltoken = token:lower()
+
+    if ltoken == "isogichi" then
+        return token
+    end
+
+    if ART and ART.NicknameAPI then
+        local chars = ART.NicknameAPI:GetAllCharactersByNickname(ltoken)
+        for _, fullCharName in ipairs(chars) do
+            local nameNoRealm = strsplit("-", fullCharName:lower())
+            local myNameNoRealm = strsplit("-", (ART.SDB.charName or ""):lower())
+            if nameNoRealm == myNameNoRealm then
+                local realNoRealm = strsplit("-", fullCharName)
+                return realNoRealm
+            end
+        end
+    end
+    
+    return token
 end
 
 local GSUB_AutoColor_Data = {}
@@ -542,6 +627,8 @@ do
 				--:gsub("[^ \n,]+",GSUB_AutoColor)
 				:gsub("[^ \n,%(%)%[%]_%$#@!&]+",GSUB_AutoColor_Data)
 				:gsub("\n+$", "")
+				:gsub("(%S+)", GSUB_ReplaceNicknameToChar)   -- <--- Insert nickname rewrites
+				:gsub("[^ \n,%(%)%[%]_%$#@!&]+", GSUB_AutoColor_Data)
 	
 			self.preTimerText = t
 		else
@@ -3728,3 +3815,240 @@ function module:GetText(removeColors,removeExtraSpaces)
 end
 ART.F.GetNote = module.GetText
 --- you can use to get note text GART.F:GetNote()
+
+--- PRETEND TO BE MRT ---
+ART.MRTCompatibility = {
+    enabled = false,
+    originalARTDB = {},
+    originalIsAddOnLoaded = nil
+}
+
+local MRTCompat = ART.MRTCompatibility
+
+function MRTCompat:Enable()
+    if self.enabled then return end
+    
+    if not _G.VART then 
+        _G.VART = {}
+    end
+    if not _G.VART.Note then
+        _G.VART.Note = ART.F.table_copy2(NewVARTTableData)
+    end
+    
+    self.originalIsAddOnLoaded = C_AddOns.IsAddOnLoaded
+    
+    if not _G.MRT then _G.MRT = {} end
+    if not _G.VMRT then 
+        _G.VMRT = {
+            Note = setmetatable({}, {
+                __index = function(_, key)
+                    return _G.VART.Note[key]
+                end,
+                __newindex = function(_, key, value)
+                    _G.VART.Note[key] = value
+                end
+            })
+        }
+    end
+    
+    C_AddOns.IsAddOnLoaded = function(addon)
+        if addon == "MRT" then
+            return true
+        end
+        return MRTCompat.originalIsAddOnLoaded(addon)
+    end
+    
+    if not _G.GMRT then
+        _G.GMRT = {
+            F = setmetatable({}, {
+                __index = function(_, key)
+                    return ART.F[key]
+                end
+            }),
+            A = setmetatable({}, {
+                __index = function(_, key)
+                    return ART.A[key] 
+                end
+            })
+        }
+    end
+    
+    if _G.GMRT and _G.GMRT.F then
+        for funcName, func in pairs(ART.F) do
+            if not _G.GMRT.F[funcName] then
+                _G.GMRT.F[funcName] = func
+            end
+        end
+    end
+    
+    local originalSendExMsg = ART.F.SendExMsg
+    ART.F.SendExMsg = function(prefix, ...)
+        originalSendExMsg(prefix, ...)
+        if prefix:find("^ART") then
+            local mrtPrefix = prefix:gsub("^ART", "MRT")
+            originalSendExMsg(mrtPrefix, ...)
+        end
+    end
+    
+    if not _G.GMRT.A.Note then
+        _G.GMRT.A.Note = {
+            frame = ART.A.Note and ART.A.Note.frame
+        }
+    end
+    
+    self.enabled = true
+
+    local function ReplaceNicknameTokens(str)
+        return str:gsub("(%S+)", function(token)
+            return GSUB_ReplaceNicknameToChar(token) 
+        end)
+    end
+
+    do
+        local noteMT = {}
+        noteMT.__index = function(t, k)
+            if k == "Text1" then
+                local raw = _G.VART.Note.Text1 or ""
+                return ReplaceNicknameTokens(raw)
+            elseif k == "SelfText" then
+                local raw = _G.VART.Note.SelfText or ""
+                return ReplaceNicknameTokens(raw)
+            else
+            
+                return _G.VART.Note[k]
+            end
+        end
+
+        noteMT.__newindex = function(t, k, v)
+            if k == "Text1" then
+                _G.VART.Note.Text1 = v  
+            elseif k == "SelfText" then
+                _G.VART.Note.SelfText = v
+            else
+                _G.VART.Note[k] = v
+            end
+        end
+
+        setmetatable(_G.VMRT.Note, noteMT)
+    end
+    ----------------------------------------------------------------------
+end
+
+function MRTCompat:Disable()
+    if not self.enabled then return end
+    
+    C_AddOns.IsAddOnLoaded = self.originalIsAddOnLoaded
+    
+    if not MRTCompat.originalIsAddOnLoaded("MRT") then
+        _G.MRT = nil
+        _G.VMRT = nil
+        _G.GMRT = nil
+    end
+    
+    self.enabled = false
+end
+
+StaticPopupDialogs["ART_MRT_COMPAT_ENABLE"] = {
+    text = "Enabling MRT compatibility mode requires a UI reload for full compatibility with other addons. Reload now?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function()
+        VART.Note.MRTMode = true
+        ReloadUI()
+    end,
+    OnCancel = function()
+        VART.Note.MRTMode = true
+        ART.MRTCompatibility:Enable()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["ART_MRT_COMPAT_DISABLE"] = {
+    text = "Disabling MRT compatibility mode also requires a UI reload for proper cleanup. Reload now?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function()
+        VART.Note.MRTMode = false
+        ReloadUI()
+    end,
+    OnCancel = function()
+        VART.Note.MRTMode = false
+        ART.MRTCompatibility:Disable()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local originalOptionsLoad = module.options.Load
+module.options.Load = function(self)
+    originalOptionsLoad(self)
+
+    C_Timer.After(0, function()
+        if not self.mrtCompatCheck then
+            self.mrtCompatCheck = ELib:Check(
+                self,
+                "MRT Mode",
+                VART and VART.Note and VART.Note.MRTMode
+            )
+            :Size(18, 18)
+            :Point("RIGHT", self.chkFix, "LEFT", -125, 0)
+            :Tooltip("Enable MRT compatibility mode\nMakes ART pretend to be MRT for WeakAuras and other addons\n\nRequires UI reload when enabled")
+            :OnClick(function(checkbox)
+                if not VART or not VART.Note then
+                    return
+                end
+
+                local newState = checkbox:GetChecked()
+
+                if newState and not VART.Note.MRTMode then
+                    StaticPopup_Show("ART_MRT_COMPAT_ENABLE")
+
+                elseif not newState and VART.Note.MRTMode then
+                    StaticPopup_Show("ART_MRT_COMPAT_DISABLE")
+
+                else
+                    VART.Note.MRTMode = newState
+                    if newState then
+                        ART.MRTCompatibility:Enable()
+                    else
+                        ART.MRTCompatibility:Disable()
+                    end
+                end
+            end)
+
+            self.mrtCompatCheck:AddColorState()
+        end
+    end)
+end
+
+NewVARTTableData.MRTMode = false
+
+local originalMainAddonLoaded = module.main.ADDON_LOADED
+module.main.ADDON_LOADED = function(...)
+    originalMainAddonLoaded(...)
+    
+    C_Timer.After(0, function()
+        if VART and VART.Note then
+            VART.Note.MRTMode = VART.Note.MRTMode or false
+            
+            if VART.Note.MRTMode then
+                ART.MRTCompatibility:Enable()
+            end
+        end
+    end)
+end
+
+local function Initialize()
+    if ART.Options and ART.Options.Note then
+        CreateMRTCompatButton()
+    else
+        C_Timer.After(1, Initialize)
+    end
+end
+
+Initialize()
