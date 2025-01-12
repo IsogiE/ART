@@ -466,21 +466,13 @@ ART.NicknameAPI = {
 }
 
 -- Hijacking Cell, ElvUI, Grid2 & Default Frames, others not supported and if you somehow read this, no I won't add it <3
-
 local nicknameCache = {}
-local lastCacheClear = 0
 
 local function GetCachedNickname(unit)
     if not unit or not UnitExists(unit) then return nil end
     
     local name = UnitName(unit)
     if not name then return nil end
-    
-    local currentTime = GetTime()
-    if currentTime - lastCacheClear > 300 then
-        wipe(nicknameCache)
-        lastCacheClear = currentTime
-    end
     
     if nicknameCache[name] == nil and ART and ART.NicknameAPI then
         nicknameCache[name] = ART.NicknameAPI:GetNicknameByCharacter(name) or name
@@ -593,6 +585,7 @@ local function EnhancedGrid2NameStatus()
     Grid2.setupFunc["name"] = RegisterNicknameStatus
 end
 
+-- Default Frames Integration
 local defaultFrame = CreateFrame("Frame")
 local updateQueue = {}
 local lastUpdate = 0
@@ -642,8 +635,7 @@ local function EnhanceDefaultFrames()
             end
         end)
     end
-    
-    ProcessDefaultFrames()
+        ProcessDefaultFrames()
 end
 
 local function InitializeAllFrames()
