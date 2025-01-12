@@ -1,8 +1,8 @@
---	13.09.2024
+--	20.11.2024
 
 local GlobalAddonName, ART = ...
 
-ART.V = 4920
+ART.V = 5100
 ART.T = "R"
 
 ART.Slash = {}			--> функции вызова из коммандной строки
@@ -15,8 +15,10 @@ ART.Classic = {}		--> функции для работы на классик к�
 ART.Debug = {}
 ART.RaidVersions = {}
 ART.Temp = {}
+ART.Profiling = {}
 
 ART.A = {}			--> ссылки на все модули
+ART.F = {}
 
 ART.msg_prefix = {
 	["EARTADD"] = true,
@@ -101,9 +103,11 @@ ART.mod = {}
 do
 	local function mod_LoadOptions(this)
 		this:SetScript("OnShow",nil)
+		--local t,c = debugprofilestop(),collectgarbage("count")	
 		if this.Load then
 			this:Load()
 		end
+		--local newc,newt = collectgarbage("count"),debugprofilestop() print(this.moduleName,'options',newc - c,newt - t)
 		this.Load = nil
 		ART.F.dprint(this.moduleName.."'s options loaded")
 		this.isLoaded = true
@@ -157,6 +161,7 @@ do
 		self.db = {}
 		
 		self.name = moduleName
+		self.main.moduleName = moduleName
 		table.insert(ART.Modules,self)
 		ART.A[moduleName] = self
 		
@@ -168,6 +173,15 @@ end
 
 function ART.mod:Event(event,...)
 	return self[event](self,...)
+end
+function ART.mod:EventProfiling(event,...)
+	local t = debugprofilestop()
+	self[event](self,...)
+	t = debugprofilestop() - t
+	local eventKey = self.moduleName .. ":" .. event
+	ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
+	ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
+	ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
 end
 if ART.T == "DU" then
 	local ARTDebug = ART.Debug
@@ -235,6 +249,29 @@ local function CLEU_OnEvent_Recreate()
 	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent)
 	CLEU_OnEvent()
 end
+local function CLEU_OnEvent_RecreateProfiling()
+	for i=1,#CLEUList do CLEUList[i]=nil end
+	CLEUListLen = 0
+	for mod,func in pairs(CLEUModules) do
+		CLEUListLen = CLEUListLen + 1
+		CLEUList[CLEUListLen] = function(...)
+			local t = debugprofilestop()
+			func(...)
+			t = debugprofilestop() - t
+			local eventKey = mod.name .. ":CLEU"
+			ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
+			ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
+			ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+		end
+	end
+
+	if CLEUListLen == 0 then
+		CLEUFrame:UnregisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
+	end
+
+	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent)
+	CLEU_OnEvent()
+end
 
 
 CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
@@ -258,6 +295,9 @@ function ART.mod:RegisterEvents(...)
 			if type(func) == "function" then
 				CLEUModules[self] = func
 				CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
+				if ART.Profiling.Enabled then
+					CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_RecreateProfiling)
+				end
 				CLEUFrame:RegisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
 			else
 				error("ART: "..self.name..": wrong CLEU function.")
@@ -353,24 +393,155 @@ do
 	end
 end
 
+---------------> Profiling <---------------
+
+local profilingTicker
+function ART.F:StartProfiling()
+	ART.Profiling = {
+		T = {},
+		M = {},
+		C = {},
+		Enabled = true,
+		Start = debugprofilestop(),
+	}
+	for _,mod in pairs(ART.Modules) do
+		mod.main:SetScript("OnEvent",ART.mod.EventProfiling)
+	end
+	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_RecreateProfiling)
+	ART.frame:OnUpdate_Recreate(0)
+end
+function ART.F:StopProfiling()
+	ART.Profiling.End = debugprofilestop()
+	ART.Profiling.Enabled = false
+	for _,mod in pairs(ART.Modules) do
+		mod.main:SetScript("OnEvent",ART.mod.Event)
+	end
+	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
+	ART.frame:OnUpdate_Recreate(0)
+
+	if profilingTicker then
+		profilingTicker:Cancel()
+		profilingTicker = nil
+	end
+end
+function ART.F:StartStopProfiling()
+	if ART.Profiling.Enabled then
+		ART.F:StopProfiling()
+		print('ART: profiling stopped')
+	else
+		ART.F:StartProfiling()
+		print('ART: profiling started')
+	end
+end
+function ART.F:StartProfilingBoss()
+	if profilingTicker then
+		profilingTicker:Cancel()
+		profilingTicker = nil
+	end
+	ART.F:StartProfiling()
+	profilingTicker = C_Timer.NewTicker(1,function(self)
+		if not IsEncounterInProgress() and not ART.Profiling.BossStarted then
+			ART.F:StartProfiling()
+		elseif not IsEncounterInProgress() and ART.Profiling.BossStarted then
+			ART.F:StopProfiling()
+			self:Cancel()
+			profilingTicker = nil
+		elseif IsEncounterInProgress() and not ART.Profiling.BossStarted then
+			ART.Profiling.BossStarted = true
+		end
+	end)
+end
+function ART.F:IsProfilingBoss()
+	if profilingTicker then
+		return true
+	else
+		return false
+	end
+end
+function ART.F:GetProfiling()
+	local now = (ART.Profiling.End or debugprofilestop()) - ART.Profiling.Start
+	local str = ""..ART.V.." "..ART.T.." "..now.."\n"
+	local r = {}
+	for event in pairs(ART.Profiling.T) do
+		local t = ART.Profiling.T[event]
+		local c = ART.Profiling.C[event]
+		local m = ART.Profiling.M[event]
+
+		r[#r+1] = {event,t,c,m,(t/c),t/now*1000}
+	end
+	sort(r,function(a,b) return a[2]>b[2] end)
+	for i=1,#r do
+		str = str .. r[i][1] .. " "..r[i][2].." "..r[i][3].." "..r[i][4].." "..r[i][5] .." "..r[i][6] .. "\n"
+	end
+	ART.F:Export2(str)
+end
+function ART.F:LiveProfiling()
+	debugStringFrame = CreateFrame("Frame",nil,UIParent)
+	debugStringFrame:SetAllPoints()
+	debugStringFrame:SetFrameStrata("DIALOG")
+	debugString = debugStringFrame:CreateFontString(nil,"ARTWORK")
+	debugString:SetPoint("TOPLEFT",5,-5)
+	debugString:SetJustifyH("LEFT")
+	debugString:SetJustifyV("TOP")
+	debugString:SetFont("Interface\\AddOns\\ART\\media\\skurri.ttf", 12,"OUTLINE")
+
+	C_Timer.NewTicker(0.5,function()
+		local str = ""
+		local r = {}
+		local now = (ART.Profiling.End or debugprofilestop()) - ART.Profiling.Start
+		for event in pairs(ART.Profiling.T) do
+			local t = ART.Profiling.T[event]
+			local c = ART.Profiling.C[event]
+			local m = ART.Profiling.M[event]
+	
+			r[#r+1] = {event,t,c,m,(t/c),t/now*1000}
+		end
+		sort(r,function(a,b) return a[2]>b[2] end)
+		for i=1,#r do
+			str = str .. r[i][1] .. " "..format("%dms",r[i][2]).." c:"..r[i][3].." peak:"..format("%.1fms",r[i][4]).." per1:"..format("%.1fms",r[i][5]) .." persec:"..format("%.1fms",r[i][6]) .. "\n"
+		end
+		debugString:SetText(str)
+	end)
+	ART.F:StartProfiling()
+end
+
+
 ---------------> Mods <---------------
-
-ART.F = {}
-ART.mds = ART.F
-
--- Moved to Functions.lua
 
 do
 	local function TimerFunc(self)
 		self.func(unpack(self.args))
 	end
+	local function TimerFuncProfiling(self)
+		local t = debugprofilestop()
+		self.func(unpack(self.args))
+		t = debugprofilestop() - t
+		local eventKey = "delayed timers"..self.profilingevent
+		ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
+		ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
+		ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+	end
 	function ART.F.ScheduleTimer(func, delay, ...)
 		local self = nil
+		local isProfiling = ART.Profiling.Enabled
+		local tf = isProfiling and TimerFuncProfiling or TimerFunc
 		if delay > 0 then
-			self = C_Timer_NewTicker(delay,TimerFunc,1)
+			self = C_Timer_NewTicker(delay,tf,1)
 			-- Avoid C_Timer.NewTimer here cuz it runs ticker with 1 iteration anyway
 		else
-			self = C_Timer_NewTicker(-delay,TimerFunc)
+			self = C_Timer_NewTicker(-delay,tf)
+		end
+		if isProfiling then
+			local path = debugstack()
+			local str
+			for s in path:gmatch("[^/%[%]]+%]:%d+") do
+				if not s:find("core.lua",1,true) then
+					str = ":"..s:gsub('"%]',"")
+					break
+				end
+			end
+			
+			self.profilingevent = str or ""
 		end
 		self.args = {...}
 		self.func = func
@@ -389,6 +560,11 @@ do
 	
 	ART.F.NewTimer = ART.F.ScheduleTimer
 	ART.F.Timer = ART.F.ScheduleTimer
+
+	local st = ART.F.ScheduleTimer
+	ART.F.After = function(delay, func, ...)
+		st(func, delay, ...)
+	end
 end
 
 -----------> Coroutinies <------------
@@ -637,6 +813,8 @@ SlashCmdList["ARTSlash"] = function (arg)
 		ART.frame:UnregisterAllEvents()
 		ART.frame:SetScript("OnUpdate",nil)
 		print("ART Disabled")
+	elseif argL == "profiler" or argL == "profiling" then
+		ART.F:ProfilingWindow()
 	elseif string.len(argL) == 0 then
 		ART.Options:Open()
 		return
@@ -645,7 +823,12 @@ SlashCmdList["ARTSlash"] = function (arg)
 		mod:slash(argL,arg)
 	end
 end
-SLASH_ARTSlash1 = "/ART"
+SLASH_ARTSlash1 = "/EART"
+SLASH_ARTSlash2 = "/rt"
+SLASH_ARTSlash3 = "/raidtools"
+SLASH_ARTSlash4 = "/methodraidtools"
+SLASH_ARTSlash5 = "/ert"
+SLASH_ARTSlash6 = "/ART"
 
 ---------------> Global addon frame <---------------
 
@@ -747,8 +930,10 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 		
 		ART.F.dprint("ADDON_LOADED event")
 		ART.F.dprint("MODULES FIND",#ART.Modules)
+		--local t,c = debugprofilestop(),collectgarbage("count") print('addon load event')		
 		for i=1,#ART.Modules do
 			loader(self,ART.Modules[i].main.ADDON_LOADED)
+			--local newc,newt = collectgarbage("count"),debugprofilestop() print(ART.Modules[i].name,newc - c,newt - t) t,c = newt,newc
 
 			ART.ModulesLoaded[i] = true
 			
@@ -804,6 +989,28 @@ do
 			frameElapsed = 0
 		end
 	end
+	local function OnUpdateProfiling(self,elapsed)
+		frameElapsed = frameElapsed + elapsed
+		if frameElapsed >= 0.1 then
+			if not isEncounter and IsEncounterInProgress() then
+				isEncounter = true
+				encounterTime = GetTime()
+			elseif isEncounter and not IsEncounterInProgress() then
+				isEncounter = nil
+			end
+			
+			for mod, func in next, OnUpdate_Funcs do
+				local t = debugprofilestop()
+				func(mod, frameElapsed)
+				t = debugprofilestop() - t
+				local eventKey = mod.name .. ":OnUpdate"
+				ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
+				ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
+				ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+			end
+			frameElapsed = 0
+		end
+	end
 
 	local function OnUpdate_Recreate(self,elapsed)
 		for k in pairs(OnUpdate_Funcs) do OnUpdate_Funcs[k]=nil end
@@ -811,6 +1018,11 @@ do
 			OnUpdate_Funcs[mod] = func
 		end
 		
+		if ART.Profiling.Enabled then
+			self:SetScript("OnUpdate", OnUpdateProfiling)
+			OnUpdateProfiling(self,elapsed)
+			return
+		end
 		self:SetScript("OnUpdate", OnUpdate)
 		OnUpdate(self,elapsed)
 	end
@@ -857,28 +1069,41 @@ local sendTmr
 local _SendAddonMessage = SendAddonMessage
 local SEND_LIMIT = 10
 local sendLimit = {SEND_LIMIT}
+
+local count5 = 0
+local count5_t = 0
+
 local function send(self)
 	if self then
 		sendTmr = nil
 	end
 	local t = debugprofilestop()
+	if t - count5_t > 5000 then
+		count5 = 0
+		count5_t = t
+	end
 	for p=1,#prefix_sorted do
-		sendLimit[p] = (sendLimit[p] or SEND_LIMIT) + floor((t - (sendPrev[p] or 0))/1000)
-		if sendLimit[p] > SEND_LIMIT then
-			sendLimit[p] = SEND_LIMIT
-		elseif sendLimit[p] < -30 and sendPrev[p] and t < sendPrev[p] then
+		local limitNow = (sendLimit[p] or SEND_LIMIT) + floor((t - (sendPrev[p] or 0))/1000)
+		if limitNow > SEND_LIMIT then
+			limitNow = SEND_LIMIT
+		elseif limitNow < -30 and sendPrev[p] and t < sendPrev[p] then
 			sendPrev[p] = t
 			sendLimit[p] = 0
+			limitNow = 0
 		end
-		if sendLimit[p] > 0 then
+		if limitNow > 0 then
 			local cp = 1
 			for i=1,#sendPending do
-				if sendLimit[p] <= 0 then
+				if limitNow <= 0 then
 					break
 				end
 				local pendingNow = sendPending[cp]
-				if (not pendingNow.prefixNum) or (pendingNow.prefixNum == p) then
-					sendLimit[p] = sendLimit[p] - 1
+				if pendingNow.maxPer5Sec and count5 > pendingNow.maxPer5Sec then
+					--skip
+					cp = cp + 1
+				elseif (not pendingNow.prefixNum or pendingNow.prefixNum == p) and (not pendingNow.prefixMax or p <= pendingNow.prefixMax) then
+					limitNow = limitNow - 1
+					sendLimit[p] = limitNow
 					pendingNow[1] = prefix_sorted[p] --override prefix
 					_SendAddonMessage(unpack(pendingNow))
 					sendPrev[p] = debugprofilestop()
@@ -886,6 +1111,7 @@ local function send(self)
 						pendingNow.ondone()
 					end
 					tremove(sendPending, cp)
+					count5 = count5 + 1
 					if not next(sendPending) then
 						return
 					end
@@ -906,8 +1132,14 @@ local specialOpt = nil
 SendAddonMessage = function (...)
 	local entry = {...}
 	if type(specialOpt)=="table" then
+		if type(specialOpt.maxPer5Sec)=="number" then
+			entry.maxPer5Sec = specialOpt.maxPer5Sec
+		end
 		if type(specialOpt.prefixNum)=="number" and specialOpt.prefixNum <= #prefix_sorted and specialOpt.prefixNum > 0 then
 			entry.prefixNum = specialOpt.prefixNum
+		end
+		if type(specialOpt.prefixMax)=="number" and specialOpt.prefixMax <= #prefix_sorted and specialOpt.prefixMax > 0 then
+			entry.prefixMax = specialOpt.prefixMax
 		end
 		if type(specialOpt.ondone)=="function" then
 			entry.ondone = specialOpt.ondone
@@ -963,8 +1195,20 @@ function ART.F.GetExMsg(sender, prefix, ...)
 			print(sender..": "..msgver)
 		end
 	end
-	for _,mod in pairs(ART.OnAddonMessage) do
-		mod:addonMessage(sender, prefix, ...)
+	if not ART.Profiling.Enabled then
+		for _,mod in pairs(ART.OnAddonMessage) do
+			mod:addonMessage(sender, prefix, ...)
+		end
+	else
+		for _,mod in pairs(ART.OnAddonMessage) do
+			local t = debugprofilestop()
+			mod:addonMessage(sender, prefix, ...)
+			t = debugprofilestop() - t
+			local eventKey = mod.name .. ":CHAT_MSG_ADDON"
+			ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
+			ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
+			ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+		end
 	end
 end
 

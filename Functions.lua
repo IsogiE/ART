@@ -9,6 +9,27 @@ local RAID_CLASS_COLORS, COMBATLOG_OBJECT_TYPE_MASK, COMBATLOG_OBJECT_CONTROL_MA
 local UnitGroupRolesAssigned = UnitGroupRolesAssigned or EART.NULLfunc
 local GetRaidRosterInfo = GetRaidRosterInfo
 local GetItemInfo, GetItemInfoInstant  = C_Item and C_Item.GetItemInfo or GetItemInfo,  C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+local GetSpecialization = GetSpecialization
+
+if not GetSpecialization and EART.isClassic then
+	GetSpecialization = function()
+		local n,m = 1,1
+		for spec=1,3 do
+			local selectedNum = 0
+			for talPos=1,22 do
+				local name, iconTexture, tier, column, rank, maxRank, isExceptional, available = GetTalentInfo(spec, talPos)
+				if name and maxRank > 0 and rank > 0 then
+					selectedNum = selectedNum + 1
+				end
+			end
+			if selectedNum > m then
+				n = spec
+				m = selectedNum
+			end
+		end
+		return n
+	end
+end
 
 do
 	local antiSpamArr = {}
@@ -623,18 +644,56 @@ function EART.F.table_rewrite(t1,t2)
 	end
 end
 
+function EART.F.table_random(t)
+	local keys_num = 0
+	for k,v in pairs(t) do
+		keys_num = keys_num + 1
+	end
+	if keys_num == 0 then return end
+	local key_need = math.random(1,keys_num)
+	keys_num = 0
+	for k,v in pairs(t) do
+		keys_num = keys_num + 1
+		if keys_num == key_need then
+			return v
+		end
+	end
+end
+
+local sort_f = function(a,b) return a[1]<b[1] end
+function EART.F.table_to_string(t)
+	if type(t)~="table" then return end
+	local keys = {}
+	local res = {}
+	for q,w in pairs(t) do
+		if type(q)~="function" and type(q)~="table" and not (w=="") then
+			keys[#keys+1]={tostring(q),w}
+		end
+	end
+	sort(keys,sort_f)
+	for i=1,#keys do
+		local v = keys[i][2]
+		res[#res+1] = keys[i][1] .. "=" .. (type(v)=="table" and EART.F.table_to_string(v) or type(v)=="function" and "<f>" or tostring(v))
+	end
+	local str = "{"..table.concat(res,",").."}"
+	return str
+end
+
 function EART.F.tohex(num,size)
 	return format("%0"..(size or "1").."X",num)
 end
 
 function EART.F.UnitInGuild(unit)
-	unit = EART.F.delUnitNameServer(unit)
+	local sunit = EART.F.delUnitNameServer(unit)
 	local gplayers = GetNumGuildMembers() or 0
 	for i=1,gplayers do
 		local name = GetGuildRosterInfo(i)
-		if name and EART.F.delUnitNameServer(name) == unit then
+		if name and EART.F.delUnitNameServer(name) == sunit then
 			return true
 		end
+	end
+	if UnitIsInMyGuild(unit) or UnitIsInMyGuild(sunit) then
+		return true
 	end
 	return false
 end
@@ -738,8 +797,11 @@ function EART.F.CreateAddonMsg(...)
 	return result
 end
 
-function EART.F.GetPlayerRole()
+function EART.F.GetPlayerRole(checkNotInGroup)
 	local role = UnitGroupRolesAssigned('player')
+	if (not role or role == "NONE") and checkNotInGroup and GetSpecializationInfo then
+		role = select(5,GetSpecializationInfo(GetSpecialization() or 0))
+	end
 	if role == "HEALER" then
 		local _,class = UnitClass('player')
 		return role, (class == "PALADIN" or class == "MONK") and "MHEALER" or "RHEALER"
@@ -786,6 +848,59 @@ function EART.F.GetUnitRole(unit)
 			return role, "MDD"
 		else
 			return role, "RDD"
+		end
+	end
+end
+if EART.isClassic and not EART.isWoD then
+	function EART.F.GetPlayerRole()
+		local role = UnitGroupRolesAssigned('player')
+		if role == "HEALER" then
+			local _,class = UnitClass('player')
+			return role, (class == "PALADIN" or class == "MONK") and "MHEALER" or "RHEALER"
+		elseif role ~= "DAMAGER" then
+			--TANK, NONE
+			return role
+		else
+			local _,class = UnitClass('player')
+			local isMelee = (class == "WARRIOR" or class == "PALADIN" or class == "ROGUE" or class == "DEATHKNIGHT" or class == "MONK" or class == "DEMONHUNTER")
+			if class == "DRUID" then
+				isMelee = GetSpecialization() ~= 1
+			elseif class == "SHAMAN" then
+				isMelee = GetSpecialization() == 2
+			elseif class == "HUNTER" then
+				isMelee = false
+			end
+			if isMelee then
+				return role, "MDD"
+			else
+				return role, "RDD"
+			end
+		end
+	end
+	
+	function EART.F.GetUnitRole(unit)
+		local role = UnitGroupRolesAssigned(unit)
+		if role == "HEALER" then
+			local _,class = UnitClass(unit)
+			return role, (class == "PALADIN" or class == "MONK") and "MHEALER" or "RHEALER"
+		elseif role ~= "DAMAGER" then
+			--TANK, NONE
+			return role
+		else
+			local _,class = UnitClass(unit)
+			local isMelee = (class == "WARRIOR" or class == "PALADIN" or class == "ROGUE" or class == "DEATHKNIGHT" or class == "MONK" or class == "DEMONHUNTER")
+			if class == "DRUID" then
+				isMelee = not (UnitPowerType(unit) == 8)	--astral power
+			elseif class == "SHAMAN" then
+				isMelee = UnitPowerMax(unit) >= 150
+			elseif class == "HUNTER" then
+				isMelee = false
+			end
+			if isMelee then
+				return role, "MDD"
+			else
+				return role, "RDD"
+			end
 		end
 	end
 end
@@ -1315,6 +1430,73 @@ do
 	end
 end
 
+do
+	local alertWindow = nil
+	local alertFunc = nil
+	local alertArg1 = nil
+	local ce = 0
+	local function CreateEdit()
+		ce = ce + 1
+		local e = alertWindow.EditBox[ce]
+		if not e then
+			e = ELib:Edit(alertWindow):Size(400,16):Point("TOPLEFT",90,-20-(ce-1)*20)
+			alertWindow.EditBox[ce] = e
+
+			e:SetScript("OnEnterPressed",function (self)
+				self:GetParent().OK:Click("LeftButton")
+			end)
+		end
+		e:Show()
+
+		return alertWindow.EditBox[ce]
+	end
+	local function CreateWindow()
+		alertWindow = EART.lib:Popup():Size(500,65)
+		alertWindow:SetFrameStrata("FULLSCREEN_DIALOG")
+
+		alertWindow.EditBox = {}
+
+		alertWindow.OK = EART.lib:Button(alertWindow,ACCEPT):Size(130,20):Point("BOTTOM",0,3):OnClick(function (self)
+			alertWindow:Hide()
+			local r = {}
+			for i=1,#alertWindow.EditBox do
+				local e = alertWindow.EditBox[i]
+				local input = e:GetText()
+				r[i] = input
+			end
+			alertFunc(r)
+		end)
+	end
+	function EART.F.ShowInput2(text,func,...)
+		if not alertWindow then
+			CreateWindow()
+		end
+		ce = 0
+		alertWindow.title:SetText(text)
+		for i=1,select("#",...) do
+			local opt = select(i,...)
+			
+			local e = CreateEdit()
+			e:LeftText(type(opt) == "table" and opt.text or opt)
+			e:SetScript("OnTextChanged",type(opt) == "table" and opt.funcOnEdit or nil)
+			e:Tooltip(type(opt) == "table" and opt.tip or nil)
+			e:SetText(type(opt) == "table" and opt.defText or "")
+			if type(opt) == "table" and opt.onlyNum then
+				e:SetNumeric(true)
+			else
+				e:SetNumeric(false)
+			end
+		end
+		alertFunc = func
+
+		alertWindow:ClearAllPoints()
+		alertWindow:SetPoint("CENTER",UIParent,0,0)
+		alertWindow:SetHeight(45+20*ce)
+		alertWindow:Show()
+		alertWindow.EditBox[1]:SetFocus()
+	end
+end
+
 ---------------> Chat links hook <---------------
 do
 	local chatLinkFormat = "|HART:%s:0|h|cffffff00[ART: %s]|r|h"
@@ -1465,6 +1647,82 @@ do
 		exportWindow:Show()
 	end
 end
+---------------> Profiling Window <---------------
+do
+	local profilingWindow
+	function EART.F:ProfilingWindow()
+		if not profilingWindow then
+			profilingWindow = EART.lib:Popup("Profiling"):Size(700,300)
+			local self = profilingWindow
+
+			profilingWindow.decorationLine = ELib:DecorationLine(self,true,"BACKGROUND",-5):Point("TOPLEFT",self,0,-15):Point("BOTTOMRIGHT",self,"TOPRIGHT",0,-35)
+		
+			profilingWindow.list = ELib:ScrollTableList(self,300,80,80,80,80,0):Size(700,300-35-25):Point("TOP",0,-35):FontSize(11):HideBorders()
+		
+			profilingWindow.headertext1 = ELib:Text(self,"  Event"):Point("LEFT",self.list,2,0):Point("TOP",self.decorationLine,0,0):Size(300,20):Left():Middle():Color():Shadow()
+			profilingWindow.headertext2 = ELib:Text(self,"Total, ms"):Point("LEFT",self.headertext1,"RIGHT",0,0):Point("TOP",self.decorationLine,0,0):Size(80,20):Left():Middle():Color():Shadow()
+			profilingWindow.headertext3 = ELib:Text(self,"Count"):Point("LEFT",self.headertext2,"RIGHT",0,0):Point("TOP",self.decorationLine,0,0):Size(80,20):Left():Middle():Color():Shadow()
+			profilingWindow.headertext4 = ELib:Text(self,"Peak"):Point("LEFT",self.headertext3,"RIGHT",0,0):Point("TOP",self.decorationLine,0,0):Size(80,20):Left():Middle():Color():Shadow()
+			profilingWindow.headertext5 = ELib:Text(self,"Per 1, ms"):Point("LEFT",self.headertext4,"RIGHT",0,0):Point("TOP",self.decorationLine,0,0):Size(80,20):Left():Middle():Color():Shadow()
+			profilingWindow.headertext6 = ELib:Text(self,"Per sec, ms"):Point("LEFT",self.headertext5,"RIGHT",0,0):Point("TOP",self.decorationLine,0,0):Size(80,20):Left():Middle():Color():Shadow()
+
+			local t = 0
+			profilingWindow:SetScript("OnUpdate",function(self,elapsed)
+				t = t + elapsed
+				if t < 0.5 then
+					return
+				end
+				t = t % 0.5
+
+				profilingWindow.nextBoss:SetEnabled(not EART.F:IsProfilingBoss())
+
+				if not EART.Profiling.Start then
+					return
+				end
+
+				local r,total = {},{"Total",0,"","","",0}
+				local now = (EART.Profiling.End or debugprofilestop()) - EART.Profiling.Start
+				for event in pairs(EART.Profiling.T) do
+					local t = EART.Profiling.T[event]
+					local c = EART.Profiling.C[event]
+					local m = EART.Profiling.M[event]
+			
+					r[#r+1] = {event,format("%.1f",t),c,format("%.1f",m),format("%.1f",t/c),format("%.1f",t/now*1000),sort=t}
+
+					total[2] = total[2] + t
+				end
+				sort(r,function(a,b) return a.sort>b.sort end)
+				total[6] = format("%.1f",total[2] / now*1000)
+				total[2] = format("%.1f",total[2])
+				tinsert(r,1,total)
+
+				if EART.F:IsProfilingBoss() and not EART.Profiling.BossStarted then
+					wipe(r)
+				end
+		
+				profilingWindow.list.L = r
+				profilingWindow.list:Update()
+
+				profilingWindow.startBut:SetText(EART.Profiling.Enabled and "Stop profiling" or "Start profiling")
+			end)
+
+			profilingWindow.startBut = ELib:Button(profilingWindow,"Start profiling"):Size(200,20):Point("BOTTOMLEFT",2,2):OnClick(function()
+				EART.F:StartStopProfiling()
+				t = 0.5
+			end)
+			profilingWindow.exportBut = ELib:Button(profilingWindow,"Export to string"):Size(200,20):Point("LEFT",profilingWindow.startBut,"RIGHT",2,0):OnClick(function()
+				EART.F:GetProfiling()
+			end)
+			profilingWindow.nextBoss = ELib:Button(profilingWindow,"Next boss encounter"):Size(200,20):Point("LEFT",profilingWindow.exportBut,"RIGHT",2,0):OnClick(function()
+				EART.F:StartProfilingBoss()
+			end)
+		end
+
+		profilingWindow:NewPoint("TOPLEFT",UIParent,5,-5)
+		profilingWindow:Show()
+	end
+end
+
 
 ---------------> Import/Export data <---------------
 do
@@ -2108,9 +2366,11 @@ EART.GDB.JournalInstance = {
 {7,1012,1001,1041,968,1002,1023,1022,1021,1036,1030,1178,0,1028,1031,1176,1177,1179,1180},	--Battle for Azeroth
 {8,1189,1186,1182,1185,1183,1184,1188,1187,1194,0,1190,1193,1195,1192},	--Shadowlands
 {9,1197,1203,1198,1199,1196,1202,1201,1204,1209,0,1200,1207,1208,1205},	--Dragonflight
-{-1,65,68,313,537,556,767,762,721,740,800,1001,968,1022,1021,1197,1203,1198,1199,1196,1202,1201,1204,1209,0,1200,1207,1208,1205},	--Current Season
+{-1,65,68,313,537,556,767,762,721,740,800,1001,968,1022,1021,1197,1203,1198,1199,1196,1202,1201,1204,1209,0,1200,1207,1208,1205,n=EXPANSION_NAME9,s=4},	--Current Season
+{-1,1270,1271,1274,1269,1182,1184,1023,71,n=EXPANSION_NAME10,s=1},	--Current Season
 {"11.0",10,1268,1267,1210,1269,1271,1272,1270,1274,0,1273,1278},	--The War Within
 }
+--/run local s="" for i=1,100 do local id=EJ_GetInstanceByIndex(i,false) if not id then break end s=s..id.."," end GEART.F:Export2(s)
 
 EART.GDB.MapIDToJournalInstance = {
 [2774]=1278,[2690]=1293,[2690]=1293,[2689]=1284,[2688]=1290,[2687]=1283,[2686]=1285,[2685]=1289,[2684]=1288,[2683]=1282,[2682]=1291,[2681]=1281,[2680]=1287,[2679]=1280,[2669]=1274,[2664]=1279,[2662]=1270,
@@ -2128,12 +2388,6 @@ EART.GDB.MapIDToJournalInstance = {
 
 EART.GDB.EncountersList = {
 	{350,652,653,654,655,656,657,658,659,660,661,662},
-	{331,651},
-	{330,649,650},
-	{332,623,624,625,626,627,628},
-	{334,730,731,732,733},
-	{329,618,619,620,621,622},
-	{335,724,725,726,727,728,729},
 	{129,519,520,2009,522,521,2010,2011,524,523,525,526,2012,527},
 	{130,2002,2003,2004,2005},
 	{132,1969,1966,1967,1989,1968},
@@ -2141,23 +2395,16 @@ EART.GDB.EncountersList = {
 	{136,2030,2027,2029,2028},
 	{138,1987,1985,1984,1986},
 	{140,1994,1996,1995,1998},
-	{141,1094},
 	{142,528,2013,530,529,2014,2015,532,531,533,534,2016,535},
-	{162,1107,1110,1116,1117,1112,1115,1113,1109,1121,1118,1111,1108,1120,1119,1114},
-	{155,1093,1092,1091,1090},
-	{147,1132,1136,1139,1142,1140,1137,1131,1135,1141,1164,1165,1166,1133,1138,1134,1143,1130},
 	{153,1978,1983,1980,1988,1981},
 	{156,1126,1127,1128,1129},
 	{157,1971,1972,1973},
 	{160,1974,1976,1977,1975},
 	{168,2018,2019,2020},
 	{171,2022,2023,2021},
-	{172,1088,1087,1086,1089,1085},
 	{183,2006,2007},
 	{184,1999,2001,2000},
 	{185,1992,1993,1990},
-	{186,1101,1100,1099,1096,1104,1097,1102,1095,1103,1098,1105,1106},
-	{200,1147,1149,1148,1150},
 	{213,1443,1444,1445,1446},
 	{219,593,594,595,596,597,598,599,600},
 	{220,492,488,486,487,490,491,493},
@@ -2165,13 +2412,11 @@ EART.GDB.EncountersList = {
 	{225,1144,1145,1146},
 	{226,379,378,380,381,382},
 	{230,547,548,549,551,552,553,554,1887},
-	{232,663,664,665,666,667,668,669,670,671,672},
 	{233,785,784,786,787,788,789,790,791,792,793},
 	{234,343,344,345,346,350,347,348,349,361,362,363,364,365,366,367,368},
 	{242,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245},
 	{246,1935,1936,1937,1938},
 	{247,718,719,720,721,722,723},
-	{248,1084},
 	{250,267,268,269,270,271,272,274,273,275},
 	{256,1889,1890},
 	{258,1902,1903,1904},
@@ -2191,11 +2436,8 @@ EART.GDB.EncountersList = {
 	{280,422,423,427,424,425,426,428,429},
 	{282,1033,1250,1332},
 	{283,1040,1038,1039,1037,1036},
-	{285,1027,1024,1022,1023,1025,1026},
-	{287,610,611,612,613,614,615,616,617},
 	{291,1064,1065,1063,1062,1060,1081},
 	{293,1051,1050,1048,1049},
-	{294,1030,1032,1028,1029,1082,1083},
 	{297,1080,1076,1075,1077,1074,1079,1078},
 	{300,1662,1663,1664,1665,1666},
 	{301,1656,438,1659,1660,1661},
@@ -2203,21 +2445,16 @@ EART.GDB.EncountersList = {
 	{306,451,452,453,454,455,456,457,458,459,460,461,462,463},
 	{310,1069,1070,1071,1073,1072},
 	{317,473,474,476,475,477,478,472,479,480,481,482,483,484,1885},
-	{319,709,710,711,712,713,714,715,716,717},
 	{322,1045,1044,1046,1047},
 	{324,1056,1059,1058,1057},
 	{325,1043,1041,1042},
-	{328,1035,1034},
 	{333,1189,1190,1191,1192,1193,1194},
 	{337,1178,1179,1188,1180,1181,1182},
-	{339,601,602,603,604,605,606,607,608,609},
 	{347,1891,1892,1893},
 	{348,1894,1895,1897,1898},
-	{367,1197,1204,1205,1206,1200,1185,1203},
 	{398,1272,1273,1274},
 	{399,1337,1340,1339},
 	{401,1881,1882,1883,1884,1271},
-	{409,1292,1294,1295,1296,1297,1298,1291,1299},
 	{429,1418,1417,1416,1439},
 	{431,1422,1421,1420},
 	{435,1423,1424,1425},
@@ -2225,14 +2462,9 @@ EART.GDB.EncountersList = {
 	{439,1412,1413,1414},
 	{443,1303,1304,1305,1306},
 	{453,1442,1509,1510,1441},
-	{456,1409,1505,1506,1431},
 	{457,1465,1502,1447,1464},
-	{471,1395,1390,1434,1436,1500,1407},
-	{474,1507,1504,1463,1498,1499,1501},
 	{476,1426,1427,1428,1429,1430},
-	{508,1577,1575,1570,1565,1578,1573,1572,1574,1576,1559,1560,1579,1580,1581},
 	{554,1563,1564,1571,1587},
-	{556,1602,1598,1624,1604,1622,1600,1606,1603,1595,1594,1599,1601,1593,1623,1605},
 	{573,1655,1653,1652,1654},
 	{574,1677,1688,1679,1682},
 	{593,1686,1685,1678,1714},
@@ -2303,6 +2535,35 @@ EART.GDB.EncountersList = {
 	{"11.0",2359,2837,2838,2839},	--The Dawnbreaker:Dung
 	{"11.0",2343,2907,2908,2905,2909},	--City of Threads:Dung
 
+	{232,663,664,665,666,667,668,669,670,671,672},
+	{287,610,611,612,613,614,615,616,617},
+	{319,709,710,711,712,713,714,715,716,717},
+	{331,651},
+	{330,649,650},
+	{332,623,624,625,626,627,628},
+	{334,730,731,732,733},
+	{329,618,619,620,621,622},
+	{339,601,602,603,604,605,606,607,608,609},
+	{335,724,725,726,727,728,729},
+	{162,1107,1110,1116,1117,1112,1115,1113,1109,1121,1118,1111,1108,1120,1119,1114},
+	{155,1090},
+	{141,1094},
+	{147,1132,1136,1139,1142,1140,1137,1131,1135,1141,1133,1138,1134,1143,1130},
+	{172,1088,1087,1086,1089,1085},
+	{248,1084},
+	{186,1101,1100,1099,1096,1104,1097,1102,1095,1103,1098,1105,1106},
+	{200,1150},
+	{285,1027,1024,1022,1023,1025,1026},
+	{294,1030,1032,1028,1029,1082},
+	{328,1035,1034},
+	{367,1197,1204,1205,1206,1200,1185,1203},
+	{409,1292,1294,1295,1296,1297,1298,1291,1299},
+	{471,1395,1390,1434,1436,1500,1407},
+	{474,1507,1504,1463,1498,1499,1501},
+	{456,1409,1505,1506,1431},
+	{508,1577,1575,1570,1565,1578,1573,1572,1574,1576,1559,1560,1579,1580},
+	{556,1602,1598,1624,1604,1622,1600,1606,1603,1595,1594,1599,1601,1593,1623},
+
         {610,1721,1706,1720,1722,1719,1723,1705},--HM
 	{596,1696,1691,1693,1694,1689,1692,1690,1713,1695,1704},--BF
 	{661,1778,1785,1787,1798,1786,1783,1788,1794,1777,1800,1784,1795,1799},--HFC
@@ -2342,7 +2603,7 @@ function EART.F.EJ_AutoScan()
 	local dungeonPosInsert = 1
 	for i=1,#EART.GDB.EncountersList do
 		local dung = EART.GDB.EncountersList[i]
-		if dung[1] == 610 then
+		if dung[1] == 232 then
 			dungeonPosInsert = i
 		end
 		for j=2,#dung do
@@ -2441,7 +2702,7 @@ function EART.F.EJ_LoadData()
 	local dungeonPosInsert = 1
 	for i=1,#EART.GDB.EncountersList do
 		local dung = EART.GDB.EncountersList[i]
-		if dung[1] == 610 then
+		if dung[1] == 232 then
 			dungeonPosInsert = i
 		end
 		for j=2,#dung do
@@ -2534,14 +2795,15 @@ do
 	end
 end
 
-function EART.F.GetEncountersList(onlyRaid,onlyActual,reverse)
+function EART.F.GetEncountersList(onlyRaid,onlyActual,reverse,onlyDung)
 	local new = {}
 
 	local isActual,isRaid
 	for _,v in ipairs(EART.GDB.EncountersList) do
-		if v[1] == 610 then
+		if v[1] == 232 then
 			isRaid = true
 			isActual = false
+			if onlyDung then break end
 		elseif v[1] == ACTUAL_DUNG then
 			isActual = true
 		elseif v[1] == ACTUAL_RAID then

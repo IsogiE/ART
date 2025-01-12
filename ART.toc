@@ -3,7 +3,7 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 5145
+## Version: 5167
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua
@@ -22,6 +22,7 @@ libs\AceComm-3.0\AceComm-3.0.xml
 libs\AceTimer-3.0\AceTimer-3.0.lua
 Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
+Data.lua
 BlizzFix.lua
 Options.lua
 Nickname.lua
