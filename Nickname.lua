@@ -514,28 +514,90 @@ local function EnhancedUpdateCellNicknames()
 end
 
 -- ElvUI Integration
+local function IsElvUIReady()
+    return ElvUF and ElvUF.Tags and ElvUF.Tags.Methods and ElvUF.Tags.Events
+end
+
 local function EnhancedUpdateElvUFTags()
-    if not (ElvUF and ElvUF.Tags) then return end
+    if not IsElvUIReady() then return end
     
+    if not ART or not ART.NicknameAPI then return end
+    
+    local function GetNickname(unit)
+        if not unit then return "" end
+        local name = UnitName(unit)
+        if not name then return "" end
+        
+        if ART.NicknameAPI then
+            local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
+            return nickname or name
+        end
+        return name
+    end
+
+    ElvUF.Tags.Methods['nickname'] = GetNickname
     ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Methods['nickname'] = function(unit)
-        return GetCachedNickname(unit)
-    end
     
-    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
-        return string.sub(GetCachedNickname(unit) or "", 1, 5)
-    end
-    
-    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
     ElvUF.Tags.Methods['nickname:short'] = function(unit)
-        return string.sub(GetCachedNickname(unit) or "", 1, 8)
+        local nick = GetNickname(unit)
+        return nick and string.sub(nick, 1, 8) or ""
     end
+    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
     
-    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Methods['nickname:medium'] = function(unit)
-        return string.sub(GetCachedNickname(unit) or "", 1, 10)
+    ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
+        local nick = GetNickname(unit)
+        return nick and string.sub(nick, 1, 5) or ""
     end
+    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
+    
+    ElvUF.Tags.Methods['nickname:medium'] = function(unit)
+        local nick = GetNickname(unit)
+        return nick and string.sub(nick, 1, 10) or ""
+    end
+    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
+
+    if ElvUI and ElvUI[1] and ElvUI[1].UpdateAllFrames then
+        ElvUI[1]:UpdateAllFrames()
+    end
+end
+
+local initFrame = CreateFrame("Frame")
+initFrame.elapsed = 0
+initFrame:SetScript("OnUpdate", function(self, elapsed)
+    self.elapsed = self.elapsed + elapsed
+
+    if self.elapsed > 0.5 then
+        self.elapsed = 0
+        if IsElvUIReady() then
+            EnhancedUpdateElvUFTags()
+            self:SetScript("OnUpdate", nil)
+        end
+    end
+end)
+
+initFrame:RegisterEvent("ADDON_LOADED")
+initFrame:RegisterEvent("PLAYER_LOGIN")
+initFrame:SetScript("OnEvent", function(self, event, addon)
+    if event == "ADDON_LOADED" and addon == "ElvUI" then
+        EnhancedUpdateElvUFTags()
+    elseif event == "PLAYER_LOGIN" then
+        EnhancedUpdateElvUFTags()
+    end
+end)
+
+local function ReinitializeElvUITags()
+    if IsElvUIReady() then
+        EnhancedUpdateElvUFTags()
+        if ElvUI and ElvUI[1] and ElvUI[1].UpdateAllFrames then
+            ElvUI[1]:UpdateAllFrames()
+        end
+    end
+end
+
+ART.ReinitializeElvUITags = ReinitializeElvUITags
+
+if module then
+    module.EnhancedUpdateElvUFTags = EnhancedUpdateElvUFTags
 end
 
 -- Grid2 Integration
