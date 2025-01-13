@@ -217,10 +217,16 @@ function module.options:Load()
 	module.importWindow, module.exportWindow = EART.F.CreateImportExportWindows()
 
 	function module.importWindow:ImportFunc(str)
-		local headerLen = str:sub(1,4) == "EART" and 6 or 5
-
+		local headerLen = str:sub(1,4) == "EART" and 6 or (str:sub(1,4) == "EXRT" and 6 or 5)
+	
 		local header = str:sub(1,headerLen)
-		if (header:sub(1,headerLen-1) ~= "EARTP" and header:sub(1,headerLen-1) ~= "ARTP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+		-- Add MRTP and EXRTP to accepted prefixes
+		if (header:sub(1,headerLen-1) ~= "EARTP" and 
+			header:sub(1,headerLen-1) ~= "ARTP" and 
+			header:sub(1,headerLen-1) ~= "MRTP" and 
+			header:sub(1,headerLen-1) ~= "EXRTP") or 
+			(header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+			
 			StaticPopupDialogs["EART_PROFILES_IMPORT"] = {
 				text = "|cffff0000"..ERROR_CAPS.."|r "..L.ProfilesFail3,
 				button1 = OKAY,
@@ -232,7 +238,7 @@ function module.options:Load()
 			StaticPopup_Show("EART_PROFILES_IMPORT")
 			return
 		end
-
+	
 		module:TextToProfile(str:sub(headerLen+1),header:sub(headerLen,headerLen)=="0")
 	end
 
@@ -373,7 +379,12 @@ function module:ProfileToText(isFullExport)
 	if #str < 1000000 then
 		compressed = LibDeflate:CompressDeflate(str,{level = 5})
 	end
-	local encoded = "ARTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+	local encoded
+    if VART.EnableMRTCompatibility then
+        encoded = "MRTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+    else
+        encoded = "ARTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+    end
 
 	EART.F.dprint("Str len:",#str,"Encoded len:",#encoded)
 
