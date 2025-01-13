@@ -556,7 +556,7 @@ function Templates:EARTTranslucentFrameTemplate(parent)
 	self.Bg = self:CreateTexture(nil,"BACKGROUND",nil,-8)
 	self.Bg:SetPoint("TOPLEFT",10,-10)
 	self.Bg:SetPoint("BOTTOMRIGHT",-10,10)
-	self.Bg:SetColorTexture(0,0,0,0.8)
+	self.Bg:SetColorTexture(0.05, 0.05, 0.2,1)
 
 	local TopLeftCorner = self:CreateTexture(nil,"BORDER","Dialog-BorderTopLeft",-5)
 	TopLeftCorner:SetPoint("TOPLEFT")
@@ -880,7 +880,7 @@ do
 		self:EnableMouse(true)
 		self:SetPoint("CENTER")
 		self:SetBackdrop({bgFile="Interface\\Addons\\"..GlobalAddonName.."\\media\\White"})
-		self:SetBackdropColor(0.05,0.05,0.07,0.9)
+		self:SetBackdropColor(0.05, 0.05, 0.2,1)
 
 		self.HeaderText = self:CreateFontString(nil,"ARTWORK","GameFontNormal")
 		self.HeaderText:SetPoint("TOP",0,-3)
