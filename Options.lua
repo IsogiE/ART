@@ -904,6 +904,7 @@ OptionsFrame_image.Point = OptionsFrame_image.SetPoint
 
 OptionsFrame_title = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\logoname2"):Point("LEFT",OptionsFrame_image,"RIGHT",15,-5):Size(512*0.7,128*0.7)
 OptionsFrame_title2 = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\meeting"):Point("LEFT",OptionsFrame_image,"CENTER",250,-475):Size(512*0.7,256*0.7)
+OptionsFrame_title3 = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\scrapps"):Point("LEFT",OptionsFrame_title2,"LEFT",-325,52):Size(400*0.8,360*0.8)
 
 local askFrame_show
 local pmove_pos = 40
