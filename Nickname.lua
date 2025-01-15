@@ -523,37 +523,39 @@ local function EnhancedUpdateElvUFTags()
     
     if not ART or not ART.NicknameAPI then return end
     
-    local function GetNickname(unit)
+    local function NicknameTag(unit)
         if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        
-        if ART.NicknameAPI then
-            local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
-            return nickname or name
-        end
-        return name
+        return GetCachedNickname(unit) or ""
     end
-
-    ElvUF.Tags.Methods['nickname'] = GetNickname
-    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
     
-    ElvUF.Tags.Methods['nickname:short'] = function(unit)
-        local nick = GetNickname(unit)
+    local function NicknameShortTag(unit)
+        if not unit then return "" end
+        local nick = GetCachedNickname(unit)
         return nick and string.sub(nick, 1, 8) or ""
     end
-    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
     
-    ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
-        local nick = GetNickname(unit)
+    local function NicknameVeryShortTag(unit)
+        if not unit then return "" end
+        local nick = GetCachedNickname(unit)
         return nick and string.sub(nick, 1, 5) or ""
     end
-    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
     
-    ElvUF.Tags.Methods['nickname:medium'] = function(unit)
-        local nick = GetNickname(unit)
+    local function NicknameMediumTag(unit)
+        if not unit then return "" end
+        local nick = GetCachedNickname(unit)
         return nick and string.sub(nick, 1, 10) or ""
     end
+    
+    ElvUF.Tags.Methods['nickname'] = NicknameTag
+    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
+    
+    ElvUF.Tags.Methods['nickname:short'] = NicknameShortTag
+    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
+    
+    ElvUF.Tags.Methods['nickname:veryshort'] = NicknameVeryShortTag
+    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
+    
+    ElvUF.Tags.Methods['nickname:medium'] = NicknameMediumTag
     ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
 
     if ElvUI and ElvUI[1] and ElvUI[1].UpdateAllFrames then
@@ -565,7 +567,6 @@ local initFrame = CreateFrame("Frame")
 initFrame.elapsed = 0
 initFrame:SetScript("OnUpdate", function(self, elapsed)
     self.elapsed = self.elapsed + elapsed
-
     if self.elapsed > 0.5 then
         self.elapsed = 0
         if IsElvUIReady() then
