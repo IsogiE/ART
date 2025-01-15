@@ -650,42 +650,39 @@ end
 
 -- Default Frames Integration
 local defaultFrame = CreateFrame("Frame")
-local updateQueue = {}
-local lastUpdate = 0
 
-local function QueueFrameUpdate(frame)
-    updateQueue[frame] = true
+local function UpdateFrameName(frame)
+    if not frame or not frame.unit or not frame.name then return end
+    if not UnitExists(frame.unit) or not UnitIsPlayer(frame.unit) then return end
+    
+    local name = UnitName(frame.unit)
+    if not name then return end
+    
+    local nickname = GetCachedNickname(frame.unit)
+    if nickname and frame.name:GetText() ~= nickname then
+        frame.name:SetText(nickname)
+    end
 end
 
-local function ProcessUpdateQueue()
-    local currentTime = GetTime()
-    if currentTime - lastUpdate < 0.1 then return end
-    
-    for frame in pairs(updateQueue) do
-        if frame and frame.unit and UnitExists(frame.unit) and UnitIsPlayer(frame.unit) then
-            local nickname = GetCachedNickname(frame.unit)
-            if nickname and frame.name then
-                frame.name:SetText(nickname)
-            end
-        end
-    end
-    
-    wipe(updateQueue)
-    lastUpdate = currentTime
-end
-
-local function ProcessDefaultFrames()
-    for i = 1, 40 do
-        local frame = _G["CompactRaidFrame"..i]
-        if frame and frame.unit and UnitExists(frame.unit) and UnitIsPlayer(frame.unit) then
-            QueueFrameUpdate(frame)
-        end
-    end
-    
+local function UpdateAllFrames()
     for i = 1, 8 do
         local frame = _G["CompactPartyFrameMember"..i]
-        if frame and frame.unit and UnitExists(frame.unit) and UnitIsPlayer(frame.unit) then
-            QueueFrameUpdate(frame)
+        if frame and frame:IsVisible() then
+            UpdateFrameName(frame)
+        end
+    end
+    
+    for i = 1, 40 do
+        local frame = _G["CompactRaidFrame"..i]
+        if frame and frame:IsVisible() then
+            UpdateFrameName(frame)
+        end
+        
+        for j = 1, 5 do
+            local groupFrame = _G["CompactRaidGroup"..i.."Member"..j]
+            if groupFrame and groupFrame:IsVisible() then
+                UpdateFrameName(groupFrame)
+            end
         end
     end
 end
@@ -693,12 +690,29 @@ end
 local function EnhanceDefaultFrames()
     if CompactUnitFrame_UpdateName then
         hooksecurefunc("CompactUnitFrame_UpdateName", function(frame)
-            if frame and frame.unit and UnitExists(frame.unit) and UnitIsPlayer(frame.unit) then
-                QueueFrameUpdate(frame)
-            end
+            UpdateFrameName(frame)
         end)
     end
-        ProcessDefaultFrames()
+    
+    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    defaultFrame:RegisterEvent("UNIT_NAME_UPDATE")
+    defaultFrame:RegisterEvent("GROUP_JOINED")
+    
+    defaultFrame:SetScript("OnEvent", function(self, event, ...)
+        if event == "UNIT_NAME_UPDATE" then
+            local unit = ...
+            for i = 1, 40 do
+                local frame = _G["CompactRaidFrame"..i]
+                if frame and frame.unit == unit then
+                    UpdateFrameName(frame)
+                    break
+                end
+            end
+        else
+            UpdateAllFrames()
+        end
+    end)
 end
 
 local function InitializeAllFrames()
@@ -711,8 +725,6 @@ end
 local mainFrame = CreateFrame("Frame")
 mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 mainFrame:RegisterEvent("ADDON_LOADED")
-mainFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-mainFrame:RegisterEvent("UNIT_NAME_UPDATE")
 
 mainFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "PLAYER_ENTERING_WORLD" then
@@ -721,9 +733,5 @@ mainFrame:SetScript("OnEvent", function(self, event, arg1)
         if arg1 == "Cell" or arg1 == "Grid2" then
             InitializeAllFrames()
         end
-    else
-        ProcessUpdateQueue()
     end
 end)
-
-C_Timer.NewTicker(0.1, ProcessUpdateQueue)
