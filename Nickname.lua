@@ -688,12 +688,6 @@ local function UpdateAllFrames()
 end
 
 local function EnhanceDefaultFrames()
-    if CompactUnitFrame_UpdateName then
-        hooksecurefunc("CompactUnitFrame_UpdateName", function(frame)
-            UpdateFrameName(frame)
-        end)
-    end
-    
     defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
     defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     defaultFrame:RegisterEvent("UNIT_NAME_UPDATE")
@@ -710,9 +704,11 @@ local function EnhanceDefaultFrames()
                 end
             end
         else
-            UpdateAllFrames()
+            C_Timer.After(0.1, UpdateAllFrames)
         end
     end)
+    
+    C_Timer.After(0.1, UpdateAllFrames)
 end
 
 local function InitializeAllFrames()
