@@ -583,19 +583,11 @@ end
 local function GSUB_ReplaceNicknameToChar(token)
     local ltoken = token:lower()
 
-    if ltoken == "isogichi" then
-        return token
-    end
-
     if ART and ART.NicknameAPI then
         local chars = ART.NicknameAPI:GetAllCharactersByNickname(ltoken)
-        for _, fullCharName in ipairs(chars) do
-            local nameNoRealm = strsplit("-", fullCharName:lower())
-            local myNameNoRealm = strsplit("-", (ART.SDB.charName or ""):lower())
-            if nameNoRealm == myNameNoRealm then
-                local realNoRealm = strsplit("-", fullCharName)
-                return realNoRealm
-            end
+        if chars and #chars > 0 then
+            local nameNoRealm = strsplit("-", chars[1])
+            return nameNoRealm
         end
     end
     
