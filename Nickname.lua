@@ -650,6 +650,21 @@ end
 
 -- Default Frames Integration
 local defaultFrame = CreateFrame("Frame")
+local overlays = {}
+
+local function CreateOverlay(frame)
+    if not frame or overlays[frame] then return end
+    
+    local overlay = frame:CreateFontString(nil, "OVERLAY")
+    overlay:SetFontObject(frame.name:GetFontObject())
+    overlay:SetPoint("LEFT", frame.name, "LEFT")
+    overlay:SetJustifyH("LEFT")
+    overlay:SetWidth(frame:GetWidth() - 8)
+    overlay:SetWordWrap(false)
+    
+    overlays[frame] = overlay
+    return overlay
+end
 
 local function UpdateFrameName(frame)
     if not frame or not frame.unit or not frame.name then return end
@@ -659,8 +674,24 @@ local function UpdateFrameName(frame)
     if not name then return end
     
     local nickname = GetCachedNickname(frame.unit)
-    if nickname and frame.name:GetText() ~= nickname then
-        frame.name:SetText(nickname)
+    if nickname then
+        local overlay = overlays[frame] or CreateOverlay(frame)
+        frame.name:SetAlpha(0)
+        if overlay then
+            overlay:SetWidth(frame:GetWidth() - 8) 
+            overlay:SetText(nickname)
+        end
+    else
+        frame.name:SetAlpha(1)
+        if overlays[frame] then
+            overlays[frame]:SetText("")
+        end
+    end
+end
+
+local function OnFrameResize(frame)
+    if overlays[frame] then
+        overlays[frame]:SetWidth(frame:GetWidth() - 8)
     end
 end
 
@@ -669,6 +700,10 @@ local function UpdateAllFrames()
         local frame = _G["CompactPartyFrameMember"..i]
         if frame and frame:IsVisible() then
             UpdateFrameName(frame)
+            if not frame.sizeHooked then
+                frame:HookScript("OnSizeChanged", OnFrameResize)
+                frame.sizeHooked = true
+            end
         end
     end
     
@@ -676,22 +711,28 @@ local function UpdateAllFrames()
         local frame = _G["CompactRaidFrame"..i]
         if frame and frame:IsVisible() then
             UpdateFrameName(frame)
+            if not frame.sizeHooked then
+                frame:HookScript("OnSizeChanged", OnFrameResize)
+                frame.sizeHooked = true
+            end
         end
         
         for j = 1, 5 do
             local groupFrame = _G["CompactRaidGroup"..i.."Member"..j]
             if groupFrame and groupFrame:IsVisible() then
                 UpdateFrameName(groupFrame)
+                if not groupFrame.sizeHooked then
+                    groupFrame:HookScript("OnSizeChanged", OnFrameResize)
+                    groupFrame.sizeHooked = true
+                end
             end
         end
     end
 end
 
 local function EnhanceDefaultFrames()
-    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
     defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    defaultFrame:RegisterEvent("UNIT_NAME_UPDATE")
-    defaultFrame:RegisterEvent("GROUP_JOINED")
+    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
     
     defaultFrame:SetScript("OnEvent", function(self, event, ...)
         if event == "UNIT_NAME_UPDATE" then
