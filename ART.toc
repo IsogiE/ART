@@ -3,7 +3,7 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VART, DataDB
-## Version: 5180
+## Version: 5181
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
 core.lua

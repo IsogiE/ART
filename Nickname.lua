@@ -488,21 +488,42 @@ local function EnhancedUpdateCellNicknames()
     CellDB.nicknames.list = CellDB.nicknames.list or {}
     CellDB.nicknames.custom = true
     
-    local existingNicknames = {}
-    for _, entry in ipairs(CellDB.nicknames.list) do
-        existingNicknames[entry] = true
-    end
+    -- Track which entries we manage
+    local ourManagedCharacters = {}
+    local entriesToRemove = {}
     
+    -- First, get all characters we manage through our addon
     local nicknameData = ART.NicknameAPI:GetAllNicknames()
     for nickname, data in pairs(nicknameData) do
         if data.characters then
             for _, charData in ipairs(data.characters) do
                 if charData.character then
-                    local entry = charData.character .. ":" .. nickname
-                    if not existingNicknames[entry] then
-                        table.insert(CellDB.nicknames.list, entry)
-                        existingNicknames[entry] = true
-                    end
+                    ourManagedCharacters[charData.character] = true
+                end
+            end
+        end
+    end
+    
+    -- Find and remove our old entries
+    for i, entry in ipairs(CellDB.nicknames.list) do
+        local character = strsplit(":", entry)
+        if ourManagedCharacters[character] then
+            table.insert(entriesToRemove, i)
+        end
+    end
+    
+    -- Remove old entries from highest index to lowest to maintain index validity
+    table.sort(entriesToRemove, function(a,b) return a > b end)
+    for _, index in ipairs(entriesToRemove) do
+        table.remove(CellDB.nicknames.list, index)
+    end
+    
+    -- Add our current entries
+    for nickname, data in pairs(nicknameData) do
+        if data.characters then
+            for _, charData in ipairs(data.characters) do
+                if charData.character then
+                    table.insert(CellDB.nicknames.list, charData.character .. ":" .. nickname)
                 end
             end
         end
