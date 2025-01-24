@@ -1244,14 +1244,6 @@ function ART.F.GetAnyExMsg(sender, prefix, ...)
 	sendPrev[p] = debugprofilestop()
 end
 
-local oldIsAddOnLoaded = C_AddOns.IsAddOnLoaded
-function C_AddOns.IsAddOnLoaded(name)
-    if name == "MRT" then
-        return true
-    end
-    return oldIsAddOnLoaded(name)
-end
-
 local function GetNicknameByCharacter(characterName)
     if not VMRT or not VMRT.Nicknames then return nil end
     local nicknamesMap = type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" and VMRT.Nicknames[1] or VMRT.Nicknames
