@@ -30,6 +30,16 @@ ART.msg_prefix = {
 ART.L = {}			--> локализация
 ART.locale = GetLocale()
 
+local unitIDs = {
+    player = true,
+    target = true,
+    focus = true,
+    mouseover = true,
+    npc = true,
+    vehicle = true,
+    pet = true,
+}
+
 ---------------> Version <---------------
 do
 	local version, buildVersion, buildDate, uiVersion = GetBuildInfo()
@@ -1240,6 +1250,162 @@ function C_AddOns.IsAddOnLoaded(name)
         return true
     end
     return oldIsAddOnLoaded(name)
+end
+
+local function GetNicknameByCharacter(characterName)
+    if not VMRT or not VMRT.Nicknames then return nil end
+    local nicknamesMap = type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" and VMRT.Nicknames[1] or VMRT.Nicknames
+    
+    if not nicknamesMap then return nil end
+    characterName = characterName:lower()
+    
+    for nickname, data in pairs(nicknamesMap) do
+        if data and data.characters then
+            for _, charData in ipairs(data.characters) do
+                if type(charData) == "table" and charData.character and charData.character:lower() == characterName then
+                    return nickname
+                end
+            end
+        end
+    end
+    return nil
+end
+
+_G.LiquidAPI = {
+    GetName = function(self, characterName, formatting, atlasSize)
+        if not characterName then 
+            error("LiquidAPI:GetName(characterName[, formatting, atlasSize]), characterName is nil") 
+            return 
+        end
+        
+        local nickname
+        if unitIDs[characterName:lower()] then
+            local n = UnitNameUnmodified(characterName)
+            if n then
+                n = strsplit("-", n)
+                nickname = GetNicknameByCharacter(n)
+            end
+        else
+            characterName = strsplit("-", characterName)
+            nickname = GetNicknameByCharacter(characterName)
+        end
+
+        if not formatting then 
+            return nickname or characterName
+        end
+
+        local guid = UnitGUID(characterName)
+        if not guid then
+            return nickname or characterName, "%s", ""
+        end
+
+        local classFileName = UnitClassBase(characterName)
+        local colorStr = string.format("|c%s%%s|r", classFileName and RAID_CLASS_COLORS[classFileName] and RAID_CLASS_COLORS[classFileName].colorStr or "ffffff")
+
+        local role = UnitGroupRolesAssigned(characterName)
+        local roleAtlas = role == "TANK" and "Role-Tank-SM" or role == "HEALER" and "Role-Healer-SM" or role == "DAMAGER" and "Role-DPS-SM"
+        local roleIcon = roleAtlas and CreateAtlasMarkup(roleAtlas, atlasSize, atlasSize) or ""
+
+        return nickname or characterName, colorStr, roleIcon, RAID_CLASS_COLORS[classFileName] or {}
+    end,
+
+    GetCharacterInGroup = function(self, nickname)
+        if not VMRT or not VMRT.Nicknames then return nil end
+        local nicknamesMap = type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" and VMRT.Nicknames[1] or VMRT.Nicknames
+        
+        if not nicknamesMap or not nickname then return nil end
+        
+        for nickKey, data in pairs(nicknamesMap) do
+            if nickKey:lower() == nickname:lower() and data.characters then
+                for _, charData in ipairs(data.characters) do
+                    if UnitExists(charData.character) then
+                        local guid = UnitGUID(charData.character)
+                        local classFileName = UnitClassBase(charData.character)
+                        return charData.character, string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr), guid
+                    end
+                end
+            end
+        end
+    end,
+
+    GetCharacters = function(self, nickname)
+        if not nickname then 
+            error("LiquidAPI:GetCharacters(nickname), nickname is nil") 
+            return 
+        end
+        
+        if not VMRT or not VMRT.Nicknames then return nil end
+        local nicknamesMap = type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" and VMRT.Nicknames[1] or VMRT.Nicknames
+        
+        if not nicknamesMap then return nil end
+        
+        nickname = nickname:gsub("^%l", string.upper)
+        for nickKey, data in pairs(nicknamesMap) do
+            if nickKey:lower() == nickname:lower() and data.characters then
+                local chars = {}
+                for _, charData in ipairs(data.characters) do
+                    chars[charData.character] = true
+                end
+                return chars
+            end
+        end
+        return nil
+    end
+}
+
+_G.NSAPI = _G.LiquidAPI
+
+if WeakAuras then
+    if WeakAuras.GetName then 
+        WeakAuras.GetName = function(n)
+            if not n then return end
+            return GetNicknameByCharacter(n) or n
+        end
+    end
+
+    if WeakAuras.UnitName then
+        WeakAuras.UnitName = function(unit)
+            if not unit then return end
+            local n, s = UnitName(unit)
+            if not n then return end
+            return GetNicknameByCharacter(n) or n, s
+        end
+    end
+
+    if WeakAuras.GetUnitName then
+        WeakAuras.GetUnitName = function(unit, showServer)
+            if not unit then return end
+            local unitName = GetUnitName(unit, showServer)
+            if not unitName then return end
+            if not UnitIsPlayer(unit) then return unitName end
+            
+            if showServer then
+                local n, s = strsplit("-", unitName)
+                if s then
+                    return string.format("%s-%s", (GetNicknameByCharacter(n) or n), s)
+                end
+                return GetNicknameByCharacter(n) or n
+            else
+                local n = unitName:match("^(%S*)")
+                if unitName:find("%*") then
+                    return string.format("%s (*)", (GetNicknameByCharacter(n) or n))
+                end
+                return GetNicknameByCharacter(n) or n
+            end
+        end
+    end
+
+    if WeakAuras.UnitFullName then
+        WeakAuras.UnitFullName = function(unit)
+            if not unit then return end
+            local n, s = UnitFullName(unit)
+            if not n then return end
+            if UnitIsPlayer(unit) then
+                return GetNicknameByCharacter(n) or n, s
+            end
+            return n, s
+        end
+    end
 end
 
 _G["GExRT"] = ART

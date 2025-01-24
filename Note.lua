@@ -1,19 +1,19 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
 local VMRT = nil
 
-local module = ART:New("Note",ART.L.message)
-local ELib,L = ART.lib,ART.L
+local module = MRT:New("Note",MRT.L.message)
+local ELib,L = MRT.lib,MRT.L
 
 local GetTime, GetSpecializationInfo = GetTime, GetSpecializationInfo
 local string_gsub, strsplit, tonumber, format, string_match, floor, string_find, type, string_gmatch = string.gsub, strsplit, tonumber, format, string.match, floor, string.find, type, string.gmatch
-local GetSpellInfo = ART.F.GetSpellInfo or GetSpellInfo
+local GetSpellInfo = MRT.F.GetSpellInfo or GetSpellInfo
 local GetSpellTexture = C_Spell and C_Spell.GetSpellTexture or GetSpellTexture
 local GetSpellName = C_Spell and C_Spell.GetSpellName or GetSpellInfo
-local NewVARTTableData
+local NewVMRTTableData
 
 local GetSpecialization = GetSpecialization
-if ART.isCata then
+if MRT.isCata then
 	GetSpecialization = function()
 		local n,m = 1,1
 		for spec=1,3 do
@@ -32,11 +32,11 @@ if ART.isCata then
 		return n
 	end
 	GetSpecializationInfo = function(specNum)
-		local specs = ART.GDB.ClassSpecializationList[select(2,UnitClass'player')]
+		local specs = MRT.GDB.ClassSpecializationList[select(2,UnitClass'player')]
 		if not specs or not specs[specNum] then
 			return
 		end
-		local role = ART.GDB.ClassSpecializationRole[ specs[specNum] ]
+		local role = MRT.GDB.ClassSpecializationRole[ specs[specNum] ]
 		if role == "MELEE" or role == "RANGE" then
 			role = "DAMAGER"
 		elseif role == "HEAL" then
@@ -45,8 +45,8 @@ if ART.isCata then
 		local _,name = GetSpecializationInfoForSpecID( specs[specNum] )
 		return 0,name,0,0,role
 	end
-elseif ART.isClassic then
-	GetSpecialization = ART.NULLfunc
+elseif MRT.isClassic then
+	GetSpecialization = MRT.NULLfunc
 end
 
 module.db.otherIconsList = {
@@ -81,11 +81,11 @@ module.db.otherIconsList = {
 	{"{dps}",path="Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES",crop=":16:16:0:0:64:64:20:39:22:41","Interface\\LFGFrame\\UI-LFG-ICON-ROLES",0.26171875,0.5234375,0.26171875,0.5234375},
 }
 
-if ART.isClassic then
+if MRT.isClassic then
 	tremove(module.db.otherIconsList,13)
 	tremove(module.db.otherIconsList,12)
 	tremove(module.db.otherIconsList,10)
-	if not ART.isLK then tremove(module.db.otherIconsList,6) end
+	if not MRT.isLK then tremove(module.db.otherIconsList,6) end
 end
 
 module.db.iconsLocalizatedNames = {
@@ -138,66 +138,23 @@ local function GSUB_Icon(spellID,iconSize)
 	return "|T"..(spellTexture or "Interface\\Icons\\INV_MISC_QUESTIONMARK")..":"..iconSize.."|t"
 end
 
-function GSUB_Player(anti, list, msg)
-    if not list or type(list) ~= "string" then return "" end
-    
-    local listTable = {strsplit(",", list)}
-    local found = false
-    local myName = ART.SDB and ART.SDB.charName and (ART.SDB.charName):lower()
-    if not myName then return "" end
+local function GSUB_Player(anti,list,msg)
+	list = {strsplit(",",list)}
+	local found = false
+	local myName = (MRT.SDB.charName):lower()
+	for i=1,#list do
+		list[i] = list[i]:gsub("|?|c........",""):gsub("|?|r",""):lower()
+		if strsplit("-",list[i]) == myName then
+			found = true
+			break
+		end
+	end
 
-    -- Get current player's nickname
-    local myNickname = ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(myName)
-
-    for i = 1, #listTable do
-        if listTable[i] and type(listTable[i]) == "string" then
-            local playerName = listTable[i]:gsub("|?|c........", ""):gsub("|?|r", ""):trim():lower()
-            
-            -- Remove realm name if present for comparison
-            local myNameNoRealm = strsplit("-", myName)
-            local playerNameNoRealm = strsplit("-", playerName)
-            
-            -- Direct name match check
-            if myNameNoRealm == playerNameNoRealm then
-                found = true
-                break
-            end
-
-            -- Check if target name is current player's nickname
-            if myNickname and myNickname:lower() == playerNameNoRealm then
-                found = true
-                break
-            end
-            
-            -- Check if player name is current player's nickname
-            if ART.NicknameAPI and ART.NicknameAPI.IsCharacterInNickname then
-                if ART.NicknameAPI:IsCharacterInNickname(myName, playerName) or
-                   ART.NicknameAPI:IsCharacterInNickname(myNameNoRealm, playerNameNoRealm) then
-                    found = true
-                    break
-                end
-            end
-
-            -- Check if this target is a nickname with characters
-            if ART.NicknameAPI then
-                local targetCharacters = ART.NicknameAPI:GetAllCharactersByNickname(playerName)
-                for _, character in ipairs(targetCharacters) do
-                    local charNameNoRealm = strsplit("-", character:lower())
-                    if myNameNoRealm == charNameNoRealm then
-                        found = true
-                        break
-                    end
-                end
-                if found then break end
-            end
-        end
-    end
-
-    if (found and anti == "") or (not found and anti == "!") then
-        return msg
-    else
-        return ""
-    end
+	if (found and anti == "") or (not found and anti == "!") then
+		return msg
+	else
+		return ""
+	end
 end
 
 local function GSUB_Encounter(list,msg)
@@ -319,7 +276,7 @@ end
 local function GSUB_ClassUnique(list,msg)
 	list = {strsplit(",",list)}
 	local classInParty = {}
-	for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in ART.F.IterateRoster, ART.F.GetRaidDiffMaxGroup() do
+	for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in MRT.F.IterateRoster, MRT.F.GetRaidDiffMaxGroup() do
 		if class then
 			classInParty[ classList[class:lower()] or 0 ] = true
 		end
@@ -374,7 +331,7 @@ local function GSUB_Group(anti,groups,msg)
 	if IsInRaid() then
 		for i=1,GetNumGroupMembers() do
 			local name, _, subgroup = GetRaidRosterInfo(i)
-			if name == ART.SDB.charName then
+			if name == MRT.SDB.charName then
 				myGroup = subgroup
 				break
 			end
@@ -396,145 +353,126 @@ formats:
 {time:1:15}
 {time:2:30,p2}	--start on phase 2, works only with bigwigs
 {time:0:30,SCC:17:2}	--start on combat log event. format "event:spellID:counter", events: SCC (SPELL_CAST_SUCCESS), SCS (SPELL_CAST_START), SAA (SPELL_AURA_APPLIED), SAR (SPELL_AURA_REMOVED)
-{time:0:30,e,customevent}	--start on ART.F.Note_Timer(customevent) function or "/rt note starttimer customevent" 
-{time:2:30,wa:nzoth_hs1}	--run weakauras custom event ART_NOTE_TIME_EVENT with arg1 = nzoth_hs1, arg2 = time left (event runs every second when timer has 5 seconds or lower), arg3 = note line text
+{time:0:30,e,customevent}	--start on MRT.F.Note_Timer(customevent) function or "/rt note starttimer customevent" 
+{time:2:30,wa:nzoth_hs1}	--run weakauras custom event MRT_NOTE_TIME_EVENT with arg1 = nzoth_hs1, arg2 = time left (event runs every second when timer has 5 seconds or lower), arg3 = note line text
 ]]
 
-local function GSUB_Time(preText, t, msg, newlinesym)
-    local timeText, opts = strsplit(",", t, 2)
+local function GSUB_Time(preText,t,msg,newlinesym)
+	local timeText, opts = strsplit(",", t, 2)
 
-    local time = tonumber(timeText)
-    if not time then
-        local min, sec = strsplit(":", timeText)
-        if min and sec then
-            time = (tonumber(min) or 0) * 60 + (tonumber(sec) or 0)
-        else
-            time = -1
-        end
-    end
-    local prefixText
+	local time = tonumber(timeText)
+	if not time then
+		local min, sec = strsplit(":", timeText)
+		if min and sec then
+			time = (tonumber(min) or 0) * 60 + (tonumber(sec) or 0)
+		else
+			time = -1
+		end
+	end
+	local prefixText
 
-    local anyType
-    local now = GetTime()
-    local waEventID
-    local addGlow
-    local isAllParam
-    
-    local optNow
-    while opts do
-        optNow, opts = strsplit(",", opts, 2)
+	local anyType
+	local now = GetTime()
+	local waEventID
+	local addGlow
+	local isAllParam
+	
+	local optNow
+	while opts do
+		optNow, opts = strsplit(",", opts, 2)
 
-        if optNow == "e" then
-            if opts then
-                optNow, opts = strsplit(",", opts, 2)
-            else
-                optNow = nil
-            end
-            if optNow then
-                local customEventStart = encounter_time_c[optNow]
-                if customEventStart then
-                    time = customEventStart + time - now
-                    --prefixText = "C "
-                    anyType = 1
-                else
-                    anyType = 2
-                end
-            end
-        elseif optNow:sub(1,1) == "p" then
-            local isGlobalPhase,phase = optNow:match("^p(g?):?(.-)$")
-            if phase and phase ~= "" then
-                local prefixText = "P"..phase.." "
+		if optNow == "e" then
+			if opts then
+				optNow, opts = strsplit(",", opts, 2)
+			else
+				optNow = nil
+			end
+			if optNow then
+				local customEventStart = encounter_time_c[optNow]
+				if customEventStart then
+					time = customEventStart + time - now
+					--prefixText = "C "
+					anyType = 1
+				else
+					anyType = 2
+				end
+			end
+		elseif optNow:sub(1,1) == "p" then
+			local isGlobalPhase,phase = optNow:match("^p(g?):?(.-)$")
+			if phase and phase ~= "" then
+				local prefixText = "P"..phase.." "
 
-                local phaseStart = encounter_time_p[(isGlobalPhase == "g" and "g" or "")..phase]
+				local phaseStart = encounter_time_p[(isGlobalPhase == "g" and "g" or "")..phase]
 
-                if phaseStart then
-                    time = phaseStart + time - now
-                    anyType = 1
-                else
-                    anyType = 2
-                end           
-            end
-        elseif optNow == "glow" then
-            addGlow = 1
-        elseif optNow == "glowall" then
-            addGlow = 2
-            isAllParam = true
-        elseif optNow == "all" then
-            isAllParam = true
-        else
-            local prefix, arg1 = strsplit(":", optNow, 2)
-            if prefix == "wa" then
-                waEventID = (waEventID and waEventID.."," or "")..arg1
-            elseif prefix == "SCC" or prefix == "SCS" or prefix == "SAA" or prefix == "SAR" then
-                local eventStart = module.db.encounter_counters_time[optNow]
-                if eventStart then
-                    time = eventStart + time - now
-                    --prefixText = "E "
-                    anyType = 1
-                else
-                    anyType = 2
-                end
-            end
-        end
-    end
+				if phaseStart then
+					time = phaseStart + time - now
+					anyType = 1
+				else
+					anyType = 2
+				end			
+			end
+		elseif optNow == "glow" then
+			addGlow = 1
+		elseif optNow == "glowall" then
+			addGlow = 2
+			isAllParam = true
+		elseif optNow == "all" then
+			isAllParam = true
+		else
+			local prefix, arg1 = strsplit(":", optNow, 2)
+			if prefix == "wa" then
+				waEventID = (waEventID and waEventID.."," or "")..arg1
+			elseif prefix == "SCC" or prefix == "SCS" or prefix == "SAA" or prefix == "SAR" then
+				local eventStart = module.db.encounter_counters_time[optNow]
+				if eventStart then
+					time = eventStart + time - now
+					--prefixText = "E "
+					anyType = 1
+				else
+					anyType = 2
+				end
+			end
+		end
+	end
 
-    if not anyType and module.db.encounter_time then
-        time = module.db.encounter_time + time - now
-    end
+	if not anyType and module.db.encounter_time then
+		time = module.db.encounter_time + time - now
+	end
 
-    if waEventID and time <= 20 and type(WeakAuras)=="table" and ((module.db.encounter_time and not anyType) or anyType == 1) then
-        local timeleft = time < 0 and 0 or ceil(time)
-        if timeleft <= 5 or timeleft % 5 == 0 then
-            for waEventIDnow in string_gmatch(waEventID, "[^,]+") do
-                local wa_event_uid_cache = waEventIDnow..":"..timeleft..":"..preText..t..msg..newlinesym
-                if not encounter_time_wa_uids[wa_event_uid_cache] then
-                    encounter_time_wa_uids[wa_event_uid_cache] = true
-                    if WeakAuras.ScanEvents and type(WeakAuras.ScanEvents)=="function" then
-                        WeakAuras.ScanEvents("EART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
-                        WeakAuras.ScanEvents("ART_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
-                    end
-                end
-            end
-        end
-    end
+	if waEventID and time <= 20 and type(WeakAuras)=="table" and ((module.db.encounter_time and not anyType) or anyType == 1) then
+		local timeleft = time < 0 and 0 or ceil(time)
+		if timeleft <= 5 or timeleft % 5 == 0 then
+			for waEventIDnow in string_gmatch(waEventID, "[^,]+") do
+				local wa_event_uid_cache = waEventIDnow..":"..timeleft..":"..preText..t..msg..newlinesym
+				if not encounter_time_wa_uids[wa_event_uid_cache] then
+					encounter_time_wa_uids[wa_event_uid_cache] = true
+					if WeakAuras.ScanEvents and type(WeakAuras.ScanEvents)=="function" then
+						WeakAuras.ScanEvents("EXRT_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
+						WeakAuras.ScanEvents("MRT_NOTE_TIME_EVENT",waEventIDnow,timeleft,msg)
+					end
+				end
+			end
+		end
+	end
 
-    -- First check if timer has expired
-    if time <= 0 then
-        if VMRT.Note.TimerPassedHide then
-            return ""
-        else
-            if VMRT.Note.TimerOnlyMy and not isAllParam then
-                -- For expired timers with TimerOnlyMy, check if it's for the player
-                if not msg:find(ART.SDB.charName) and not msg:find("{everyone}") and
-                   not (ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName) and 
-                        msg:find(ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName))) then
-                    return ""
-                end
-            end
-            return preText.."|cff555555"..(prefixText or "")..msg:gsub("|c........",""):gsub("|r","").."|r"..newlinesym
-        end
-    end
+	if not msg:find(MRT.SDB.charName) and not msg:find("{everyone}") and VMRT.Note.TimerOnlyMy and not isAllParam then
+		return ""
+	end
 
-    -- Then check TimerOnlyMy for active timers
-    if VMRT.Note.TimerOnlyMy and not isAllParam then
-        -- Check for player name or {everyone}
-        if not msg:find(ART.SDB.charName) and not msg:find("{everyone}") then
-            -- If not found, check for any nicknames the player might have
-            local myNickname = ART.NicknameAPI and ART.NicknameAPI:GetNicknameByCharacter(ART.SDB.charName)
-            if not (myNickname and msg:find(myNickname)) then
-                return ""
-            end
-        end
-    end
-
-    if time > 10 or not module.db.encounter_time or anyType == 2 then
-        return preText.."|cffffed88"..(prefixText or "")..format("%d:%02d|r ",floor(time/60),time % 60)..msg..newlinesym
-    else
-        if time <= 5 and ((msg:find(ART.SDB.charName) and (VMRT.Note.TimerGlow or addGlow == 1)) or (addGlow == 2)) then
-            module.db.glowStatus = true
-        end
-        return preText.."|cff00ff00"..(prefixText or "")..format("%d:%02d ",floor(time/60),time % 60)..msg:gsub("|c........",""):gsub("|r",""):gsub(ART.SDB.charName,"|r|cffff0000>%1<|r|cff00ff00").."|r"..newlinesym
-    end
+	if time > 10 or not module.db.encounter_time or anyType == 2 then
+		return preText.."|cffffed88"..(prefixText or "")..format("%d:%02d|r ",floor(time/60),time % 60)..msg..newlinesym
+	elseif time < 0 then
+		if VMRT.Note.TimerPassedHide then
+			return ""
+		else
+			return preText.."|cff555555"..(prefixText or "")..msg:gsub("|c........",""):gsub("|r","").."|r"..newlinesym
+		end
+	else
+		if time <= 5 and ((msg:find(MRT.SDB.charName) and (VMRT.Note.TimerGlow or addGlow == 1)) or (addGlow == 2)) then
+			module.db.glowStatus = true
+		end
+		return preText.."|cff00ff00"..(prefixText or "")..format("%d:%02d ",floor(time/60),time % 60)..msg:gsub("|c........",""):gsub("|r",""):gsub(MRT.SDB.charName,"|r|cffff0000>%1<|r|cff00ff00").."|r"..newlinesym
+	end
 end
 
 local function GSUB_Phase(anti,phase,msg)
@@ -580,38 +518,20 @@ local function GSUB_RaidIcon(text)
 	return allIcons[text]
 end
 
-local function GSUB_ReplaceNicknameToChar(token)
-    local ltoken = token:lower()
-
-    if ART and ART.NicknameAPI then
-        local chars = ART.NicknameAPI:GetAllCharactersByNickname(ltoken)
-        if chars and #chars > 0 then
-            local nameNoRealm = strsplit("-", chars[1])
-            return nameNoRealm
-        end
-    end
-    
-    return token
-end
-
 local GSUB_AutoColor_Data = {}
 local function GSUB_AutoColorCreate()
-    wipe(GSUB_AutoColor_Data)
-    for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in ART.F.IterateRoster, ART.F.GetRaidDiffMaxGroup() do
-        if class and name then
-            class = ART.F.classColor(class)
-            GSUB_AutoColor_Data[ name ] = "|c"..class..name.."|r"
-            name = strsplit("-",name)
-            GSUB_AutoColor_Data[ name ] = "|c"..class..name.."|r"
-            
-            if ART.NicknameAPI then
-                local nickname = ART.NicknameAPI:GetNicknameByCharacter(name)
-                if nickname then
-                    GSUB_AutoColor_Data[ nickname ] = "|c"..class..name.."|r" 
-                end
-            end
-        end
-    end
+	wipe(GSUB_AutoColor_Data)
+	for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in MRT.F.IterateRoster, MRT.F.GetRaidDiffMaxGroup() do
+		if class and name then
+			class = MRT.F.classColor(class)
+			GSUB_AutoColor_Data[ name ] = "|c"..class..name.."|r"
+			name = strsplit("-",name)
+			GSUB_AutoColor_Data[ name ] = "|c"..class..name.."|r"
+		end
+	end
+end
+local function GSUB_AutoColor(text)
+	return GSUB_AutoColor_Data[text]
 end
 
 local txtWithIcons
@@ -641,6 +561,7 @@ do
 				:gsub("{(!?)[Gg](%d+)}(.-){/[Gg]}",GSUB_Group)
 				:gsub("{(!?)[Rr][Aa][Cc][Ee]:([^}]+)}(.-){/[Rr][Aa][Cc][Ee]}",GSUB_Race)
 				:gsub("{[Ee]:([^}]+)}(.-){/[Ee]}",GSUB_Encounter)
+				:gsub("{[Zz]:([^}]+)}(.-){/[Zz]}",GSUB_Zone)
 				:gsub("{(!?)[Pp]([^}:][^}]*)}(.-){/[Pp]}",GSUB_Phase)
 				:gsub("{icon:([^}]+)}","|T%1:16|t")
 				:gsub("{spell:(%d+):?(%d*)}",GSUB_Icon)
@@ -650,8 +571,6 @@ do
 				--:gsub("[^ \n,]+",GSUB_AutoColor)
 				:gsub("[^ \n,%(%)%[%]_%$#@!&]+",GSUB_AutoColor_Data)
 				:gsub("\n+$", "")
-				:gsub("(%S+)", GSUB_ReplaceNicknameToChar) 
-				:gsub("[^ \n,%(%)%[%]_%$#@!&]+", GSUB_AutoColor_Data)
 	
 			self.preTimerText = t
 		else
@@ -666,7 +585,7 @@ end
 function module.options:Load()
 	self:CreateTilte()
 
-	module.db.otherIconsAdditionalList = ART.isClassic and {} or {
+	module.db.otherIconsAdditionalList = MRT.isClassic and {} or {
 		31821,62618,97462,98008,115310,64843,740,265202,108280,31884,196718,15286,64901,47536,246287,109964,33891,16191,108281,114049,51052,359816,363534,322118,325197,124974,197721,0,
 		47788,33206,6940,102342,114030,1022,116849,633,204018,207399,370960,357170,370537,0,
 		2825,32182,80353,0,
@@ -691,7 +610,7 @@ function module.options:Load()
 		421643,421961,424233,425574,430325,422067,422577,426018,420950,426725,422172,421656,423896,421858,421455,422277,423904,422691,421532,0,
 		425657,422503,424495,422000,424581,421939,424582,421603,430583,424665,422325,421398,424258,420236,425607,426669,427297,421884,424140,423260,421636,429166,422509,429740,424499,426687,425610,420240,0,
 	}
-	if ART.isCata then
+	if MRT.isCata then
 		module.db.otherIconsAdditionalList = {
 			"136224","135821","135808","135981","136209","135807","135813","463567","237588","237395","135822",0,
 			"237582","133598","135790","236216","252172","524793","510756","132847",0,
@@ -711,7 +630,7 @@ function module.options:Load()
 			"135821","237536","135860","237513","575541","236316","135818","135822","134156","236305","236216","132312","236154","136106","134157","135734","134155","237556","575534","538040","575535","134158","575536","524795","237514",0,
 
 		}
-	elseif ART.isBC then
+	elseif MRT.isBC then
 		module.db.otherIconsAdditionalList = {
 			26983,2825,32182,16190,0,0,
 			38219,38215,36459,38246,37478,37138,37675,37640,37641,38441,38445,37764,38316,38310,38509,38280,0,
@@ -777,18 +696,18 @@ function module.options:Load()
 			i = i + 1
 		end
 		if notUseJJBox then
-			VMRT.F:Export2(RES)
+			GMRT.F:Export2(RES)
 		end
 	end
-	--/run VMRT.A.Note.options:DebugGetIcons(true)
+	--/run GMRT.A.Note.options:DebugGetIcons(true)
 
-	if not ART.isClassic then
-		module.db.encountersList = ART.F.GetEncountersList(true,false,true)
-		tinsert(module.db.encountersList,ART.F.table_find(module.db.encountersList,1582,1) or #module.db.encountersList,{EXPANSION_NAME8..": "..DUNGEONS,-1182,-1183,-1184,-1185,-1186,-1187,-1188,-1189})
-		tinsert(module.db.encountersList,ART.F.table_find(module.db.encountersList,909,1) or #module.db.encountersList,{EXPANSION_NAME7..": "..DUNGEONS,-1012,-968,-1041,-1022,-1030,-1023,-1002,-1001,-1036,-1021})
+	if not MRT.isClassic then
+		module.db.encountersList = MRT.F.GetEncountersList(true,false,true)
+		tinsert(module.db.encountersList,MRT.F.table_find(module.db.encountersList,1582,1) or #module.db.encountersList,{EXPANSION_NAME8..": "..DUNGEONS,-1182,-1183,-1184,-1185,-1186,-1187,-1188,-1189})
+		tinsert(module.db.encountersList,MRT.F.table_find(module.db.encountersList,909,1) or #module.db.encountersList,{EXPANSION_NAME7..": "..DUNGEONS,-1012,-968,-1041,-1022,-1030,-1023,-1002,-1001,-1036,-1021})
 	else
 		module.db.encountersList = {}
-		tinsert(module.db.encountersList,ART.F.table_copy2(ART.F.table_find3(ART.GDB.EncountersList,367,1)))
+		tinsert(module.db.encountersList,MRT.F.table_copy2(MRT.F.table_find3(MRT.GDB.EncountersList,367,1)))
 	end
 
 	module.db.mapToEncounter = {
@@ -895,8 +814,8 @@ function module.options:Load()
 		return bossID < 0 and L.EJInstanceName[ -bossID ] or L.bossName[ bossID ]
 	end
 	function self:GetBossIcon(bossID)
-		if bossID and bossID > 0 and ART.GDB.encounterIDtoEJ[bossID] and EJ_GetCreatureInfo then
-			local bossImg = select(5, EJ_GetCreatureInfo(1, ART.GDB.encounterIDtoEJ[bossID]))
+		if bossID and bossID > 0 and MRT.GDB.encounterIDtoEJ[bossID] and EJ_GetCreatureInfo then
+			local bossImg = select(5, EJ_GetCreatureInfo(1, MRT.GDB.encounterIDtoEJ[bossID]))
 			if bossImg then
 				return "|T"..bossImg..":12:24|t"
 			end
@@ -1294,8 +1213,8 @@ function module.options:Load()
 			}
 			for j=2,#instance do
 				local bossID, bossImg = instance[j]
-				if bossID and ART.GDB.encounterIDtoEJ[bossID] and EJ_GetCreatureInfo then
-					bossImg = select(5, EJ_GetCreatureInfo(1, ART.GDB.encounterIDtoEJ[bossID]))
+				if bossID and MRT.GDB.encounterIDtoEJ[bossID] and EJ_GetCreatureInfo then
+					bossImg = select(5, EJ_GetCreatureInfo(1, MRT.GDB.encounterIDtoEJ[bossID]))
 				end
 				List[#List+1] = {
 					text = module.options:GetBossName(bossID),
@@ -1332,7 +1251,7 @@ function module.options:Load()
 
 		GameTooltip_Hide()
 	end)
-	if ART.isClassic and not ART.isCata then
+	if MRT.isClassic and not MRT.isCata then
 		self.autoLoadDropdown:Hide()
 	end
 
@@ -1404,7 +1323,7 @@ function module.options:Load()
 		elseif BlackNoteNow then
 			VMRT.Note.Black[ BlackNoteNow ] = text
 
-			VMRT.Note.BlackLastUpdateName[BlackNoteNow] = ART.SDB.charKey
+			VMRT.Note.BlackLastUpdateName[BlackNoteNow] = MRT.SDB.charKey
 			VMRT.Note.BlackLastUpdateTime[BlackNoteNow] = time()
 		else
 			module:SaveText(text,-1)
@@ -1443,7 +1362,7 @@ function module.options:Load()
 	end)
 	self.NoteEditBox.EditBox:SetScript("OnKeyUp",function(self,key)
 		if IsFormattingOn_Saved and key == "LCTRL" then
-			ART.F:AddCoroutine(function()
+			MRT.F:AddCoroutine(function()
 				coroutine.yield("await")	--wait for redraw from wow engine to recognize all updated text.
 				local text = module.options.NoteEditBox.EditBox:GetText()
 				local h_start,h_end = module.options.NoteEditBox:GetTextHighlight()
@@ -1508,7 +1427,7 @@ function module.options:Load()
 					return ""
 				end
 			end)
-			if ART.isBC and ART.locale == "ruRU" then	--fix bug for icons on ru client
+			if MRT.isBC and MRT.locale == "ruRU" then	--fix bug for icons on ru client
 				text = text:gsub("%b{}",function(p)
 					if p and p:match("^{rt%d}$") then
 						return module.db.iconsLocalizatedNames[tonumber(p:match("%d+") or "") or 0]
@@ -1741,7 +1660,7 @@ function module.options:Load()
 		{L.NoteColorGreenSoft,"|cff55ee55"},
 		{L.NoteColorBlueSoft,"|cff5555ee"},
 	}
-	local classNames = ART.GDB.ClassList
+	local classNames = MRT.GDB.ClassList
 	for i,class in ipairs(classNames) do
 		local colorTable = RAID_CLASS_COLORS[class]
 		if colorTable and type(colorTable)=="table" then
@@ -1818,7 +1737,7 @@ function module.options:Load()
 		HEALER = "|A:roleicon-tiny-healer:0:0|a",
 		--DAMAGER = "|A:roleicon-tiny-dps:0:0|a",
 	}
-	if ART.isClassic then wipe(roleToIcon) end
+	if MRT.isClassic then wipe(roleToIcon) end
 	
 	module.options.rosteredit = ELib:Popup("Edit custom roster"):Size(600,600):OnShow(function(self) self:Update() end,true)
 	ELib:Border(module.options.rosteredit,1,.4,.4,.4,.9)
@@ -1834,7 +1753,7 @@ function module.options:Load()
 	end)
 
 	module.options.rosteredit.frame:SetScript("OnMouseDown",function(self)
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = MRT.F.GetCursorPos(self)
 		self.saved_x = x
 		self.saved_y = y
 		self.saved_scroll_h = self.ScrollBarHorizontal:GetValue()
@@ -1856,7 +1775,7 @@ function module.options:Load()
 				str = str .. VMRT.Note.CustomRoster[i][1]  .."\t".. (VMRT.Note.CustomRoster[i][2] or "").."\t" ..(VMRT.Note.CustomRoster[i][3] or "").. "\n" 
 			end
 		end
-		ART.F:Export2(str)
+		MRT.F:Export2(str)
 	end)
 
 	module.options.rosteredit.importWindow = ELib:Popup(" "):Size(600,400)
@@ -1884,9 +1803,9 @@ function module.options:Load()
 
 				if class then
 					local mclass
-					for i=1,#ART.GDB.ClassList do
-						if ART.GDB.ClassList[i]:lower() == class:lower() or (GetClassInfo(ART.GDB.ClassID[ ART.GDB.ClassList[i] ]) or "") == class:lower() then
-							mclass = ART.GDB.ClassList[i]
+					for i=1,#MRT.GDB.ClassList do
+						if MRT.GDB.ClassList[i]:lower() == class:lower() or (GetClassInfo(MRT.GDB.ClassID[ MRT.GDB.ClassList[i] ]) or "") == class:lower() then
+							mclass = MRT.GDB.ClassList[i]
 							break
 						end
 					end
@@ -1931,8 +1850,8 @@ function module.options:Load()
 	end)
 
 	module.options.rosteredit.CurrRoster = ELib:Button(module.options.rosteredit.frame.C,"Add from current raid/group"):Point("RIGHT",module.options.rosteredit.ExportButton,"LEFT",-5,0):Size(200,20):OnClick(function()
-		for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in ART.F.IterateRoster, ART.F.GetRaidDiffMaxGroup() do
-			name = ART.F.delUnitNameServer(name)
+		for _, name, subgroup, class, guid, rank, level, online, isDead, combatRole in MRT.F.IterateRoster, MRT.F.GetRaidDiffMaxGroup() do
+			name = MRT.F.delUnitNameServer(name)
 
 			if combatRole == "NONE" then combatRole = nil end
 
@@ -1946,7 +1865,7 @@ function module.options:Load()
 	end)
 
 	module.options.rosteredit.ClearList = ELib:Button(module.options.rosteredit.frame.C,"Clear list"):Point("TOP",module.options.rosteredit.CurrRoster,"BOTTOM",0,-5):Size(200,20):OnClick(function()
-		StaticPopupDialogs["EART_REMINDER_RESET"] = {
+		StaticPopupDialogs["EXRT_REMINDER_RESET"] = {
 			text = "Clear list?",
 			button1 = L.YesText,
 			button2 = L.NoText,
@@ -1959,7 +1878,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_REMINDER_RESET")
+		StaticPopup_Show("EXRT_REMINDER_RESET")
 	end)
 
 	module.options.rosteredit.addButton = ELib:Button(module.options.rosteredit.frame.C,"Add"):Size(100,20):OnClick(function(self)
@@ -1991,8 +1910,8 @@ function module.options:Load()
 			func = module.options.rosteredit.class_click,
 		},
 	}
-	for i=1,#ART.GDB.ClassList do
-		local class = ART.GDB.ClassList[i]
+	for i=1,#MRT.GDB.ClassList do
+		local class = MRT.GDB.ClassList[i]
 		module.options.rosteredit.ClassDD_List[#module.options.rosteredit.ClassDD_List+1] = {
 			text = (RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr and "|c"..RAID_CLASS_COLORS[class].colorStr or "")..L.classLocalizate[class],
 			func = module.options.rosteredit.class_click,
@@ -2195,16 +2114,16 @@ function module.options:Load()
 		local rosterType = module.options.rosterType or 1
 		for i=1,8 do gruevent[i] = 0 end
 		if rosterType == 1 then
-			for _,name, subgroup, class, guid, rank, level, online, isDead, combatRole in ART.F.IterateRoster do
+			for _,name, subgroup, class, guid, rank, level, online, isDead, combatRole in MRT.F.IterateRoster do
 				gruevent[subgroup] = gruevent[subgroup] + 1
 		
 				local POS = gruevent[subgroup] + (subgroup - 1) * 5
 				local obj = module.options.raidnames[POS]
 		
 				if obj then
-					local cR,cG,cB = ART.F.classColorNum(class)
-					name = ART.F.delUnitNameServer(name)
-					local colorCode = ART.F.classColor(class)
+					local cR,cG,cB = MRT.F.classColorNum(class)
+					name = MRT.F.delUnitNameServer(name)
+					local colorCode = MRT.F.classColor(class)
 					obj.iconText = "||c"..colorCode..name.."||r "
 					obj.iconTextShift = name
 					local roleicon = combatRole and roleToIcon[combatRole]
@@ -2233,9 +2152,9 @@ function module.options:Load()
 				local obj = module.options.raidnames[POS]
 		
 				if obj then
-					local cR,cG,cB = ART.F.classColorNum(VMRT.Note.CustomRoster[i][2] or "")
+					local cR,cG,cB = MRT.F.classColorNum(VMRT.Note.CustomRoster[i][2] or "")
 					name = VMRT.Note.CustomRoster[i][1]
-					local colorCode = ART.F.classColor(VMRT.Note.CustomRoster[i][2] or "")
+					local colorCode = MRT.F.classColor(VMRT.Note.CustomRoster[i][2] or "")
 					obj.iconText = "||c"..colorCode..name.."||r "
 					obj.iconTextShift = name
 					local roleicon = VMRT.Note.CustomRoster[i][3] and roleToIcon[ VMRT.Note.CustomRoster[i][3] ]
@@ -2405,7 +2324,7 @@ function module.options:Load()
 	end) 
 
 
-	if ART.isClassic and not ART.isCata then
+	if MRT.isClassic and not MRT.isCata then
 		self.dropDownBossAutoLoadType:Hide()
 		self.chkEnableBossAutoLoad:Hide()
 		self.chkBossAutoLoadSend:Hide()
@@ -2429,16 +2348,16 @@ function module.options:Load()
 	end
 
 	self.dropDownFont = ELib:DropDown(self.tab.tabs[2],350,10):Point("TOPLEFT",self.sliderFontSize,"TOPLEFT",0,-30):Size(300)
-	for i=1,#ART.F.fontList do
+	for i=1,#MRT.F.fontList do
 		self.dropDownFont.List[i] = {}
 		local info = self.dropDownFont.List[i]
-		info.text = ART.F.fontList[i]
-		info.arg1 = ART.F.fontList[i]
+		info.text = MRT.F.fontList[i]
+		info.arg1 = MRT.F.fontList[i]
 		info.func = DropDownFont_Click
-		info.font = ART.F.fontList[i]
+		info.font = MRT.F.fontList[i]
 		info.justifyH = "CENTER" 
 	end
-	for name,font in ART.F.IterateMediaData("font") do
+	for name,font in MRT.F.IterateMediaData("font") do
 		local info = {}
 		self.dropDownFont.List[#self.dropDownFont.List+1] = info
 
@@ -2449,7 +2368,7 @@ function module.options:Load()
 		info.justifyH = "CENTER" 
 	end
 	do
-		local arg = VMRT.Note.FontName or ART.F.defFont
+		local arg = VMRT.Note.FontName or MRT.F.defFont
 		local FontNameForDropDown = arg:match("\\([^\\]*)$")
 		self.dropDownFont:SetText(FontNameForDropDown or arg)
 	end
@@ -2643,9 +2562,9 @@ function module.options:Load()
 		if text == "" or text == "default" or VMRT.Note.Profiles.List[text] or text == VMRT.Note.Profiles.Now then
 			return
 		end
-		VMRT.Note.Profiles.List[text] = ART.F.table_copy2(NewVARTTableData)
+		VMRT.Note.Profiles.List[text] = MRT.F.table_copy2(NewVMRTTableData)
 
-		StaticPopupDialogs["EART_NOTE_ACTIVATENEW"] = {
+		StaticPopupDialogs["EXRT_NOTE_ACTIVATENEW"] = {
 			text = L.ProfilesActivateAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
@@ -2657,7 +2576,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_NOTE_ACTIVATENEW")
+		StaticPopup_Show("EXRT_NOTE_ACTIVATENEW")
 	end)
 
 	profilesTab.choseSelectText = ELib:Text(profilesTab,L.ProfilesSelect,11):Size(605,200):Point(335,-75+12):Top()
@@ -2711,7 +2630,7 @@ function module.options:Load()
 	end
 
 	local function DeleteProfile(name)
-		StaticPopupDialogs["EART_NOTE_PROFILES_REMOVE"] = {
+		StaticPopupDialogs["EXRT_NOTE_PROFILES_REMOVE"] = {
 			text = L.ProfilesDeleteAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
@@ -2724,7 +2643,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_NOTE_PROFILES_REMOVE")
+		StaticPopup_Show("EXRT_NOTE_PROFILES_REMOVE")
 	end
 	profilesTab.deleteText = ELib:Text(profilesTab,L.ProfilesDelete,11):Size(605,200):Point(15,-160+12):Top()
 	profilesTab.deleteDropDown = ELib:DropDown(profilesTab,220,10):Point(10,-160):Size(235)
@@ -2743,14 +2662,14 @@ function module.options:Load()
 	end
 
 
-	profilesTab.importWindow, profilesTab.exportWindow = ART.F.CreateImportExportWindows()
+	profilesTab.importWindow, profilesTab.exportWindow = MRT.F.CreateImportExportWindows()
 
 	function profilesTab.importWindow:ImportFunc(str)
-		local headerLen = str:sub(1,4) == "ExRT" and 8 or 7
+		local headerLen = str:sub(1,4) == "EXRT" and 8 or 7
 
 		local header = str:sub(1,headerLen)
-		if (header:sub(1,headerLen-1) ~= "EARTCDP" and header:sub(1,headerLen-1) ~= "ARTCDP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
-			StaticPopupDialogs["EART_EXCD_IMPORT"] = {
+		if (header:sub(1,headerLen-1) ~= "EXRTCDP" and header:sub(1,headerLen-1) ~= "MRTCDP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+			StaticPopupDialogs["EXRT_EXCD_IMPORT"] = {
 				text = "|cffff0000"..ERROR_CAPS.."|r "..L.ProfilesFail3,
 				button1 = OKAY,
 				timeout = 0,
@@ -2758,7 +2677,7 @@ function module.options:Load()
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-			StaticPopup_Show("EART_EXCD_IMPORT")
+			StaticPopup_Show("EXRT_EXCD_IMPORT")
 			return
 		end
 
@@ -2793,7 +2712,7 @@ function module.options:Load()
 				new[key] = val
 			end
 		end
-		local strlist = ART.F.TableToText(new)
+		local strlist = MRT.F.TableToText(new)
 		strlist[1] = "0,"..strlist[1]
 		local str = table.concat(strlist)
 
@@ -2801,11 +2720,11 @@ function module.options:Load()
 		if #str < 1000000 then
 			compressed = LibDeflate:CompressDeflate(str,{level = 5})
 		end
-		local encoded = "ARTCDP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+		local encoded = "MRTCDP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
 
-		ART.F.dprint("Str len:",#str,"Encoded len:",#encoded)
+		MRT.F.dprint("Str len:",#str,"Encoded len:",#encoded)
 
-		if ART.isDev then
+		if MRT.isDev then
 			module.db.exportTable = new
 		end
 		profilesTab.exportWindow.Edit:SetText(encoded)
@@ -2860,17 +2779,17 @@ function module.options:Load()
 		local _,tableData = strsplit(",",decompressed,2)
 		decompressed = nil
 
-		local successful, res = pcall(ART.F.TextToTable,tableData)
-		if ART.isDev then
+		local successful, res = pcall(MRT.F.TextToTable,tableData)
+		if MRT.isDev then
 			module.db.lastImportDB = res
 			if module.db.exportTable and type(res)=="table" then
 				module.db.diffTable = {}
-				print("Compare table",ART.F.table_compare(res,module.db.exportTable,module.db.diffTable))
+				print("Compare table",MRT.F.table_compare(res,module.db.exportTable,module.db.diffTable))
 			end
 		end
 		if successful and res then
 			profilesTab:LockedFilter(res)
-			StaticPopupDialogs["EART_NOTE_IMPORT"] = {
+			StaticPopupDialogs["EXRT_NOTE_IMPORT"] = {
 				text = L.cd2ProfileRewriteAlert,
 				button1 = APPLY,
 				button2 = L.ProfilesSaveAsNew,
@@ -2878,13 +2797,13 @@ function module.options:Load()
 				selectCallbackByIndex = true,
 				OnButton1 = function()
 					local saved = profilesTab:SaveDataFilter(VMRT.Note)
-					ART.F.table_rewrite(VMRT.Note,res)
+					MRT.F.table_rewrite(VMRT.Note,res)
 					saved:Restore(VMRT.Note)
 					module:ReloadProfile()
 					res = nil
 				end,
 				OnButton2 = function()
-					ART.F.ShowInput(L.ProfilesNewProfile,function(_,name)
+					MRT.F.ShowInput(L.ProfilesNewProfile,function(_,name)
 						if name == "" or VMRT.Note.Profiles.List[name] or name == "default" or name == VMRT.Note.Profiles.Now then
 							res = nil
 							return
@@ -2910,7 +2829,7 @@ function module.options:Load()
 				preferredIndex = 3,
 			}
 		else
-			StaticPopupDialogs["EART_NOTE_IMPORT"] = {
+			StaticPopupDialogs["EXRT_NOTE_IMPORT"] = {
 				text = L.ProfilesFail1..(res and "\nError code: "..res or ""),
 				button1 = OKAY,
 				timeout = 0,
@@ -2920,7 +2839,7 @@ function module.options:Load()
 			}
 		end
 
-		StaticPopup_Show("EART_NOTE_IMPORT")
+		StaticPopup_Show("EXRT_NOTE_IMPORT")
 	end
 
 
@@ -3035,9 +2954,9 @@ function module.options:Load()
 
 	self.textHelp = ELib:Text(self.tab.tabs[4],
 		"|cffffff00||cffRRGGBB|r...|cffffff00||r|r - "..L.NoteHelp1..
-		((not ART.isClassic or ART.isCata) and "|n|cffffff00{D}|r...|cffffff00{/D}|r - "..format(L.NoteHelp2,DAMAGER) or "")..
-		((not ART.isClassic or ART.isCata) and "|n|cffffff00{H}|r...|cffffff00{/H}|r - "..format(L.NoteHelp2,HEALER) or "")..
-		((not ART.isClassic or ART.isCata) and "|n|cffffff00{T}|r...|cffffff00{/T}|r - "..format(L.NoteHelp2,TANK) or "")..
+		((not MRT.isClassic or MRT.isCata) and "|n|cffffff00{D}|r...|cffffff00{/D}|r - "..format(L.NoteHelp2,DAMAGER) or "")..
+		((not MRT.isClassic or MRT.isCata) and "|n|cffffff00{H}|r...|cffffff00{/H}|r - "..format(L.NoteHelp2,HEALER) or "")..
+		((not MRT.isClassic or MRT.isCata) and "|n|cffffff00{T}|r...|cffffff00{/T}|r - "..format(L.NoteHelp2,TANK) or "")..
 		"|n|cffffff00{spell:|r|cff00ff0017|r|cffffff00}|r - "..L.NoteHelp3..
 		"|n|cffffff00{self}|r - "..L.NoteHelp4..
 		"|n|cffffff00{p:|r|cff00ff00JaneD|r|cffffff00,|r|cff00ff00JennyB-HowlingFjord|r|cffffff00}|r...|cffffff00{/p}|r - "..L.NoteHelp5..
@@ -3047,10 +2966,10 @@ function module.options:Load()
 		"|n|cffffff00{!c:|r|cff00ff00Mage,Hunter|r|cffffff00}|r...|cffffff00{/c}|r - "..L.NoteHelp8b..
 		"|n|cffffff00{g|r|cff00ff002|r|cffffff00}|r...|cffffff00{/g}|r - "..L.NoteHelp10..
 		"|n|cffffff00{!g|r|cff00ff0034|r|cffffff00}|r...|cffffff00{/g}|r - "..L.NoteHelp10b..
-		(ART.isClassic and "|n|cffffff00{race:|r|cff00ff00troll,orc|r|cffffff00}|r...|cffffff00{/race}|r - "..L.NoteHelp11 or "")..
-		(ART.isClassic and "|n|cffffff00{!race:|r|cff00ff00dwarf|r|cffffff00}|r...|cffffff00{/race}|r - "..L.NoteHelp11b or "")..
+		(MRT.isClassic and "|n|cffffff00{race:|r|cff00ff00troll,orc|r|cffffff00}|r...|cffffff00{/race}|r - "..L.NoteHelp11 or "")..
+		(MRT.isClassic and "|n|cffffff00{!race:|r|cff00ff00dwarf|r|cffffff00}|r...|cffffff00{/race}|r - "..L.NoteHelp11b or "")..
 		("|n|cffffff00{time:|r|cff00ff002:45|r|cffffff00}|r - "..L.NoteHelp7 or "")..
-		(not ART.isClassic and "|n|cffffff00{p|r|cff00ff002|r|cffffff00}|r...|cffffff00{/p}|r - "..L.NoteHelp9 or "")
+		(not MRT.isClassic and "|n|cffffff00{p|r|cff00ff002|r|cffffff00}|r...|cffffff00{/p}|r - "..L.NoteHelp9 or "")
 	):Point("TOPLEFT",10,-20):Point("TOPRIGHT",-10,-20):Color()
 
 	self.advancedHelp = ELib:Button(self.tab.tabs[4],L.NoteHelpAdvanced):Size(400,20):Point("TOP",self.textHelp,"BOTTOM",0,-20):OnClick(function() 
@@ -3071,7 +2990,7 @@ function module.options:Load()
 		"|n|cffffff00{time:|r|cff00ff003:40,glowall|r|cffffff00}|r - "..L.NoteHelpAdv6..
 		"|n|cffffff00{time:|r|cff00ff004:15,glow|r|cffffff00}|r - "..L.NoteHelpAdv7..
 		"|n|cffffff00{time:|r|cff00ff000:45,wa:nzoth_hs1|r|cffffff00}|r - "..L.NoteHelpAdv4..
-		"|n   WA Function example:|n   Events: |cffffff00ART_NOTE_TIME_EVENT|r|n   |cffff8bf3function(event,...)|n     if event == \"ART_NOTE_TIME_EVENT\" then|n       local timerName, timeLeft, noteText = ...|n       if timerName == \"nzoth_hs1\" and timeLeft == 3 then|n         return true|n       end|n     end|n   end|r|n"..
+		"|n   WA Function example:|n   Events: |cffffff00MRT_NOTE_TIME_EVENT|r|n   |cffff8bf3function(event,...)|n     if event == \"MRT_NOTE_TIME_EVENT\" then|n       local timerName, timeLeft, noteText = ...|n       if timerName == \"nzoth_hs1\" and timeLeft == 3 then|n         return true|n       end|n     end|n   end|r|n"..
 		"|n"..L.NoteHelpAdv5.."|n |cffe6ff15{time:0:30,SCC:17:2,wa:eventName1,wa:eventName2}|r|n |cffff9f05{time:1:40,p1.5}First intermission|r|n |cffe6ff15{p,SCC:17:2}Until end of the fight{/p}|r|n |cffff9f05{p,SCC:17:2,SCC:17:3}Until second condition{/p}|r|n|n |cffe6ff15{time:0:20,p2,wa:use_hs,glowall}|r"..
 		"|n |cffff9f05{time:65,SCC:17:2:"..UnitName'player'.."} Count casts only for player "..UnitName'player'.." |r|n |cffe6ff15{time:1:05,SCC:17:2::p3} Count casts only on phase 3 |r"
 	):Point("LEFT",10,0):Point("RIGHT",-10,0):Point("TOP",0,-5):Color()
@@ -3101,7 +3020,7 @@ function module.options:Load()
 		self.chkEnableWhenReceive:SetChecked(VMRT.Note.EnableWhenReceive)
 		self.sliderFontSize:SetTo(VMRT.Note.FontSize or 12)
 		do
-			local arg = VMRT.Note.FontName or ART.F.defFont
+			local arg = VMRT.Note.FontName or MRT.F.defFont
 			local FontNameForDropDown = arg:match("\\([^\\]*)$")
 			self.dropDownFont:SetText(FontNameForDropDown or arg)
 		end
@@ -3162,7 +3081,7 @@ local function NoteWindow_OnSizeChanged(self, width, height)
 end
 
 local function NoteWindow_UpdateFont(self)
-	local font = VMRT and VMRT.Note and VMRT.Note.FontName or ART.F.defFont
+	local font = VMRT and VMRT.Note and VMRT.Note.FontName or MRT.F.defFont
 	local size = VMRT and VMRT.Note and VMRT.Note.FontSize or 12
 	local outline = VMRT and VMRT.Note and VMRT.Note.Outline and "OUTLINE" or ""
 	local isValidFont = self.text:SetFont(font,size,outline)
@@ -3230,7 +3149,7 @@ local function NoteWindow_UpdateText(self,onlyTimerUpdate)
 		self.GlowShowed = false
 	end
 
-	ART.F:FireCallback("Note_UpdateText",self)
+	MRT.F:FireCallback("Note_UpdateText",self)
 end
 
 local glowColor = {0,1,0,1}
@@ -3272,7 +3191,7 @@ local function NoteWindow_TextAdd(self,c)
 	local text = parent:CreateFontString(nil,"ARTWORK")
 	parent["text"..c] = text
 	text:SetParent(parent.sf.C)
-	text:SetFont(ART.F.defFont, 12, "")
+	text:SetFont(MRT.F.defFont, 12, "")
 	local prev = c == 2 and parent.text or parent["text"..(c-1)]
 	text:SetPoint("TOPLEFT",prev,"BOTTOMLEFT",0,0)
 	text:SetPoint("TOPRIGHT",prev,"BOTTOMRIGHT",0,0)
@@ -3286,9 +3205,9 @@ end
 
 local function NoteWindow_SetShadowComment(self,val)
 	if val then
-		ART.lib.AddShadowComment(self,nil,L.message)
+		MRT.lib.AddShadowComment(self,nil,L.message)
 	else
-		ART.lib.AddShadowComment(self,1)
+		MRT.lib.AddShadowComment(self,1)
 	end
 end
 
@@ -3328,7 +3247,7 @@ local function NoteWindow_UpdateVisual(self)
 		self:SetShadowComment(true)
 	end
 
-	if VMRT.Note.Strata and ART.F.table_find(frameStrataList,VMRT.Note.Strata) then
+	if VMRT.Note.Strata and MRT.F.table_find(frameStrataList,VMRT.Note.Strata) then
 		self:SetFrameStrata(VMRT.Note.Strata)
 	end
 end
@@ -3343,7 +3262,7 @@ local function NoteWindow_Disable(self)
 end
 
 local function NoteWindow_ScaleFix(self,val)
-	ART.F.SetScaleFix(self,val)
+	MRT.F.SetScaleFix(self,val)
 end
 
 local function NoteWindow_Custom_OnEvent(self,event,...)
@@ -3385,7 +3304,7 @@ local allWindows = {}
 function module:CreateNoteWindow(windowName,isCustomWindow)
 	windowName = windowName or ""
 	
-	local frame = CreateFrame("Frame","ARTNote"..windowName,UIParent)
+	local frame = CreateFrame("Frame","MRTNote"..windowName,UIParent)
 	frame.Name = windowName
 	frame:SetSize(200,100)
 	frame:SetPoint("CENTER",UIParent, "CENTER", 0, 0)
@@ -3434,12 +3353,12 @@ function module:CreateNoteWindow(windowName,isCustomWindow)
 	
 	frame.UpdateFont = NoteWindow_UpdateFont
 	
-	ART.F:RegisterCallback("CallbackRegistered", function(_,eventName)
+	MRT.F:RegisterCallback("CallbackRegistered", function(_,eventName)
 		if eventName == "Note_UpdateText" then
 			frame:UpdateText()
 		end
 	end)
-	ART.F:RegisterCallback("CallbackUnregistered", function(_,eventName,_,callbacks)
+	MRT.F:RegisterCallback("CallbackUnregistered", function(_,eventName,_,callbacks)
 		if callbacks ~= 0 then
 			return
 		elseif eventName == "Note_UpdateText" then
@@ -3458,7 +3377,7 @@ function module:CreateNoteWindow(windowName,isCustomWindow)
 	
 	frame.text = frame:CreateFontString(nil,"ARTWORK")
 	frame.text.mf = frame
-	frame.text:SetFont(ART.F.defFont, 12, "")
+	frame.text:SetFont(MRT.F.defFont, 12, "")
 	frame.text:SetPoint("TOPLEFT",5,-5)
 	frame.text:SetPoint("TOPRIGHT",-5,-5)
 	frame.text:SetJustifyH("LEFT")
@@ -3660,7 +3579,7 @@ end
 function module.frame:Save(blackNoteID)
 	module.frame:SetTo(blackNoteID)
 
-	ART.F:FireCallback("Note_SendText",VMRT.Note.Text1)
+	MRT.F:FireCallback("Note_SendText",VMRT.Note.Text1)
 
 	if #VMRT.Note.Text1 == 0 then
 		VMRT.Note.Text1 = " "
@@ -3681,7 +3600,7 @@ function module.frame:Save(blackNoteID)
 	local encounterID = VMRT.Note.AutoLoad[blackNoteID or 0] or "-"
 	local noteName = (blackNoteID and VMRT.Note.BlackNames[blackNoteID]) or (not blackNoteID and VMRT.Note.DefName) or ""
 
-	if ART.isClassic and not ART.isLK and false then
+	if MRT.isClassic and not MRT.isLK and false then
 		local MSG_LIMIT_COUNT = 10
 		local MSG_LIMIT_TIME = 6
 		if #arrtosand >= MSG_LIMIT_COUNT and module.options.buttonsend then
@@ -3694,18 +3613,18 @@ function module.frame:Save(blackNoteID)
 			local start = i
 			C_Timer.After(floor((start-1)/MSG_LIMIT_COUNT) * MSG_LIMIT_TIME + 0.05,function()
 				for j=start,min(#arrtosand,start+MSG_LIMIT_COUNT-1) do
-					ART.F.SendExMsg("multiline",indextosnd.."\t"..arrtosand[j])
+					MRT.F.SendExMsg("multiline",indextosnd.."\t"..arrtosand[j])
 				end
 			end)
 		end
 		C_Timer.After(floor((#arrtosand)/MSG_LIMIT_COUNT) * MSG_LIMIT_TIME + 0.1,function()
-			ART.F.SendExMsg("multiline_add",ART.F.CreateAddonMsg(indextosnd,encounterID,noteName))
+			MRT.F.SendExMsg("multiline_add",MRT.F.CreateAddonMsg(indextosnd,encounterID,noteName))
 		end)
 	else
 		for i=1,#arrtosand do
-			ART.F.SendExMsg("multiline",indextosnd.."\t"..arrtosand[i])
+			MRT.F.SendExMsg("multiline",indextosnd.."\t"..arrtosand[i])
 		end
-		ART.F.SendExMsg("multiline_add",ART.F.CreateAddonMsg(indextosnd,encounterID,noteName))
+		MRT.F.SendExMsg("multiline_add",MRT.F.CreateAddonMsg(indextosnd,encounterID,noteName))
 	end
 end 
 
@@ -3731,7 +3650,7 @@ end
 
 function module:addonMessage(sender, prefix, ...)
 	if prefix == "multiline" then
-		if VMRT.Note.OnlyPromoted and IsInRaid() and not ART.F.IsPlayerRLorOfficer(sender) then
+		if VMRT.Note.OnlyPromoted and IsInRaid() and not MRT.F.IsPlayerRLorOfficer(sender) then
 			return
 		end
 
@@ -3747,7 +3666,7 @@ function module:addonMessage(sender, prefix, ...)
 		module.db.msgindex = msgnowindex
 		module:SaveText(module.db.lasttext, module.db.msgindex)
 		module:ModHistory(module.db.msgindex, {bossID = -1, name = -1})
-		ART.F:FireCallback("Note_ReceivedText",VMRT.Note.Text1)
+		MRT.F:FireCallback("Note_ReceivedText",VMRT.Note.Text1)
 		module.allframes:UpdateText()
 		VMRT.Note.AutoLoad[0] = nil
 		VMRT.Note.DefName = nil
@@ -3757,11 +3676,11 @@ function module:addonMessage(sender, prefix, ...)
 		end
 		module.allframes.red_back:Show()
 		if type(WeakAuras)=="table" and WeakAuras.ScanEvents and type(WeakAuras.ScanEvents)=="function" then
-			WeakAuras.ScanEvents("EART_NOTE_UPDATE")
-			WeakAuras.ScanEvents("ART_NOTE_UPDATE")
+			WeakAuras.ScanEvents("EXRT_NOTE_UPDATE")
+			WeakAuras.ScanEvents("MRT_NOTE_UPDATE")
 		end
 	elseif prefix == "multiline_add" then
-		if VMRT.Note.OnlyPromoted and IsInRaid() and not ART.F.IsPlayerRLorOfficer(sender) then
+		if VMRT.Note.OnlyPromoted and IsInRaid() and not MRT.F.IsPlayerRLorOfficer(sender) then
 			return
 		end
 		local msgIndex,encounterID,noteName = ...
@@ -3774,7 +3693,7 @@ function module:addonMessage(sender, prefix, ...)
 		VMRT.Note.DefName = noteName
 		module.frame:UpdateOptionsText(true)
 		module:ModHistory(module.db.msgindex, {bossID = VMRT.Note.AutoLoad[0] or -1, name = VMRT.Note.DefName or -1})
-		if sender == ART.SDB.charKey then
+		if sender == MRT.SDB.charKey then
 			return
 		end
 		if VMRT.Note.SaveAllNew then
@@ -3826,11 +3745,11 @@ function module:addonMessage(sender, prefix, ...)
 		end
 	elseif prefix == "multiline_timer_sync" then
 		local name = ...
-		ART.F.Note_Timer(name)
+		MRT.F.Note_Timer(name)
 	end 
 end 
 
-NewVARTTableData = {
+NewVMRTTableData = {
 	OnlyPromoted = true,
 	OptionsFormatting = true,
 	Strata = "HIGH",
@@ -3840,7 +3759,7 @@ local isFirstLoad
 
 function module.main:ADDON_LOADED()
 	VMRT = _G.VMRT
-	VMRT.Note = VMRT.Note or ART.F.table_copy2(NewVARTTableData)
+	VMRT.Note = VMRT.Note or MRT.F.table_copy2(NewVMRTTableData)
 
 	VMRT.Note.Profiles = VMRT.Note.Profiles or {}
 	VMRT.Note.Profiles.List = VMRT.Note.Profiles.List or {}
@@ -3886,7 +3805,7 @@ function module.main:ADDON_LOADED()
 	module.allframes:UpdateVisual()
 
 	module:RegisterEvents('ZONE_CHANGED_NEW_AREA','PLAYER_SPECIALIZATION_CHANGED')
-	if ART.isCata then
+	if MRT.isCata then
 		module:RegisterEvents('PLAYER_TALENT_UPDATE')
 	end
 	if not isFirstLoad then
@@ -4028,12 +3947,12 @@ function module.main:PLAYER_TALENT_UPDATE(unit)
 end
 
 
-local SubzoneTextToBossID = ART.Data.SubzoneTextToBossID
+local SubzoneTextToBossID = MRT.Data.SubzoneTextToBossID
 local locale = GetLocale()
 SubzoneTextToBossID = SubzoneTextToBossID[locale or "enUS"] or SubzoneTextToBossID.enUS
 
 --SubzoneTextToBossID['"Сломанный клык"']=2922
-local SubzoneBossIDInctanceReq = ART.Data.SubzoneBossIDInctanceReq
+local SubzoneBossIDInctanceReq = MRT.Data.SubzoneBossIDInctanceReq
 
 local function CheckSubZone()
 	if module.db.isEncounter then
@@ -4089,7 +4008,7 @@ local function CheckSubZone()
 
 					module.allframes:UpdateText()
 					module.frame:UpdateOptionsText() 
-				elseif VMRT.Note.BossAutoLoadSendAsRL and ART.F.IsPlayerRLorOfficer("player") == 2 then
+				elseif VMRT.Note.BossAutoLoadSendAsRL and MRT.F.IsPlayerRLorOfficer("player") == 2 then
 					module.frame:Save(noteID)
 				else
 					module.frame:SetTo(noteID)
@@ -4324,7 +4243,7 @@ do
 	end
 
 
-	function ART.F.Note_Timer(name)
+	function MRT.F.Note_Timer(name)
 		if not name then
 			return
 		end
@@ -4333,11 +4252,11 @@ do
 		end
 		encounter_time_c[name] = GetTime()
 	end
-	function ART.F.Note_SyncTimer(name)
+	function MRT.F.Note_SyncTimer(name)
 		if not name then
 			return
 		end
-		ART.F.SendExMsg("multiline_timer_sync",name)
+		MRT.F.SendExMsg("multiline_timer_sync",name)
 	end
 end
 
@@ -4359,7 +4278,7 @@ do
 		for key,val in pairs(VMRT.Note) do
 			if not IGNORE_PROFILE_KEYS[key] then
 				if type(val) == "table" then
-					saveDB[key] = ART.F.table_copy2(val)
+					saveDB[key] = MRT.F.table_copy2(val)
 				else
 					saveDB[key] = val
 				end
@@ -4389,7 +4308,7 @@ do
 				savedKeys[key] = VMRT.Note[key]
 			end
 		end
-		ART.F.table_rewrite(VMRT.Note,VMRT.Note.Profiles.List[name])
+		MRT.F.table_rewrite(VMRT.Note,VMRT.Note.Profiles.List[name])
 		for key,val in pairs(savedKeys) do
 			VMRT.Note[key] = val
 		end
@@ -4451,7 +4370,7 @@ function module:slash(arg)
 			module:Enable()
 		end
 	elseif arg == "editnote" or arg == "edit note" then
-		ART.Options:Open(module.options)
+		MRT.Options:Open(module.options)
 	elseif arg == "note timer" then
 		if module.db.encounter_time then
 			module.main:ENCOUNTER_END()
@@ -4463,12 +4382,12 @@ function module:slash(arg)
 	elseif arg and arg:find("^note starttimer ") then
 		local timer = arg:match("^note starttimer (.-)$")
 		if timer then
-			ART.F.Note_Timer(timer)
+			MRT.F.Note_Timer(timer)
 		end
 	elseif arg and arg:find("^note synctimer ") then
 		local timer = arg:match("^note synctimer (.-)$")
 		if timer then
-			ART.F.Note_SyncTimer(timer)
+			MRT.F.Note_SyncTimer(timer)
 		end
 	elseif arg and arg:find("^note set ") then
 		local name = arg:match("^note set (.-)$")
@@ -4518,5 +4437,5 @@ function module:GetText(removeColors,removeExtraSpaces)
 	end
 	return text
 end
-ART.F.GetNote = module.GetText
---- you can use to get note text VMRT.F:GetNote()
+MRT.F.GetNote = module.GetText
+--- you can use to get note text GMRT.F:GetNote()
