@@ -718,7 +718,7 @@ end
 
 local function UpdateAllFrames()
     for i = 1, 8 do
-        local frame = _G["CompactPMRTyFrameMember"..i]
+        local frame = _G["CompactPartyFrameMember"..i]
         if frame and frame:IsVisible() then
             UpdateFrameName(frame)
             if not frame.sizeHooked then
