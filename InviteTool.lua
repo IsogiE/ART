@@ -1,11 +1,11 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-local UnitInGuild, IsInRaid = EART.F.UnitInGuild, IsInRaid
+local UnitInGuild, IsInRaid = ExRT.F.UnitInGuild, IsInRaid
 
-local VART = nil
+local VMRT = nil
 
-local module = EART:New("InviteTool",EART.L.invite)
-local ELib,L = EART.lib,EART.L
+local module = ExRT:New("InviteTool",ExRT.L.invite)
+local ELib,L = ExRT.lib,ExRT.L
 
 local GetItemInfo, GetItemInfoInstant, GetItemQualityColor = C_Item and C_Item.GetItemInfo or GetItemInfo, C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant, C_Item and C_Item.GetItemQualityColor or GetItemQualityColor
 
@@ -39,7 +39,7 @@ end
 local C_GuildInfo_GuildRoster = C_GuildInfo and C_GuildInfo.GuildRoster
 local C_PartyInfo_ConvertToRaid = C_PartyInfo and C_PartyInfo.ConvertToRaid
 
-if EART.isClassic then
+if ExRT.isClassic then
 	C_GuildInfo_GuildRoster = C_GuildInfo_GuildRoster or GuildRoster
 	C_PartyInfo_ConvertToRaid = C_PartyInfo_ConvertToRaid or ConvertToRaid
 	BNGetFriendInfo = _G.BNGetFriendInfo
@@ -51,7 +51,7 @@ hooksecurefunc("DemoteAssistant", function (unit)
 	end
 	local name = UnitName(unit)
 	if name then
-		name = EART.F.delUnitNameServer(name)
+		name = ExRT.F.delUnitNameServer(name)
 		module.db.demotedPlayers[ name ] = true
 	end
 end)
@@ -59,7 +59,7 @@ end)
 local _InviteUnit = C_PartyInfo and C_PartyInfo.InviteUnit or InviteUnit
 local function InviteUnit(name)
 	if name and name:len() >= 45 then
-		local shortName = EART.F.delUnitNameServer(name)
+		local shortName = ExRT.F.delUnitNameServer(name)
 		_InviteUnit(shortName)
 	else
 		_InviteUnit(name)
@@ -68,7 +68,7 @@ end
 
 local function CheckUnitInRaid(name,shortName)
 	if not shortName then
-		shortName = EART.F.delUnitNameServer(name)
+		shortName = ExRT.F.delUnitNameServer(name)
 	end
 	if UnitName(name) or UnitName(shortName) then
 		return true
@@ -96,8 +96,8 @@ local function InviteBut()
 	end
 	for i=1,gplayers do
 		local name,_,rankIndex,level,_,_,_,_,online,_,_,_,_,isMobile = GetGuildRosterInfo(i)
-		local sName = EART.F.delUnitNameServer(name)
-		if name and rankIndex and VART.InviteTool.Ranks[rankIndex+1] and online and ((EART.SDB.charLevel >= 60 and level >= 60) or (EART.isClassic and level >= 60) or level >= 50) and not isMobile and not CheckUnitInRaid(name,sName) and sName ~= module.db.playerFullName then
+		local sName = ExRT.F.delUnitNameServer(name)
+		if name and rankIndex and VMRT.InviteTool.Ranks[rankIndex+1] and online and ((ExRT.SDB.charLevel >= 60 and level >= 60) or (ExRT.isClassic and level >= 60) or level >= 50) and not isMobile and not CheckUnitInRaid(name,sName) and sName ~= module.db.playerFullName then
 			if inRaid then
 				InviteUnit(name)
 			elseif nowinvnum < 5 then
@@ -205,32 +205,32 @@ local function ReinviteBut()
 end
 
 local function createInvWordsArray()
-	if VART.InviteTool.Words then
+	if VMRT.InviteTool.Words then
 		table.wipe(module.db.invWordsArray)
 		local tmpCount = 1
-		local tmpStr = strsplit(" ",VART.InviteTool.Words)
+		local tmpStr = strsplit(" ",VMRT.InviteTool.Words)
 		while tmpStr do
 			if tmpStr ~= "" and tmpStr ~= " " then
 				module.db.invWordsArray[tmpStr] = 1
 			end
 			tmpCount = tmpCount + 1
-			tmpStr = select(tmpCount,strsplit(" ",VART.InviteTool.Words))
+			tmpStr = select(tmpCount,strsplit(" ",VMRT.InviteTool.Words))
 		end
 	end
 end
 
 local function createPromoteArray()
-	if VART.InviteTool.PromoteNames then
+	if VMRT.InviteTool.PromoteNames then
 		table.wipe(module.db.promoteWordsArray)
 		local tmpCount = 1
-		local tmpStr = strsplit(" ",VART.InviteTool.PromoteNames)
+		local tmpStr = strsplit(" ",VMRT.InviteTool.PromoteNames)
 		while tmpStr do
 			if tmpStr ~= "" and tmpStr ~= " " then
 				tmpStr = tmpStr:lower()
 				module.db.promoteWordsArray[tmpStr] = 1
 			end
 			tmpCount = tmpCount + 1
-			tmpStr = select(tmpCount,strsplit(" ",VART.InviteTool.PromoteNames))
+			tmpStr = select(tmpCount,strsplit(" ",VMRT.InviteTool.PromoteNames))
 		end
 	end
 end
@@ -245,16 +245,16 @@ local function demoteRaid()
 end
 
 local function createMastelootersArray()
-	if VART.InviteTool.MasterLooters then
+	if VMRT.InviteTool.MasterLooters then
 		table.wipe(module.db.masterlootersArray)
 		local tmpCount = 1
-		local tmpStr = strsplit(" ",strtrim(VART.InviteTool.MasterLooters))
+		local tmpStr = strsplit(" ",strtrim(VMRT.InviteTool.MasterLooters))
 		while tmpStr do
 			if tmpStr ~= "" and tmpStr ~= " " then
 				module.db.masterlootersArray[#module.db.masterlootersArray + 1] = tmpStr
 			end
 			tmpCount = tmpCount + 1
-			tmpStr = select(tmpCount,strsplit(" ",strtrim(VART.InviteTool.MasterLooters)))
+			tmpStr = select(tmpCount,strsplit(" ",strtrim(VMRT.InviteTool.MasterLooters)))
 		end
 	end
 end
@@ -265,10 +265,10 @@ function module.options:Load()
 	self.dropDown = ELib:DropDown(self,205,10):Point(15,-30):Size(220)
 
 	function self.dropDown:SetValue(newValue)
-		VART.InviteTool.Ranks[newValue] = self.checkButton:GetChecked()
+		VMRT.InviteTool.Ranks[newValue] = self.checkButton:GetChecked()
 		module.options.dropDown:SetText( L.inviterank )
 		for i=1,#module.options.dropDown.List do
-			module.options.dropDown.List[i].checkState = VART.InviteTool.Ranks[ module.options.dropDown.List[i].arg1 ]
+			module.options.dropDown.List[i].checkState = VMRT.InviteTool.Ranks[ module.options.dropDown.List[i].arg1 ]
 		end
 		module.options.dropDown:UpdateText()
 	end
@@ -278,7 +278,7 @@ function module.options:Load()
 		for i=granks,1,-1 do
 			self.dropDown.List[#self.dropDown.List + 1] = {
 				text = GuildControlGetRankName(i) or "",
-				checkState = VART.InviteTool.Ranks[i],
+				checkState = VMRT.InviteTool.Ranks[i],
 				checkable = true,
 				func = self.dropDown.SetValue,
 				arg1 = i,
@@ -303,7 +303,7 @@ function module.options:Load()
 	self.listInvFrame = ELib:Popup(L.InviteListButton):Size(400,400)
 	self.listInvFrame.edit = ELib:MultiEdit(self.listInvFrame):Point("TOP",0,-60):Size(386,314):OnChange(function(_,isUser)
 		if not isUser then return end
-		VART.InviteTool["ListInv"..(self.listInvFrame.currList)] = self.listInvFrame.edit:GetText()
+		VMRT.InviteTool["ListInv"..(self.listInvFrame.currList)] = self.listInvFrame.edit:GetText()
 	end)
 	self.listInvFrame.tip = ELib:Text(self.listInvFrame,L.InviteListTip,12):Point(15,-45)
 	for i=1,4 do
@@ -312,76 +312,76 @@ function module.options:Load()
 			self:Disable()
 
 			module.options.listInvFrame.currList = i
-			self:GetParent().edit:SetText(VART.InviteTool["ListInv"..i] or "")
+			self:GetParent().edit:SetText(VMRT.InviteTool["ListInv"..i] or "")
 		end)
 	end
 	self.listInvFrame["butList"..1]:Disable()
 	self.listInvFrame.currList = 1
-	self.listInvFrame.edit:SetText(VART.InviteTool["ListInv"..1] or "")
+	self.listInvFrame.edit:SetText(VMRT.InviteTool["ListInv"..1] or "")
 	self.listInvFrame.invite = ELib:Button(self.listInvFrame,L.inviteinv):Size(390,20):Point("BOTTOM",0,5):OnClick(function()
-		InviteList(CreateInviteList(VART.InviteTool["ListInv"..(self.listInvFrame.currList)]))
+		InviteList(CreateInviteList(VMRT.InviteTool["ListInv"..(self.listInvFrame.currList)]))
 	end)
 
 
-	self.chkInvByChat = ELib:Check(self,L.invitewords,VART.InviteTool.InvByChat):Point("TOPLEFT",self.butListInv,"BOTTOMLEFT",0,-15):OnClick(function(self) 
+	self.chkInvByChat = ELib:Check(self,L.invitewords,VMRT.InviteTool.InvByChat):Point("TOPLEFT",self.butListInv,"BOTTOMLEFT",0,-15):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.InvByChat = true
+			VMRT.InviteTool.InvByChat = true
 			module:RegisterEvents('CHAT_MSG_WHISPER','CHAT_MSG_BN_WHISPER')
 		else
-			VART.InviteTool.InvByChat = nil
+			VMRT.InviteTool.InvByChat = nil
 			module:UnregisterEvents('CHAT_MSG_WHISPER','CHAT_MSG_BN_WHISPER')
 		end
 	end)
 
-	self.chkOnlyGuild = ELib:Check(self,L.inviteguildonly,VART.InviteTool.OnlyGuild):Point("TOPLEFT",self.chkInvByChat,"BOTTOMLEFT",0,-5):OnClick(function(self) 
+	self.chkOnlyGuild = ELib:Check(self,L.inviteguildonly,VMRT.InviteTool.OnlyGuild):Point("TOPLEFT",self.chkInvByChat,"BOTTOMLEFT",0,-5):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.OnlyGuild = true
+			VMRT.InviteTool.OnlyGuild = true
 		else
-			VART.InviteTool.OnlyGuild = nil
+			VMRT.InviteTool.OnlyGuild = nil
 		end
 	end)
 
-	self.chkInvByChatSay = ELib:Check(self,L.invitewordssay,VART.InviteTool.InvByChatSay):Point("TOPLEFT",self.chkOnlyGuild,"BOTTOMLEFT",0,-5):OnClick(function(self) 
+	self.chkInvByChatSay = ELib:Check(self,L.invitewordssay,VMRT.InviteTool.InvByChatSay):Point("TOPLEFT",self.chkOnlyGuild,"BOTTOMLEFT",0,-5):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.InvByChatSay = true
+			VMRT.InviteTool.InvByChatSay = true
 			module:RegisterEvents('CHAT_MSG_SAY','CHAT_MSG_YELL')
 		else
-			VART.InviteTool.InvByChatSay = nil
+			VMRT.InviteTool.InvByChatSay = nil
 			module:UnregisterEvents('CHAT_MSG_SAY','CHAT_MSG_YELL')
 		end
 	end)
 
 
-	self.wordsInput = ELib:Edit(self):Size(650,20):Point("TOPLEFT",self.chkInvByChatSay,"BOTTOMLEFT",0,-5):Tooltip(L.invitewordstooltip.."\n"..L.invitewordstooltipany):Text(VART.InviteTool.Words):OnChange(function(self)
-		VART.InviteTool.Words = self:GetText()
+	self.wordsInput = ELib:Edit(self):Size(650,20):Point("TOPLEFT",self.chkInvByChatSay,"BOTTOMLEFT",0,-5):Tooltip(L.invitewordstooltip.."\n"..L.invitewordstooltipany):Text(VMRT.InviteTool.Words):OnChange(function(self)
+		VMRT.InviteTool.Words = self:GetText()
 		createInvWordsArray()
 	end) 
 
-	self.chkAutoInvAccept = ELib:Check(self,L.inviteaccept,VART.InviteTool.AutoInvAccept):Point("TOPLEFT",self.wordsInput,"BOTTOMLEFT",0,-15):OnClick(function(self) 
+	self.chkAutoInvAccept = ELib:Check(self,L.inviteaccept,VMRT.InviteTool.AutoInvAccept):Point("TOPLEFT",self.wordsInput,"BOTTOMLEFT",0,-15):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.AutoInvAccept = true
+			VMRT.InviteTool.AutoInvAccept = true
 			module:RegisterEvents('PARTY_INVITE_REQUEST')
 		else
-			VART.InviteTool.AutoInvAccept = nil
+			VMRT.InviteTool.AutoInvAccept = nil
 			module:UnregisterEvents('PARTY_INVITE_REQUEST')
 		end
 	end)
 
-	self.chkAutoPromote = ELib:Check(self,L.inviteAutoPromote,VART.InviteTool.AutoPromote):Point("TOPLEFT",self.chkAutoInvAccept,"BOTTOMLEFT",0,-15):OnClick(function(self) 
+	self.chkAutoPromote = ELib:Check(self,L.inviteAutoPromote,VMRT.InviteTool.AutoPromote):Point("TOPLEFT",self.chkAutoInvAccept,"BOTTOMLEFT",0,-15):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.AutoPromote = true
+			VMRT.InviteTool.AutoPromote = true
 		else
-			VART.InviteTool.AutoPromote = nil
+			VMRT.InviteTool.AutoPromote = nil
 		end
 	end)
 
 	self.dropDownAutoPromote = ELib:DropDown(self,205,10):Point("TOPLEFT",self.chkAutoPromote,"BOTTOMLEFT",0,-5):Size(430)
 	function self.dropDownAutoPromote:SetValue(newValue)
-		VART.InviteTool.PromoteRank = newValue
+		VMRT.InviteTool.PromoteRank = newValue
 		module.options.dropDownAutoPromote:SetText( L.inviterank.." " .. (newValue == 0 and L.inviteAutoPromoteDontUseGuild or GuildControlGetRankName(newValue) or ""))
 		ELib:DropDownClose()
 		for i=1,#module.options.dropDownAutoPromote.List do
-			module.options.dropDownAutoPromote.List[i].checkState = VART.InviteTool.PromoteRank == module.options.dropDownAutoPromote.List[i].arg1
+			module.options.dropDownAutoPromote.List[i].checkState = VMRT.InviteTool.PromoteRank == module.options.dropDownAutoPromote.List[i].arg1
 		end
 	end
 	if IsInGuild() then
@@ -389,7 +389,7 @@ function module.options:Load()
 		for i=granks,1,-1 do
 			self.dropDownAutoPromote.List[#self.dropDownAutoPromote.List + 1] = {
 				text = GuildControlGetRankName(i) or "",
-				checkState = VART.InviteTool.PromoteRank == i,
+				checkState = VMRT.InviteTool.PromoteRank == i,
 				radio = true,
 				func = self.dropDownAutoPromote.SetValue,
 				arg1 = i,
@@ -398,7 +398,7 @@ function module.options:Load()
 	end
 	self.dropDownAutoPromote.List[#self.dropDownAutoPromote.List + 1] = {
 		text = L.inviteAutoPromoteDontUseGuild,
-		checkState = VART.InviteTool.PromoteRank == 0,
+		checkState = VMRT.InviteTool.PromoteRank == 0,
 		radio = true,
 		func = self.dropDownAutoPromote.SetValue,
 		arg1 = 0,
@@ -406,19 +406,19 @@ function module.options:Load()
 	self.dropDownAutoPromote.Lines = #self.dropDownAutoPromote.List
 
 
-	self.autoPromoteInput = ELib:Edit(self):Size(650,20):Point("TOPLEFT",self.dropDownAutoPromote,"BOTTOMLEFT",0,-5):Tooltip(L.inviteAutoPromoteTooltip):Text(VART.InviteTool.PromoteNames):OnChange(function(self)
-		VART.InviteTool.PromoteNames = self:GetText()
+	self.autoPromoteInput = ELib:Edit(self):Size(650,20):Point("TOPLEFT",self.dropDownAutoPromote,"BOTTOMLEFT",0,-5):Tooltip(L.inviteAutoPromoteTooltip):Text(VMRT.InviteTool.PromoteNames):OnChange(function(self)
+		VMRT.InviteTool.PromoteNames = self:GetText()
 		createPromoteArray()
 	end) 
 
 	self.butRaidDemote = ELib:Button(self,L.inviteRaidDemote):Size(430,20):Point("TOPLEFT",self.autoPromoteInput,"BOTTOMLEFT",0,-5):OnClick(function() demoteRaid() end)
 
 
-	self.chkRaidDiff = ELib:Check(self,L.InviteRaidDiffCheck,VART.InviteTool.AutoRaidDiff):Point("TOPLEFT",self.butRaidDemote,"BOTTOMLEFT",0,-15):OnClick(function(self) 
+	self.chkRaidDiff = ELib:Check(self,L.InviteRaidDiffCheck,VMRT.InviteTool.AutoRaidDiff):Point("TOPLEFT",self.butRaidDemote,"BOTTOMLEFT",0,-15):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.AutoRaidDiff = true
+			VMRT.InviteTool.AutoRaidDiff = true
 		else
-			VART.InviteTool.AutoRaidDiff = nil
+			VMRT.InviteTool.AutoRaidDiff = nil
 		end
 	end)
 
@@ -429,17 +429,17 @@ function module.options:Load()
 	}
 	self.dropDownRaidDiff = ELib:DropDown(self,235,10):Point("TOPLEFT",self.chkRaidDiff,"BOTTOMLEFT",175,-5):Size(250)
 	function self.dropDownRaidDiff:SetValue(newValue)
-		VART.InviteTool.RaidDiff = RaidDiffsDropDown[newValue][1]
+		VMRT.InviteTool.RaidDiff = RaidDiffsDropDown[newValue][1]
 		module.options.dropDownRaidDiff:SetText( RaidDiffsDropDown[newValue][2] )
 		ELib:DropDownClose()
 		for i=1,#module.options.dropDownRaidDiff.List do
-			module.options.dropDownRaidDiff.List[i].checkState = VART.InviteTool.RaidDiff == RaidDiffsDropDown[ module.options.dropDownRaidDiff.List[i].arg1 ][1]
+			module.options.dropDownRaidDiff.List[i].checkState = VMRT.InviteTool.RaidDiff == RaidDiffsDropDown[ module.options.dropDownRaidDiff.List[i].arg1 ][1]
 		end
 	end
 	for i=1,#RaidDiffsDropDown do
 		self.dropDownRaidDiff.List[i] = {
 			text = RaidDiffsDropDown[i][2],
-			checkState = VART.InviteTool.RaidDiff == RaidDiffsDropDown[i][1],
+			checkState = VMRT.InviteTool.RaidDiff == RaidDiffsDropDown[i][1],
 			radio = true,
 			arg1 = i,
 			func = self.dropDownRaidDiff.SetValue,
@@ -449,7 +449,7 @@ function module.options:Load()
 	do
 		local diffName = ""
 		for i=1,#RaidDiffsDropDown do
-			if RaidDiffsDropDown[i][1] == VART.InviteTool.RaidDiff then
+			if RaidDiffsDropDown[i][1] == VMRT.InviteTool.RaidDiff then
 				diffName = RaidDiffsDropDown[i][2]
 				break
 			end
@@ -461,11 +461,11 @@ function module.options:Load()
 
 
 
-	self.chkEnableMasterLooter = ELib:Check(self,L.InviteMasterlootersEnable,VART.InviteTool.LootMethodEnabled):Point("TOPLEFT",self.dropDownRaidDiff,"BOTTOMLEFT",-175,-5):OnClick(function(self) 
+	self.chkEnableMasterLooter = ELib:Check(self,L.InviteMasterlootersEnable,VMRT.InviteTool.LootMethodEnabled):Point("TOPLEFT",self.dropDownRaidDiff,"BOTTOMLEFT",-175,-5):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.InviteTool.LootMethodEnabled = true
+			VMRT.InviteTool.LootMethodEnabled = true
 		else
-			VART.InviteTool.LootMethodEnabled = nil
+			VMRT.InviteTool.LootMethodEnabled = nil
 		end
 	end)
 
@@ -479,17 +479,17 @@ function module.options:Load()
 	}
 	self.dropDownLootMethod = ELib:DropDown(self,235,10):Point("TOPLEFT",self.chkEnableMasterLooter,"BOTTOMLEFT",175,-5):Size(250)
 	function self.dropDownLootMethod:SetValue(newValue)
-		VART.InviteTool.LootMethod = LootMethodDropDown[newValue][1]
+		VMRT.InviteTool.LootMethod = LootMethodDropDown[newValue][1]
 		module.options.dropDownLootMethod:SetText( LootMethodDropDown[newValue][2] )
 		ELib:DropDownClose()
 		for i=1,#module.options.dropDownLootMethod.List do
-			module.options.dropDownLootMethod.List[i].checkState = VART.InviteTool.LootMethod == LootMethodDropDown[ module.options.dropDownLootMethod.List[i].arg1 ][1]
+			module.options.dropDownLootMethod.List[i].checkState = VMRT.InviteTool.LootMethod == LootMethodDropDown[ module.options.dropDownLootMethod.List[i].arg1 ][1]
 		end
 	end
 	for i=1,#LootMethodDropDown do
 		self.dropDownLootMethod.List[i] = {
 			text = LootMethodDropDown[i][2],
-			checkState = VART.InviteTool.LootMethod == LootMethodDropDown[i][1],
+			checkState = VMRT.InviteTool.LootMethod == LootMethodDropDown[i][1],
 			radio = true,
 			arg1 = i,
 			func = self.dropDownLootMethod.SetValue,
@@ -499,7 +499,7 @@ function module.options:Load()
 	do
 		local methodName = ""
 		for i=1,#LootMethodDropDown do
-			if LootMethodDropDown[i][1] == VART.InviteTool.LootMethod then
+			if LootMethodDropDown[i][1] == VMRT.InviteTool.LootMethod then
 				methodName = LootMethodDropDown[i][2]
 				break
 			end
@@ -509,8 +509,8 @@ function module.options:Load()
 	self.dropDownLootMethodText = ELib:Text(self,LOOT_METHOD..":",11):Size(175,20):Point("TOPLEFT",self.dropDownLootMethod,-175,0)
 	
 	
-	self.masterlotersInput = ELib:Edit(self):Size(250,20):Point("TOPLEFT",self.dropDownLootMethod,"BOTTOMLEFT",0,-5):Tooltip(L.InviteMasterlootersTooltip):Text(VART.InviteTool.MasterLooters):OnChange(function(self)
-		VART.InviteTool.MasterLooters = self:GetText()
+	self.masterlotersInput = ELib:Edit(self):Size(250,20):Point("TOPLEFT",self.dropDownLootMethod,"BOTTOMLEFT",0,-5):Tooltip(L.InviteMasterlootersTooltip):Text(VMRT.InviteTool.MasterLooters):OnChange(function(self)
+		VMRT.InviteTool.MasterLooters = self:GetText()
 		createMastelootersArray()
 	end) 
 	self.masterlotersInputText = ELib:Text(self,L.InviteMasterlooters,11):Size(175,20):Point("TOPLEFT",self.masterlotersInput,-175,0)
@@ -523,18 +523,18 @@ function module.options:Load()
 	}
 	self.dropDownLootThreshold = ELib:DropDown(self,235,10):Point("TOPLEFT",self.masterlotersInput,"BOTTOMLEFT",0,-5):Size(250)
 	function self.dropDownLootThreshold:SetValue(newValue)
-		VART.InviteTool.LootThreshold = LootThresholdDropDown[newValue][1]
+		VMRT.InviteTool.LootThreshold = LootThresholdDropDown[newValue][1]
 		module.options.dropDownLootThreshold:SetText( LootThresholdDropDown[newValue][2] )
 		ELib:DropDownClose()
 		for i=1,#module.options.dropDownLootThreshold.List do
-			module.options.dropDownLootThreshold.List[i].checkState = VART.InviteTool.LootThreshold == LootThresholdDropDown[ module.options.dropDownLootThreshold.List[i].arg1 ][1]
+			module.options.dropDownLootThreshold.List[i].checkState = VMRT.InviteTool.LootThreshold == LootThresholdDropDown[ module.options.dropDownLootThreshold.List[i].arg1 ][1]
 		end
 
 	end
 	for i=1,#LootThresholdDropDown do
 		self.dropDownLootThreshold.List[i] = {
 			text = LootThresholdDropDown[i][2],
-			checkState = VART.InviteTool.LootThreshold == LootThresholdDropDown[i][1],
+			checkState = VMRT.InviteTool.LootThreshold == LootThresholdDropDown[i][1],
 			radio = true,
 			arg1 = i,
 			func = self.dropDownLootThreshold.SetValue,
@@ -544,7 +544,7 @@ function module.options:Load()
 	do
 		local diffName = ""
 		for i=1,#LootThresholdDropDown do
-			if LootThresholdDropDown[i][1] == VART.InviteTool.LootThreshold then
+			if LootThresholdDropDown[i][1] == VMRT.InviteTool.LootThreshold then
 				diffName = LootThresholdDropDown[i][2]
 				break
 			end
@@ -556,7 +556,7 @@ function module.options:Load()
 
 
 
-	if EART.isClassic then
+	if ExRT.isClassic then
 		self.chkRaidDiff:Hide()
 		self.dropDownRaidDiff:Hide()
 		self.dropDownRaidDiffText:Hide()
@@ -577,18 +577,18 @@ function module.options:Load()
 		[3] = { ButtonPos = { x = 50,  y = -212 }, 	HighLightBox = { x = 5, y = -220, width = 660, height = 30 },		ToolTipDir = "RIGHT",	ToolTipText = L.inviteHelpAutoAccept },
 		[4] = { ButtonPos = { x = 50,  y = -280},  	HighLightBox = { x = 5, y = -255, width = 660, height = 135 },		ToolTipDir = "RIGHT",	ToolTipText = L.inviteHelpAutoPromote },
 	}
-	if not EART.isClassic then
-		self.HELPButton = EART.lib.CreateHelpButton(self,self.HelpPlate)
+	if not ExRT.isClassic then
+		self.HELPButton = ExRT.lib.CreateHelpButton(self,self.HelpPlate)
 		self.HELPButton:SetPoint("CENTER",self,"TOPLEFT",0,15)
 	end
 
 	self.dropDown:SetText( L.inviterank )
-	self.dropDownAutoPromote:SetText( L.inviterank.." " .. (VART.InviteTool.PromoteRank == 0 and L.inviteAutoPromoteDontUseGuild or GuildControlGetRankName(VART.InviteTool.PromoteRank) or ""))
+	self.dropDownAutoPromote:SetText( L.inviterank.." " .. (VMRT.InviteTool.PromoteRank == 0 and L.inviteAutoPromoteDontUseGuild or GuildControlGetRankName(VMRT.InviteTool.PromoteRank) or ""))
 
 	function self.dropDown:UpdateText()
-		if IsInGuild() and VART.InviteTool.Ranks then
+		if IsInGuild() and VMRT.InviteTool.Ranks then
 			local r = ""
-			for rank,v in pairs(VART.InviteTool.Ranks) do
+			for rank,v in pairs(VMRT.InviteTool.Ranks) do
 				if v then
 					r = r .. (GuildControlGetRankName(rank) or "") .. ","
 				end
@@ -613,36 +613,36 @@ do
 		for j=1,GetNumGuildMembers() do
 			local guild_name,_,rankIndex = GetGuildRosterInfo(j)
 			if guild_name then
-				guildmembers[EART.F.delUnitNameServer(guild_name)] = rankIndex
+				guildmembers[ExRT.F.delUnitNameServer(guild_name)] = rankIndex
 			end
 		end
 	end
 
 	function promoteRosterUpdate()
-		if not VART.InviteTool.AutoPromote then
+		if not VMRT.InviteTool.AutoPromote then
 			return
 		end
 		for i = 1, GetNumGroupMembers() do
 			local name, rank = GetRaidRosterInfo(i)
 			if name and rank == 0 then
-				local sName = EART.F.delUnitNameServer(name)
+				local sName = ExRT.F.delUnitNameServer(name)
 				if module.db.promoteWordsArray[sName:lower()] then
 					promotes[name] = true
 				elseif IsInGuild() and UnitInGuild(sName) then
 					if not guildmembers then
 						GuildReview()
 					end
-					if (guildmembers[sName] or 99) < VART.InviteTool.PromoteRank then
+					if (guildmembers[sName] or 99) < VMRT.InviteTool.PromoteRank then
 						promotes[name] = true
 					end
 				end
 			end
 		end
 		if not scheduledPromotes then
-			scheduledPromotes = EART.F.ScheduleTimer(function ()
+			scheduledPromotes = ExRT.F.ScheduleTimer(function ()
 				scheduledPromotes = nil
 				for name in pairs(promotes) do
-					if not module.db.demotedPlayers[ EART.F.delUnitNameServer(name) ] then
+					if not module.db.demotedPlayers[ ExRT.F.delUnitNameServer(name) ] then
 						PromoteToAssistant(name, true)
 					end
 					promotes[name] = nil
@@ -653,59 +653,59 @@ do
 end
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
-	VART.InviteTool = VART.InviteTool or {OnlyGuild=true,InvByChat=true}
-	VART.InviteTool.Rank = VART.InviteTool.Rank or 1
+	VMRT = _G.VMRT
+	VMRT.InviteTool = VMRT.InviteTool or {OnlyGuild=true,InvByChat=true}
+	VMRT.InviteTool.Rank = VMRT.InviteTool.Rank or 1
 
-	if not VART.InviteTool.Ranks then
-		VART.InviteTool.Ranks = {}
-		if type(VART.InviteTool.Rank)=='number' then
-			for i=1,VART.InviteTool.Rank do
-				VART.InviteTool.Ranks[i] = true
+	if not VMRT.InviteTool.Ranks then
+		VMRT.InviteTool.Ranks = {}
+		if type(VMRT.InviteTool.Rank)=='number' then
+			for i=1,VMRT.InviteTool.Rank do
+				VMRT.InviteTool.Ranks[i] = true
 			end
 		end
 	end
 
-	VART.InviteTool.Words = VART.InviteTool.Words or "инв inv byd штм 123"
+	VMRT.InviteTool.Words = VMRT.InviteTool.Words or "инв inv byd штм 123"
 	createInvWordsArray()
 
-	VART.InviteTool.PromoteNames = VART.InviteTool.PromoteNames or ""
-	VART.InviteTool.PromoteRank = VART.InviteTool.PromoteRank or 2
+	VMRT.InviteTool.PromoteNames = VMRT.InviteTool.PromoteNames or ""
+	VMRT.InviteTool.PromoteRank = VMRT.InviteTool.PromoteRank or 2
 	createPromoteArray()
 
-	VART.InviteTool.RaidDiff = VART.InviteTool.RaidDiff or 16
-	VART.InviteTool.LootMethod = VART.InviteTool.LootMethod or "group"
-	VART.InviteTool.MasterLooters = VART.InviteTool.MasterLooters or ""
-	VART.InviteTool.LootThreshold = VART.InviteTool.LootThreshold or 2
+	VMRT.InviteTool.RaidDiff = VMRT.InviteTool.RaidDiff or 16
+	VMRT.InviteTool.LootMethod = VMRT.InviteTool.LootMethod or "group"
+	VMRT.InviteTool.MasterLooters = VMRT.InviteTool.MasterLooters or ""
+	VMRT.InviteTool.LootThreshold = VMRT.InviteTool.LootThreshold or 2
 	createMastelootersArray()
 
 	module:RegisterEvents('GROUP_ROSTER_UPDATE','GUILD_ROSTER_UPDATE')
-	if VART.InviteTool.InvByChat then
+	if VMRT.InviteTool.InvByChat then
 		module:RegisterEvents('CHAT_MSG_WHISPER','CHAT_MSG_BN_WHISPER')
 	end
-	if VART.InviteTool.AutoInvAccept then
+	if VMRT.InviteTool.AutoInvAccept then
 		module:RegisterEvents('PARTY_INVITE_REQUEST','GROUP_INVITE_CONFIRMATION')
 	end
-	if VART.InviteTool.InvByChatSay then
+	if VMRT.InviteTool.InvByChatSay then
 		module:RegisterEvents('CHAT_MSG_SAY','CHAT_MSG_YELL')
 	end
 
 	module:RegisterSlash()
 
-	module.db.playerFullName = EART.F.UnitCombatlogname("player")
+	module.db.playerFullName = ExRT.F.UnitCombatlogname("player")
 end
 
 function module.main:CHAT_MSG_WHISPER(msg, user, special)
-	if user == EART.SDB.charKey then
+	if user == ExRT.SDB.charKey then
 		return
 	end
 	msg = string.lower(msg):trim()
-	if ((msg and module.db.invWordsArray[msg]) or (module.db.invWordsArray["ANYKEYWORD"] and not UnitName(user))) and (not VART.InviteTool.OnlyGuild or UnitInGuild(user)) then
+	if ((msg and module.db.invWordsArray[msg]) or (module.db.invWordsArray["ANYKEYWORD"] and not UnitName(user))) and (not VMRT.InviteTool.OnlyGuild or UnitInGuild(user)) then
 		if not IsInRaid() and GetNumGroupMembers() == 5 then 
 			C_PartyInfo_ConvertToRaid()
 		end
 		InviteUnit(user)
-	elseif ((msg and module.db.invWordsArray[msg]) or (module.db.invWordsArray["ANYKEYWORD"] and not UnitName(user))) and VART.InviteTool.OnlyGuild and (GetNumGuildMembers() or 0) == 0 and special ~= -578 then
+	elseif ((msg and module.db.invWordsArray[msg]) or (module.db.invWordsArray["ANYKEYWORD"] and not UnitName(user))) and VMRT.InviteTool.OnlyGuild and (GetNumGuildMembers() or 0) == 0 and special ~= -578 then
 		C_GuildInfo_GuildRoster()
 		C_Timer.After(2,function()
 			module.main:CHAT_MSG_WHISPER(msg, user, -578)
@@ -725,14 +725,14 @@ function module.main:CHAT_MSG_BN_WHISPER(msg,sender,_,_,_,_,_,_,_,_,_,_,senderBn
 		C_PartyInfo_ConvertToRaid()
 	end
 
-	if not EART.isClassic then
+	if not ExRT.isClassic then
 		local _,BNcount=BNGetNumFriends() 
 		for friendIndex=1,BNcount do 
 			if senderBnetIDAccount == BNGetFriendInfo(friendIndex) then
 				local numGameAccounts = C_BattleNet.GetFriendNumGameAccounts(friendIndex)
 				for accountIndex=1,numGameAccounts do
 					local gameAccountInfo = C_BattleNet.GetFriendGameAccountInfo(friendIndex, accountIndex)
-					if gameAccountInfo and gameAccountInfo.clientProgram == BNET_CLIENT_WOW and gameAccountInfo.isInCurrentRegion and gameAccountInfo.wowProjectID == WOW_PROJECT_MAINLINE and (not VART.InviteTool.OnlyGuild or (gameAccountInfo.characterName and UnitInGuild(gameAccountInfo.characterName))) then
+					if gameAccountInfo and gameAccountInfo.clientProgram == BNET_CLIENT_WOW and gameAccountInfo.isInCurrentRegion and gameAccountInfo.wowProjectID == WOW_PROJECT_MAINLINE and (not VMRT.InviteTool.OnlyGuild or (gameAccountInfo.characterName and UnitInGuild(gameAccountInfo.characterName))) then
 						BNInviteFriend(gameAccountInfo.gameAccountID)
 					end
 				end
@@ -746,7 +746,7 @@ function module.main:CHAT_MSG_BN_WHISPER(msg,sender,_,_,_,_,_,_,_,_,_,_,senderBn
 				local numGameAccounts = BNGetNumFriendGameAccounts(i)
 				for j=1,numGameAccounts do
 					local hasFocus, characterName, client, realmName, realmID, faction, race, class, _, _, level, _, _, _, _, bnetIDGameAccount = BNGetFriendGameAccountInfo(i, j)
-					if client == BNET_CLIENT_WOW and faction == UnitFactionGroup('player') and (not VART.InviteTool.OnlyGuild or (characterName and UnitInGuild(characterName))) then
+					if client == BNET_CLIENT_WOW and faction == UnitFactionGroup('player') and (not VMRT.InviteTool.OnlyGuild or (characterName and UnitInGuild(characterName))) then
 						BNInviteFriend(bnetIDGameAccount)
 					end
 				end
@@ -779,13 +779,13 @@ local function AutoRaidSetup()
 				module.db.sessionInRaid = true
 				module.db.sessionInRaidLoot = true
 
-				if not EART.isClassic then
-					SetRaidDifficultyID(VART.InviteTool.RaidDiff)
+				if not ExRT.isClassic then
+					SetRaidDifficultyID(VMRT.InviteTool.RaidDiff)
 				end
-				if EART.isClassic and VART.InviteTool.LootMethodEnabled then
-					SetLootMethod(VART.InviteTool.LootMethod,UnitName("player"),nil)
-					--SetLootThreshold(VART.InviteTool.LootThreshold)	--http://us.battle.net/wow/en/forum/topic/14610481537
-					EART.F.ScheduleTimer(SetLootThreshold, 2, VART.InviteTool.LootThreshold)
+				if ExRT.isClassic and VMRT.InviteTool.LootMethodEnabled then
+					SetLootMethod(VMRT.InviteTool.LootMethod,UnitName("player"),nil)
+					--SetLootThreshold(VMRT.InviteTool.LootThreshold)	--http://us.battle.net/wow/en/forum/topic/14610481537
+					ExRT.F.ScheduleTimer(SetLootThreshold, 2, VMRT.InviteTool.LootThreshold)
 				end
 			end
 		elseif not inRaid and module.db.sessionInRaid then
@@ -794,14 +794,14 @@ local function AutoRaidSetup()
 	else
 		if inRaid and not module.db.sessionInRaidLoot then
 			module.db.sessionInRaidLoot = true
-			if RaidLeader and EART.isClassic and VART.InviteTool.LootMethodEnabled then
-				SetLootMethod(VART.InviteTool.LootMethod,UnitName("player"),nil)
-				EART.F.ScheduleTimer(SetLootThreshold, 2, VART.InviteTool.LootThreshold)
+			if RaidLeader and ExRT.isClassic and VMRT.InviteTool.LootMethodEnabled then
+				SetLootMethod(VMRT.InviteTool.LootMethod,UnitName("player"),nil)
+				ExRT.F.ScheduleTimer(SetLootThreshold, 2, VMRT.InviteTool.LootThreshold)
 			end
 		end
 	end
 
-	if inRaid and RaidLeader and VART.InviteTool.LootMethod == "master" and VART.InviteTool.LootMethodEnabled and EART.isClassic then
+	if inRaid and RaidLeader and VMRT.InviteTool.LootMethod == "master" and VMRT.InviteTool.LootMethodEnabled and ExRT.isClassic then
 		local lootMethod,_,masterlooterRaidID = GetLootMethod()
 		if lootMethod == "master" then
 			local masterlooterName = UnitName("raid"..masterlooterRaidID)
@@ -843,9 +843,9 @@ function module.main:GROUP_ROSTER_UPDATE()
 		promoteRosterUpdate()
 	end
 
-	if VART.InviteTool.AutoRaidDiff or EART.isClassic then
+	if VMRT.InviteTool.AutoRaidDiff or ExRT.isClassic then
 		if not scheludedRaidUpdate then
-			scheludedRaidUpdate = EART.F.ScheduleTimer(AutoRaidSetup, .5)
+			scheludedRaidUpdate = ExRT.F.ScheduleTimer(AutoRaidSetup, .5)
 		end
 	end
 end
@@ -869,12 +869,12 @@ do
 
 	local function IsFriend(name)
 		for i=1,C_FriendList.GetNumFriends() do if(GetFriendInfo(i)==name) then return true end end
-		if(IsInGuild()) then for i=1, GetNumGuildMembers() do if(EART.F.delUnitNameServer(GetGuildRosterInfo(i) or "?")==name) then return true end end end
+		if(IsInGuild()) then for i=1, GetNumGuildMembers() do if(ExRT.F.delUnitNameServer(GetGuildRosterInfo(i) or "?")==name) then return true end end end
 		local b,a=BNGetNumFriends() for i=1,a do local bName=select(5,BNGetFriendInfo(i)) if bName==name then return true end end
 	end
 	function module.main:PARTY_INVITE_REQUEST(nameinv)
 		-- PhoenixStyle
-		nameinv = nameinv and EART.F.delUnitNameServer(nameinv)
+		nameinv = nameinv and ExRT.F.delUnitNameServer(nameinv)
 		if nameinv and (IsFriend(nameinv)) then
 			AcceptGroup()
 			for i = 1, 4 do
@@ -899,8 +899,8 @@ do
 		end
 		local confirmationType, name = GetInviteConfirmationInfo(firstInvite)
 		local suggesterGuid, suggesterName, relationship = C_PartyInfo.GetInviteReferralInfo(firstInvite)
-		--if (suggesterName and IsFriend(EART.F.delUnitNameServer(suggesterName))) or (name and IsFriend(EART.F.delUnitNameServer(name))) then
-		if name and IsFriend(EART.F.delUnitNameServer(name)) then
+		--if (suggesterName and IsFriend(ExRT.F.delUnitNameServer(suggesterName))) or (name and IsFriend(ExRT.F.delUnitNameServer(name))) then
+		if name and IsFriend(ExRT.F.delUnitNameServer(name)) then
 			RespondToInviteConfirmation(firstInvite, true)
 			for i = 1, 4 do
 				local frame = _G["StaticPopup"..i]
@@ -923,7 +923,7 @@ function module:slash(arg)
 		ReinviteBut()
 	elseif arg and arg:find("^invlist %d") then
 		local listnum = arg:match("%d")
-		InviteList(CreateInviteList(VART.InviteTool["ListInv"..listnum]))
+		InviteList(CreateInviteList(VMRT.InviteTool["ListInv"..listnum]))
 	elseif arg == "help" then
 		print("|cff00ff00/rt inv|r - run autoinvite feature")
 		print("|cff00ff00/rt dis|r - disband raid")

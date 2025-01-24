@@ -2,7 +2,7 @@
 ## Title: Advance Raid Tools
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
-## SavedVariables: VART, DataDB
+## SavedVariables: VMRT, DataDB
 ## Version: 5181
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
@@ -28,15 +28,17 @@ Options.lua
 Nickname.lua
 Note.lua
 ExCD2.lua
+VisNote.lua
+RaidCheck.lua
 InviteTool.lua
 RaidGroups.lua
 Marks.lua
 BattleRes.lua
-Bindings.lua
 Timers.lua
-VisNote.lua
 WAChecker.lua
-Splits.lua
+WAUpdater.lua
+SplitHelper.lua
+Bindings.lua
 AddonChecker.lua
 VersionChecker.lua
 Profiles.lua

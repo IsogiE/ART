@@ -21,10 +21,10 @@ ART.A = {}			--> ссылки на все модули
 ART.F = {}
 
 ART.msg_prefix = {
-	["EARTADD"] = true,
-	ARTADDA = true,	ARTADDB = true,	ARTADDC = true,
-	ARTADDD = true,	ARTADDE = true,	ARTADDF = true,
-	ARTADDG = true,	ARTADDH = true,	ARTADDI = true,
+	["EXRTADD"] = true,
+	MRTADDA = true,	MRTADDB = true,	MRTADDC = true,
+	MRTADDD = true,	MRTADDE = true,	MRTADDF = true,
+	MRTADDG = true,	MRTADDH = true,	MRTADDI = true,
 }
 
 ART.L = {}			--> локализация
@@ -184,11 +184,11 @@ function ART.mod:EventProfiling(event,...)
 	ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
 end
 if ART.T == "DU" then
-	local ARTDebug = ART.Debug
+	local MRTDebug = ART.Debug
 	function ART.mod:Event(event,...)
 		local dt = debugprofilestop()
 		self[event](self,...)
-		ARTDebug[#ARTDebug+1] = {debugprofilestop() - dt,self.name,event}
+		MRTDebug[#MRTDebug+1] = {debugprofilestop() - dt,self.name,event}
 	end
 end
 
@@ -786,11 +786,11 @@ end
 
 ---------------> Slash <---------------
 
-SlashCmdList["ARTSlash"] = function (arg)
+SlashCmdList["mrtSlash"] = function (arg)
 	local argL = strlower(arg)
 	if argL == "icon" then
-		VART.Addon.IconMiniMapHide = not VART.Addon.IconMiniMapHide
-		if not VART.Addon.IconMiniMapHide then 
+		VMRT.Addon.IconMiniMapHide = not VMRT.Addon.IconMiniMapHide
+		if not VMRT.Addon.IconMiniMapHide then 
 			ART.MiniMapIcon:Show()
 		else
 			ART.MiniMapIcon:Hide()
@@ -823,12 +823,13 @@ SlashCmdList["ARTSlash"] = function (arg)
 		mod:slash(argL,arg)
 	end
 end
-SLASH_ARTSlash1 = "/EART"
-SLASH_ARTSlash2 = "/rt"
-SLASH_ARTSlash3 = "/raidtools"
-SLASH_ARTSlash4 = "/methodraidtools"
-SLASH_ARTSlash5 = "/ert"
-SLASH_ARTSlash6 = "/ART"
+SLASH_mrtSlash1 = "/exrt"
+SLASH_mrtSlash2 = "/rt"
+SLASH_mrtSlash3 = "/raidtools"
+SLASH_mrtSlash4 = "/methodraidtools"
+SLASH_mrtSlash5 = "/ert"
+SLASH_mrtSlash6 = "/mrt"
+SLASH_mrtSlash6 = "/art"
 
 ---------------> Global addon frame <---------------
 
@@ -849,8 +850,8 @@ do
 				for i=1,#tr,2 do
 					local t,k = tr[i],tr[i+1]
 					local str = t[k]
-					if str:find("AddOns[\\/]EART") then
-						t[k] = str:gsub("(AddOns[\\/])EART","%1ART")
+					if str:find("AddOns[\\/]ExRT") then
+						t[k] = str:gsub("(AddOns[\\/])ExRT","%1MRT")
 					end
 				end
 				tr = nil
@@ -886,34 +887,34 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 		if addonName ~= GlobalAddonName then
 			return
 		end
-		VART = VART or {}
-		VART.Addon = VART.Addon or {}
+		VMRT = VMRT or {}
+		VMRT.Addon = VMRT.Addon or {}
 
-		if not VART.Addon.migrateART and VEART and VEART.Addon then
-			VART = VEART
+		if not VMRT.Addon.migrateMRT and VExRT and VExRT.Addon then
+			VMRT = VExRT
 
-			migrateReplace(VART)
+			migrateReplace(VMRT)
 			migrateReplace()
 
-			VART.Addon = VART.Addon or {}
-			VART.Addon.migrateART = true
+			VMRT.Addon = VMRT.Addon or {}
+			VMRT.Addon.migrateMRT = true
 		end
-		VEART = nil
-		VEART = setmetatable({}, {
-			__index = VART,
-			__newindex = VART,
+		VExRT = nil
+		VExRT = setmetatable({}, {
+			__index = VMRT,
+			__newindex = VMRT,
 		})
 		
 
-		VART.Addon.Timer = VART.Addon.Timer or 0.1
-		reloadTimer = VART.Addon.Timer
+		VMRT.Addon.Timer = VMRT.Addon.Timer or 0.1
+		reloadTimer = VMRT.Addon.Timer
 
-		if VART.Addon.IconMiniMapLeft and VART.Addon.IconMiniMapTop then
+		if VMRT.Addon.IconMiniMapLeft and VMRT.Addon.IconMiniMapTop then
 			ART.MiniMapIcon:ClearAllPoints()
-			ART.MiniMapIcon:SetPoint("CENTER", VART.Addon.IconMiniMapLeft, VART.Addon.IconMiniMapTop)
+			ART.MiniMapIcon:SetPoint("CENTER", VMRT.Addon.IconMiniMapLeft, VMRT.Addon.IconMiniMapTop)
 		end
 		
-		if VART.Addon.IconMiniMapHide then 
+		if VMRT.Addon.IconMiniMapHide then 
 			ART.MiniMapIcon:Hide() 
 		end
 
@@ -921,8 +922,8 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 			C_ChatInfo.RegisterAddonMessagePrefix(prefix)
 		end
 		
-		VART.Addon.Version = tonumber(VART.Addon.Version or "0")
-		VART.Addon.PreVersion = VART.Addon.Version
+		VMRT.Addon.Version = tonumber(VMRT.Addon.Version or "0")
+		VMRT.Addon.PreVersion = VMRT.Addon.Version
 		
 		if ART.A.Profiles then
 			ART.A.Profiles:ReselectProfileOnLoad()
@@ -940,11 +941,11 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 			ART.F.dprint("ADDON_LOADED",i,ART.Modules[i].name)
 		end
 
-		if not VART.Addon.DisableHideESC then
-			tinsert(UISpecialFrames, "ARTOptionsFrame")
+		if not VMRT.Addon.DisableHideESC then
+			tinsert(UISpecialFrames, "MRTOptionsFrame")
 		end
 
-		VART.Addon.Version = ART.V
+		VMRT.Addon.Version = ART.V
 		
 		ART.F.ScheduleTimer(function()
 			ART.frame:SetScript("OnUpdate", ART.frame.OnUpdate_Recreate)
@@ -954,7 +955,7 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 		ART.AddonLoaded = true
 
 		if not ART.isClassic then
-			if not VART.Addon.EJ_CHECK_VER or VART.Addon.EJ_CHECK_VER ~= ART.clientUIinterface or (((type(IsTestBuild)=="function" and IsTestBuild()) or (type(IsBetaBuild)=="function" and IsBetaBuild())) and VART.Addon.EJ_CHECK_VER_PTR ~= ART.clientBuildVersion) then
+			if not VMRT.Addon.EJ_CHECK_VER or VMRT.Addon.EJ_CHECK_VER ~= ART.clientUIinterface or (((type(IsTestBuild)=="function" and IsTestBuild()) or (type(IsBetaBuild)=="function" and IsBetaBuild())) and VMRT.Addon.EJ_CHECK_VER_PTR ~= ART.clientBuildVersion) then
 				C_Timer.After(10,function()
 					ART.F.EJ_AutoScan()
 				end)
@@ -1061,7 +1062,7 @@ do
 end
 
 --temp fix
-local prefix_sorted = {"EARTADD","ARTADDA","ARTADDB","ARTADDC","ARTADDD","ARTADDE","ARTADDF","ARTADDG","ARTADDH","ARTADDI"}
+local prefix_sorted = {"EXRTADD","MRTADDA","MRTADDB","MRTADDC","MRTADDD","MRTADDE","MRTADDF","MRTADDG","MRTADDH","MRTADDI"}
 
 local sendPending = {}
 local sendPrev = {0}
@@ -1150,7 +1151,7 @@ SendAddonMessage = function (...)
 end
 
 function ART.F.SendExMsg(prefix, msg, tochat, touser, addonPrefix)
-	addonPrefix = addonPrefix or "EARTADD"
+	addonPrefix = addonPrefix or "EXRTADD"
 	msg = msg or ""
 	if tochat and not touser then
 		SendAddonMessage(addonPrefix, prefix .. "\t" .. msg, tochat)
@@ -1233,7 +1234,15 @@ function ART.F.GetAnyExMsg(sender, prefix, ...)
 	sendPrev[p] = debugprofilestop()
 end
 
-_G["GEART"] = ART
-_G["GART"] = ART
+local oldIsAddOnLoaded = C_AddOns.IsAddOnLoaded
+function C_AddOns.IsAddOnLoaded(name)
+    if name == "MRT" then
+        return true
+    end
+    return oldIsAddOnLoaded(name)
+end
+
+_G["GExRT"] = ART
+_G["GMRT"] = ART
 ART.frame:RegisterEvent("CHAT_MSG_ADDON")
 ART.frame:RegisterEvent("ADDON_LOADED") 

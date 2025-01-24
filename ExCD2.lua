@@ -1,32 +1,32 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-local GetTime, IsEncounterInProgress, RAID_CLASS_COLORS, GetInstanceInfo, GetSpellCharges, SecondsToTime, IsInJailersTower = GetTime, IsEncounterInProgress, RAID_CLASS_COLORS, GetInstanceInfo, EART.F.GetSpellCharges or GetSpellCharges, SecondsToTime, IsInJailersTower
+local GetTime, IsEncounterInProgress, RAID_CLASS_COLORS, GetInstanceInfo, GetSpellCharges, SecondsToTime, IsInJailersTower = GetTime, IsEncounterInProgress, RAID_CLASS_COLORS, GetInstanceInfo, ExRT.F.GetSpellCharges or GetSpellCharges, SecondsToTime, IsInJailersTower
 local string_gsub, wipe, tonumber, pairs, ipairs, string_trim, format, floor, ceil, abs, type, sort, select, Enum = string.gsub, table.wipe, tonumber, pairs, ipairs, string.trim, format, floor, ceil, abs, type, sort, select, Enum
 local UnitIsDeadOrGhost, UnitIsConnected, UnitName, UnitCreatureFamily, UnitIsDead, UnitIsGhost, UnitGUID, UnitInRange, UnitPhaseReason = UnitIsDeadOrGhost, UnitIsConnected, UnitName, UnitCreatureFamily, UnitIsDead, UnitIsGhost, UnitGUID, UnitInRange, UnitPhaseReason
 
-local RaidInCombat, ClassColorNum, GetDifficultyForCooldownReset, DelUnitNameServer, NumberInRange, FireCallback = EART.F.RaidInCombat, EART.F.classColorNum, EART.F.GetDifficultyForCooldownReset, EART.F.delUnitNameServer, EART.F.NumberInRange, EART.F.FireCallback
-local GetEncounterTime, UnitCombatlogname, GetUnitInfoByUnitFlag, ScheduleTimer, CancelTimer, GetRaidDiffMaxGroup, table_wipe2, dtime, utf8sub = EART.F.GetEncounterTime, EART.F.UnitCombatlogname, EART.F.GetUnitInfoByUnitFlag, EART.F.ScheduleTimer, EART.F.CancelTimer, EART.F.GetRaidDiffMaxGroup, EART.F.table_wipe, EART.F.dtime, EART.F.utf8sub
+local RaidInCombat, ClassColorNum, GetDifficultyForCooldownReset, DelUnitNameServer, NumberInRange, FireCallback = ExRT.F.RaidInCombat, ExRT.F.classColorNum, ExRT.F.GetDifficultyForCooldownReset, ExRT.F.delUnitNameServer, ExRT.F.NumberInRange, ExRT.F.FireCallback
+local GetEncounterTime, UnitCombatlogname, GetUnitInfoByUnitFlag, ScheduleTimer, CancelTimer, GetRaidDiffMaxGroup, table_wipe2, dtime, utf8sub = ExRT.F.GetEncounterTime, ExRT.F.UnitCombatlogname, ExRT.F.GetUnitInfoByUnitFlag, ExRT.F.ScheduleTimer, ExRT.F.CancelTimer, ExRT.F.GetRaidDiffMaxGroup, ExRT.F.table_wipe, ExRT.F.dtime, ExRT.F.utf8sub
 local C_PvP_IsWarModeDesired = C_PvP.IsWarModeDesired
 local C_UnitAuras_GetAuraDataByIndex = C_UnitAuras.GetAuraDataByIndex
-local GetSpellCooldown = EART.F.GetSpellCooldown or GetSpellCooldown
-local GetSpellInfo = EART.F.GetSpellInfo or GetSpellInfo
+local GetSpellCooldown = ExRT.F.GetSpellCooldown or GetSpellCooldown
+local GetSpellInfo = ExRT.F.GetSpellInfo or GetSpellInfo
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or GetSpellLink
 local GetSpellTexture = C_Spell and C_Spell.GetSpellTexture or GetSpellTexture
 local GetSpellName = C_Spell and C_Spell.GetSpellName or GetSpellInfo
 local GetItemInfo, GetItemInfoInstant, GetItemSpell = C_Item and C_Item.GetItemInfo or GetItemInfo, C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant, C_Item and C_Item.GetItemSpell or GetItemSpell
 local GetCVar = C_CVar and C_CVar.GetCVar or C_CVar
-local UnitGroupRolesAssigned = UnitGroupRolesAssigned or EART.NULLfunc
+local UnitGroupRolesAssigned = UnitGroupRolesAssigned or ExRT.NULLfunc
 
 local GetSpellLevelLearned = C_Spell and C_Spell.GetSpellLevelLearned or GetSpellLevelLearned
-if EART.isClassic then
+if ExRT.isClassic then
 	GetSpellLevelLearned = function () return 1 end
 	IsInJailersTower = function() end
 end
 
-local VART = nil
+local VMRT = nil
 
-local module = EART:New("ExCD2",EART.L.cd2)
-local ELib,L = EART.lib,EART.L
+local module = ExRT:New("ExCD2",ExRT.L.cd2)
+local ELib,L = ExRT.lib,ExRT.L
 
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
@@ -84,10 +84,10 @@ module.db.findspecspells = {
 	[162243] = 577, [162794] = 577, [195072] = 577, 
 	[209795] = 581, [228478] = 581, 
 }
-module.db.classNames = EART.GDB.ClassList
+module.db.classNames = ExRT.GDB.ClassList
 
 module.db.specByClass = {}
-for class,classData in pairs(EART.GDB.ClassSpecializationList) do
+for class,classData in pairs(ExRT.GDB.ClassSpecializationList) do
 	local newData = {0}
 	for i=1,#classData do
 		newData[#newData + 1] = classData[i]
@@ -95,7 +95,7 @@ for class,classData in pairs(EART.GDB.ClassSpecializationList) do
 	module.db.specByClass[class] = newData
 end
 
-module.db.specIcons = EART.GDB.ClassSpecializationIcons
+module.db.specIcons = ExRT.GDB.ClassSpecializationIcons
 module.db.specInDBase = {
 	[253] = 5,	[254] = 6,	[255] = 7,
 	[71] = 5,	[72] = 6,	[73] = 7,
@@ -112,7 +112,7 @@ module.db.specInDBase = {
 	[1467] = 5,	[1468] = 6,	[1473] = 7,
 	[0] = 4,
 }
-if EART.isCata then
+if ExRT.isCata then
 	module.db.specInDBase = {
 		[746] = 5,	[815] = 6,	[845] = 7,	
 		[831] = 5,	[839] = 6,	[855] = 7,	
@@ -171,7 +171,7 @@ do
 		[1473] = "EVOKERDPS2",		--Augmentation
 		[0] = "NO",
 	}
-	if EART.isCata then
+	if ExRT.isCata then
 		specList = {
 			[746] = "WARRIORDPS1",	--Arms
 			[815] = "WARRIORDPS2",	--Fury
@@ -245,7 +245,7 @@ do
 		end
 		e[spellID] = pos
 	end
-	if EART.isClassic and not EART.isCata then
+	if ExRT.isClassic and not ExRT.isCata then
 		function cdsNav_set(playerName,spellID,pos)
 			local e = cdsNavData[playerName]
 			if not e then
@@ -288,7 +288,7 @@ do
 	})
 	module.db.session_gGUIDs_DEBUG = sessionData
 
-	if EART.isClassic and not EART.isCata then
+	if ExRT.isClassic and not ExRT.isCata then
 		module.db.session_gGUIDs = setmetatable({}, {
 			__index = function (t,k) 
 				return sessionData[k] or nilData
@@ -584,7 +584,7 @@ do
 		{202767,202771,202768},						--New moon [Balance Druid artifact]
 		{330325,5308},	--warrior: Execute
 	}
-	if EART.isBC then
+	if ExRT.isBC then
 		module.db.spell_runningSameSpell2[#module.db.spell_runningSameSpell2+1] = {2894,2062}
 	end
 	for i=1,#module.db.spell_runningSameSpell2 do
@@ -843,7 +843,7 @@ for itemID,spellID in pairs(module.db.itemsToSpells) do
 	end
 end
 
-EART.F.table_add2(module.db.itemsToSpells,{
+ExRT.F.table_add2(module.db.itemsToSpells,{
 	[124634] = 187614,	--Legendary Ring
 	[124636] = 187615,	--Legendary Ring
 	[124635] = 187611,	--Legendary Ring
@@ -903,8 +903,8 @@ module.db.spellCDSync = {}
 module.db.spellCDSyncToSpell = {}
 do
 	local c,scd,scsts = select(2,UnitClass'player'),module.db.spellCDSync,module.db.spellCDSyncToSpell
-	if not EART.isClassic and c == "SHAMAN" then EART.F.table_add(scd,{157153,324386,5394,108280,16191,98008,192058,2484,8143,207399,198838}) end
-	--if c == "DEMONHUNTER" then EART.F.table_add(scd,{204596,207684,202137,202138,390163}) end
+	if not ExRT.isClassic and c == "SHAMAN" then ExRT.F.table_add(scd,{157153,324386,5394,108280,16191,98008,192058,2484,8143,207399,198838}) end
+	--if c == "DEMONHUNTER" then ExRT.F.table_add(scd,{204596,207684,202137,202138,390163}) end
 end
 
 
@@ -914,7 +914,7 @@ local CLEU = {}
 module.db.CLEU = CLEU
 
 
-if EART.isClassic then
+if ExRT.isClassic then
 	module.db.findspecspells = {}
 	module.db.spell_isTalent = {}
 	module.db.spell_autoTalent = {}
@@ -933,7 +933,7 @@ if EART.isClassic then
 	module.db.spell_cdByTalent_fix = {}
 	module.db.spell_durationByTalent_fix = {}
 end
-if EART.isLK then
+if ExRT.isLK then
 	local spellToLvl = {
 		[31884] = 70,
 		[642] = 34,
@@ -1028,10 +1028,10 @@ module.db.colsDefaults = {
 	iconSize = 16,
 	iconGray = true,
 	iconPosition = 1,
-	textureFile = EART.F.barImg,
+	textureFile = ExRT.F.barImg,
 	textureBorderSize = 0,
 	fontSize = 12,
-	fontName = EART.F.defFont,
+	fontName = ExRT.F.defFont,
 	fontCDSize = 16,
 	frameLines = 15,
 	frameAlpha = 100,
@@ -1156,7 +1156,7 @@ do
 	}
 	local function cmp(a,b)
 		if type(a) == "table" and type(b) == "table" then
-			return EART.F.table_compare(a,b) == 1
+			return ExRT.F.table_compare(a,b) == 1
 		else
 			return a == b
 		end
@@ -1166,7 +1166,7 @@ do
 
 		for i=1,#module.db.AllSpells do
 			local spell = module.db.AllSpells[i]
-			local on = VART.ExCD2.CDE[ spell[1] ]
+			local on = VMRT.ExCD2.CDE[ spell[1] ]
 			if on or forceAll then
 				for k,v in pairs(spell) do
 					local t = key_to_table[k]
@@ -1193,7 +1193,7 @@ do
 								local st
 								local vAdd
 								if type(sk) == "table" then
-									local n = EART.F.table_copy2(sk)
+									local n = ExRT.F.table_copy2(sk)
 									st = t[1][ n[1] ]
 									if not st then
 										st = {}
@@ -1257,7 +1257,7 @@ do
 			end
 		end
 
-		if EART.isClassic and not EART.isCata then
+		if ExRT.isClassic and not ExRT.isCata then
 			local n = {}
 			for k in pairs(module.db.spell_isTalent) do
 				if type(k) == "number" then
@@ -1277,15 +1277,15 @@ do
 		wipe(spellDB)
 		for i=1,#AllSpells do
 			local data = AllSpells[i]
-			if VART.ExCD2.CDE[ data[1] ] or isTestMode then
+			if VMRT.ExCD2.CDE[ data[1] ] or isTestMode then
 				spellDB[#spellDB+1] = data
 				spellInMainDB[ data[1] ] = true
 			end
 		end
-		for i=1,#VART.ExCD2.userDB do
-			local data = VART.ExCD2.userDB[i]
+		for i=1,#VMRT.ExCD2.userDB do
+			local data = VMRT.ExCD2.userDB[i]
 			if 	--Prevent any errors for userbased cds
-				VART.ExCD2.CDE[ data[1] ] and 
+				VMRT.ExCD2.CDE[ data[1] ] and 
 				not spellInMainDB[ data[1] ] and
 				type(data[2]) == "string" and
 				type(data[3]) == "number" and
@@ -1347,8 +1347,8 @@ do
 	end)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
-		VART.ExCD2.Left = self:GetLeft()
-		VART.ExCD2.Top = self:GetTop()
+		VMRT.ExCD2.Left = self:GetLeft()
+		VMRT.ExCD2.Top = self:GetTop()
 	end)
 	frame.texture = frame:CreateTexture(nil, "BACKGROUND")
 	frame.texture:SetColorTexture(0,0,0,0.3)
@@ -1365,7 +1365,7 @@ local gsub_func = function(a)
 end
 
 local callback_upvalue_text_names, callback_upvalue_text, callback_upvalue_status
-EART.F:RegisterCallback("CallbackRegistered", function(_,eventName)
+ExRT.F:RegisterCallback("CallbackRegistered", function(_,eventName)
 	if eventName == "RaidCooldowns_Bar_TextName" then
 		callback_upvalue_text_names = true
 		module:ReloadAllSplits()
@@ -1377,7 +1377,7 @@ EART.F:RegisterCallback("CallbackRegistered", function(_,eventName)
 		module:ReloadAllSplits()
 	end
 end)
-EART.F:RegisterCallback("CallbackUnregistered", function(_,eventName,_,callbacks)
+ExRT.F:RegisterCallback("CallbackUnregistered", function(_,eventName,_,callbacks)
 	if callbacks ~= 0 then
 		return
 	elseif eventName == "RaidCooldowns_Bar_TextName" then
@@ -1497,7 +1497,7 @@ local function BarUpdateText(self)
 	end
 
 	local cdText
-	if barParent.optionCooldownUseEART then
+	if barParent.optionCooldownUseExRT then
 		local style = barParent.textIconCDStyle
 		time = time - 1
 		if  time <= 0 then
@@ -2163,7 +2163,7 @@ local function LineIconOnClick(self)
 	local time = parent.data.lastUse + parent.data.cd - GetTime()
 	if time < 0 then return end
 	local text = parent.data.name.." - "..parent.data.spellName..": "..format("%1.1d:%2.2d",time/60,time%60)
-	local chat_type = EART.F.chatType(true)
+	local chat_type = ExRT.F.chatType(true)
 	SendChatMessage(text,chat_type)
 end
 local function LineIconOnClickWhisper(self)
@@ -2185,7 +2185,7 @@ local function LineIconOnClickWhisper(self)
 		spellLink = parent.data.spellName
 	end
 	local text = "Use "..spellLink
-	local chat_type = EART.F.chatType(true)
+	local chat_type = ExRT.F.chatType(true)
 	SendChatMessage(text,"WHISPER",nil,parent.data.fullName)
 end
 local function LineIconOnClickBoth(self)
@@ -2308,7 +2308,7 @@ local function UpdateBarStyle(self)
 	self.cooldown:SetHideCountdownNumbers(parent.optionCooldownHideNumbers and true or false)
 	self.cooldown:SetDrawEdge(parent.optionCooldownShowSwipe and true or false)
 
-	if parent.optionCooldownUseEART or (not parent.optionCooldownHideNumbers and GetCVar("countdownForCooldowns") == "1") then
+	if parent.optionCooldownUseExRT or (not parent.optionCooldownHideNumbers and GetCVar("countdownForCooldowns") == "1") then
 		self.cooldown.noCooldownCount = true	--hide OmniCC time on cooldown
 	else
 		self.cooldown.noCooldownCount = nil
@@ -2317,7 +2317,7 @@ local function UpdateBarStyle(self)
 	self.textIcon:SetText("")
 	self.textIcon.name = nil
 
-	if parent.optionCooldownUseEART then
+	if parent.optionCooldownUseExRT then
 		self.textIconCD:Show()
 	else
 		self.textIconCD:Hide()
@@ -2326,8 +2326,8 @@ local function UpdateBarStyle(self)
 	if parent.glowStop ~= self.glowStop then
 		self.glowStop(self.icon)
 	end
-	self.glowStart = parent.glowStart or EART.NULLfunc
-	self.glowStop = parent.glowStop or EART.NULLfunc
+	self.glowStart = parent.glowStart or ExRT.NULLfunc
+	self.glowStop = parent.glowStop or ExRT.NULLfunc
 
 	if parent.optionAnimation then
 		if parent.optionStyleAnimation == 1 then
@@ -2414,7 +2414,7 @@ local function UpdateBarStyle(self)
 	self.textIcon.name = nil
 
 	if parent.Masque_Group and self.Masque_Group ~= parent.Masque_Group then
-		parent.Masque_Group:AddButton(self, {Icon = self.iconTexture, Cooldown = self.cooldown}, "ART_CD_ICON", true)
+		parent.Masque_Group:AddButton(self, {Icon = self.iconTexture, Cooldown = self.cooldown}, "MRT_CD_ICON", true)
 		self.Masque_Group = parent.Masque_Group
 	elseif not parent.Masque_Group and self.Masque_Group then
 		self.Masque_Group = nil
@@ -2526,8 +2526,8 @@ local function CreateBar(parent)
 	self.textIcon:SetDrawLayer("ARTWORK",3)
 	self.textIconCD:SetDrawLayer("ARTWORK",3)
 
-	self.glowStart = EART.NULLfunc
-	self.glowStop = EART.NULLfunc
+	self.glowStart = ExRT.NULLfunc
+	self.glowStop = ExRT.NULLfunc
 
 	--multilinetext fix
 	self.textLeft:SetMaxLines(1)
@@ -2606,7 +2606,7 @@ function module:CreateColumn(parent,frameName)
 end
 
 for i=1,module.db.maxColumns do
-	local columnFrame = module:CreateColumn(module.frame,"ARTRaidCooldownCol"..i)
+	local columnFrame = module:CreateColumn(module.frame,"MRTRaidCooldownCol"..i)
 	module.frame.colFrame[i] = columnFrame
 	columnFrame:RegisterForDrag("LeftButton")
 	columnFrame:SetScript("OnDragStart", function(self) 
@@ -2619,8 +2619,8 @@ for i=1,module.db.maxColumns do
 		if self.ATFenabled then
 			return
 		end
-		VART.ExCD2.colSet[i].posX = self:GetLeft()
-		VART.ExCD2.colSet[i].posY = self:GetTop()
+		VMRT.ExCD2.colSet[i].posX = self:GetLeft()
+		VMRT.ExCD2.colSet[i].posY = self:GetTop()
 	end)
 	columnFrame.colNum = i
 
@@ -2680,8 +2680,8 @@ do
 
 			columnFrame:SetShown(state)
 		end
-		if not VART.ExCD2.SplitOpt then
-			if VART.ExCD2.colSet[module.db.maxColumns+1].methodsOnlyInCombat then
+		if not VMRT.ExCD2.SplitOpt then
+			if VMRT.ExCD2.colSet[module.db.maxColumns+1].methodsOnlyInCombat then
 				if isInCombat then
 					module.frame:Show()
 				else
@@ -2717,17 +2717,17 @@ do
 		if ((currTime - lastSaving) < 20 and not overwrite) or module.db.testMode then 
 			return 
 		end
-		if not VART or not VART.ExCD2 then
+		if not VMRT or not VMRT.ExCD2 then
 			return
 		end
-		local VART_ExCD2_Save = VART.ExCD2.Save
-		wipe(VART_ExCD2_Save)
+		local VMRT_ExCD2_Save = VMRT.ExCD2.Save
+		wipe(VMRT_ExCD2_Save)
 		for i=1,#_C do
 			local unitSpellData = _C[i]
 			if unitSpellData.lastUse + unitSpellData.cd - currTime > 0 then
-				VART_ExCD2_Save[ (unitSpellData.fullName or "?")..(unitSpellData.db[1] or 0) ] = {unitSpellData.lastUse,unitSpellData.cd}
+				VMRT_ExCD2_Save[ (unitSpellData.fullName or "?")..(unitSpellData.db[1] or 0) ] = {unitSpellData.lastUse,unitSpellData.cd}
 			else
-				VART_ExCD2_Save[ (unitSpellData.fullName or "?")..(unitSpellData.db[1] or 0) ] = nil
+				VMRT_ExCD2_Save[ (unitSpellData.fullName or "?")..(unitSpellData.db[1] or 0) ] = nil
 			end
 		end
 		lastSaving = currTime
@@ -2735,7 +2735,7 @@ do
 end
 
 local function AfterCombatResetFunction(isArena)
-	if not EART.isClassic or EART.isLK then
+	if not ExRT.isClassic or ExRT.isLK then
 		for i=1,#_C do
 			local unitSpellData = _C[i]
 			local uSpecID = _db.specInDBase[globalGUIDs[unitSpellData.fullName] or 0]
@@ -2764,7 +2764,7 @@ local function TestMode(h)
 	if not h then
 		for i=1,#_C do
 			local data = _C[i]
-			local uSpecID = module.db.specInDBase[VART.ExCD2.gnGUIDs[data.fullName] or 0]
+			local uSpecID = module.db.specInDBase[VMRT.ExCD2.gnGUIDs[data.fullName] or 0]
 			if not data.db[uSpecID] then
 				uSpecID = 4
 			end
@@ -2796,7 +2796,7 @@ function module.IsPvpTalentsOn(unit)
 		return false
 	end
 end
-if EART.isClassic then
+if ExRT.isClassic then
 	function module.IsPvpTalentsOn(unit)
 		return false
 	end
@@ -2825,7 +2825,7 @@ do
 	local _CV_Len = 0
 	module.db._CV = _CV
 
-	local playerName = EART.SDB.charName
+	local playerName = ExRT.SDB.charName
 
 	local IsPvpTalentsOn = module.IsPvpTalentsOn
 
@@ -2980,7 +2980,7 @@ do
 		end
 	end
 	module.SortAllData = SortAllData
-	--ART_CD_TESTMODENUM
+	--MRT_CD_TESTMODENUM
 
 
 	local function TalentReplaceOtherCheck(spellID,name)
@@ -3020,8 +3020,8 @@ do
 		reviewID = reviewID + 1
 		--print('UpdateAllData',GetTime())
 		local isTestMode = _db.testMode
-		local CDECol = VART.ExCD2.CDECol
-		local VART_CDE = VART.ExCD2.CDE
+		local CDECol = VMRT.ExCD2.CDECol
+		local VMRT_CDE = VMRT.ExCD2.CDE
 		local currTime = GetTime()
 		wipe(_CV)
 		_CV_Len = 0
@@ -3034,11 +3034,11 @@ do
 			local specID = globalGUIDs[name] or 0
 			local unitSpecID = specInDBase[specID] or 4
 
-			if isTestMode or (VART_CDE[spellID] and 
+			if isTestMode or (VMRT_CDE[spellID] and 
 			(db[unitSpecID] or (not db[unitSpecID] and db[4])) and 
 			(not spell_isTalent[spellID] or session_gGUIDs[name][spellID] or (spell_runningSameTalent[spellID] and CheckAllTalents(name,spell_runningSameTalent[spellID]))) and 
 			(not spell_isPvpTalent[spellID] or (session_gGUIDs[name][spellID] and IsPvpTalentsOn(name))) and 
-			(not spell_isPetAbility[spellID] or session_Pets[name] == spell_isPetAbility[spellID] or (session_Pets[name] and petsAbilities[ session_Pets[name] ] and petsAbilities[ session_Pets[name] ][1] == spell_isPetAbility[spellID]) or (type(spell_isPetAbility[spellID]) == "table" and session_Pets[name] and EART.F.table_find(spell_isPetAbility[spellID],session_Pets[name]))) and
+			(not spell_isPetAbility[spellID] or session_Pets[name] == spell_isPetAbility[spellID] or (session_Pets[name] and petsAbilities[ session_Pets[name] ] and petsAbilities[ session_Pets[name] ][1] == spell_isPetAbility[spellID]) or (type(spell_isPetAbility[spellID]) == "table" and session_Pets[name] and ExRT.F.table_find(spell_isPetAbility[spellID],session_Pets[name]))) and
 			(not spell_talentReplaceOther[spellID] or not TalentReplaceOtherCheck(spellID,name)) and
 			(not data.specialCheck or data.specialCheck(data,currTime))
 			) then 
@@ -3478,7 +3478,7 @@ local function GetNumGroupMembersFix()
 	local n = GetNumGroupMembers() or 0
 	if module.db.testMode then
 		return 20
-	elseif n == 0 and VART.ExCD2.NoRaid then 
+	elseif n == 0 and VMRT.ExCD2.NoRaid then 
 		return 1
 	else
 		return n
@@ -3487,7 +3487,7 @@ end
 
 local function GetRaidRosterInfoFix(j) 
 	local name, rank, subgroup, level, class, classFileName, zone, online, isDead, role, isML = GetRaidRosterInfo(j)
-	if j == 1 and not name and VART.ExCD2.NoRaid then
+	if j == 1 and not name and VMRT.ExCD2.NoRaid then
 		name = UnitName("player")
 		class,classFileName = UnitClass("player")
 		local _,race = UnitRace("player")
@@ -3505,10 +3505,10 @@ local function GetRaidRosterInfoFix(j)
 		local i = math.random(1,11)
 
 		local namesList = {}
-		for unitName, specID in pairs(VART.ExCD2.gnGUIDs) do
+		for unitName, specID in pairs(VMRT.ExCD2.gnGUIDs) do
 			namesList[#namesList+1] = {unitName}
 			for className, classSpecs in pairs(module.db.specByClass) do
-				if EART.F.table_find(module.db.classNames,className) then	--prevent error at version without DH class
+				if ExRT.F.table_find(module.db.classNames,className) then	--prevent error at version without DH class
 					for spec_i=1,#classSpecs do
 						if classSpecs[spec_i] == specID then
 							namesList[#namesList][2] = className
@@ -3737,7 +3737,7 @@ local function UpdateRoster()
 				for i,spellData in ipairs(_db.spellDB) do
 					local SpellID = spellData[1]
 					local AddThisSpell = true
-					if level < 60 or EART.isLK then
+					if level < 60 or ExRT.isLK then
 						local spellLevel = GetSpellLevelLearned(SpellID)
 						if level < (spellLevel or 0) then
 							AddThisSpell = false
@@ -3753,12 +3753,12 @@ local function UpdateRoster()
 					if spellClass == "COVENANTS" then
 						spellClass = spellClass2
 					end
-					if not EART.GDB.ClassID[spellClass] and spellClass ~= "NO" then
+					if not ExRT.GDB.ClassID[spellClass] and spellClass ~= "NO" then
 						spellClass = "ALL"
 					end
 
 					if AddThisSpell and (spellClass == class or spellClass == "ALL") and (not spellData.specialCheck or spellData.specialCheck(SpellID,name,class,race)) then
-						if not EART.F.table_find(status_UnitsToCheck,name) then
+						if not ExRT.F.table_find(status_UnitsToCheck,name) then
 							status_UnitsToCheck[#status_UnitsToCheck + 1] = name
 
 							status_UnitIsDead[ name ] = isDead
@@ -3775,9 +3775,9 @@ local function UpdateRoster()
 
 						local _specID = globalGUIDs[name] or 0
 						local uSpecID = _db.specInDBase[_specID] or 4
-						local spellColumn = VART.ExCD2.CDECol[SpellID..";"..(uSpecID-3)] or VART.ExCD2.CDECol[SpellID..";1"] or _db.def_col[SpellID..";"..(uSpecID-3)] or _db.def_col[SpellID..";1"] or spellData[3] or 1
+						local spellColumn = VMRT.ExCD2.CDECol[SpellID..";"..(uSpecID-3)] or VMRT.ExCD2.CDECol[SpellID..";1"] or _db.def_col[SpellID..";"..(uSpecID-3)] or _db.def_col[SpellID..";1"] or spellData[3] or 1
 
-						local checkRaidRole = (VART.ExCD2.CDECol[SpellID..";HEALER"] or VART.ExCD2.CDECol[SpellID..";TANK"] or VART.ExCD2.CDECol[SpellID..";DAMAGER"]) and true or false
+						local checkRaidRole = (VMRT.ExCD2.CDECol[SpellID..";HEALER"] or VMRT.ExCD2.CDECol[SpellID..";TANK"] or VMRT.ExCD2.CDECol[SpellID..";DAMAGER"]) and true or false
 
 						local getSpellColumn = module.frame.colFrame[spellColumn]
 						local prior = nil
@@ -3796,24 +3796,24 @@ local function UpdateRoster()
 							E - classID
 						]]
 						if not getSpellColumn or getSpellColumn.methodsSortingRules == 1 then
-							prior = (VART.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (SpellID or 0) * 1000000 + (EART.F.table_find(priorNamesToNumber,name) or 0) * 10000 + priorCounter
+							prior = (VMRT.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (SpellID or 0) * 1000000 + (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 10000 + priorCounter
 						elseif getSpellColumn.methodsSortingRules == 2 then
-							prior = (VART.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (EART.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
+							prior = (VMRT.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
 						elseif getSpellColumn.methodsSortingRules == 3 then
-							prior = (VART.ExCD2.Priority[SpellID] or 50) * 100000000000000 + (EART.F.table_find(_db.classNames,class) or 0) * 1000000000000 + (SpellID or 0) * 1000000 + (EART.F.table_find(priorNamesToNumber,name) or 0) * 10000 + priorCounter
+							prior = (VMRT.ExCD2.Priority[SpellID] or 50) * 100000000000000 + (ExRT.F.table_find(_db.classNames,class) or 0) * 1000000000000 + (SpellID or 0) * 1000000 + (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 10000 + priorCounter
 						elseif getSpellColumn.methodsSortingRules == 4 then
-							prior = (VART.ExCD2.Priority[SpellID] or 50) * 100000000000000 + (EART.F.table_find(_db.classNames,class) or 0) * 1000000000000 + (EART.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
+							prior = (VMRT.ExCD2.Priority[SpellID] or 50) * 100000000000000 + (ExRT.F.table_find(_db.classNames,class) or 0) * 1000000000000 + (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
 						elseif getSpellColumn.methodsSortingRules == 5 then
-							prior = (EART.F.table_find(priorNamesToNumber,name) or 0) * 1000000000000 + (VART.ExCD2.Priority[SpellID] or 50) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
+							prior = (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 1000000000000 + (VMRT.ExCD2.Priority[SpellID] or 50) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
 						elseif getSpellColumn.methodsSortingRules == 6 then
-							prior = (EART.F.table_find(_db.classNames,class) or 0) * 100000000000000 + (VART.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (EART.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
+							prior = (ExRT.F.table_find(_db.classNames,class) or 0) * 100000000000000 + (VMRT.ExCD2.Priority[SpellID] or 50) * 1000000000000 + (ExRT.F.table_find(priorNamesToNumber,name) or 0) * 10000000000 + (SpellID or 0) * 10000 + priorCounter
 						end
-						local secondPrior = (VART.ExCD2.Priority[SpellID] or 50) * 1000000 + (SpellID or 0)	--used in columns with option 'new spell - new line'
+						local secondPrior = (VMRT.ExCD2.Priority[SpellID] or 50) * 1000000 + (SpellID or 0)	--used in columns with option 'new spell - new line'
 
 						local sName = format("%s%d",name or "?",SpellID or 0)
 						local lastUse,nowCd = 0,0
-						if VART.ExCD2.Save[sName] and NumberInRange(VART.ExCD2.Save[sName][1] + VART.ExCD2.Save[sName][2] - GetTime(),0,2000,false,true) then
-							lastUse,nowCd = VART.ExCD2.Save[sName][1],VART.ExCD2.Save[sName][2]
+						if VMRT.ExCD2.Save[sName] and NumberInRange(VMRT.ExCD2.Save[sName][1] + VMRT.ExCD2.Save[sName][2] - GetTime(),0,2000,false,true) then
+							lastUse,nowCd = VMRT.ExCD2.Save[sName][1],VMRT.ExCD2.Save[sName][2]
 						end
 
 						local spellName = GetSpellName(SpellID)
@@ -3828,7 +3828,7 @@ local function UpdateRoster()
 
 						for l=4,8 do
 							if spellData[l] then
-								local h = (EART.isClassic and not EART.isCata) and _db.cdsNav[name][GetSpellName(spellData[l][1])] or _db.cdsNav[name][spellData[l][1]]
+								local h = (ExRT.isClassic and not ExRT.isCata) and _db.cdsNav[name][GetSpellName(spellData[l][1])] or _db.cdsNav[name][spellData[l][1]]
 								if h then
 									local needUpdate
 									h.db = spellData
@@ -3924,8 +3924,8 @@ local function UpdateRoster()
 		end
 
 		--WOD Raid resurrect
-		if not EART.isClassic then
-			local findResSpell = EART.F.table_find(_db.spellDB,161642,1)
+		if not ExRT.isClassic then
+			local findResSpell = ExRT.F.table_find(_db.spellDB,161642,1)
 			if findResSpell then
 				local spellData = _db.spellDB[findResSpell]
 				local h = _db.cdsNav["*"][spellData[4][1]]
@@ -3933,22 +3933,22 @@ local function UpdateRoster()
 
 				priorCounter = priorCounter + 1
 
-				local spellColumn = VART.ExCD2.CDECol["161642;1"] or _db.def_col["161642;1"] or spellData[3] or 1
+				local spellColumn = VMRT.ExCD2.CDECol["161642;1"] or _db.def_col["161642;1"] or spellData[3] or 1
 				local getSpellColumn = module.frame.colFrame[spellColumn]
 				if not getSpellColumn or getSpellColumn.methodsSortingRules == 1 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 1000000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 1000000 + priorCounter
 				elseif getSpellColumn.methodsSortingRules == 2 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 10000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 10000 + priorCounter
 				elseif getSpellColumn.methodsSortingRules == 3 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 100000000000000 + 161642 * 1000000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 100000000000000 + 161642 * 1000000 + priorCounter
 				elseif getSpellColumn.methodsSortingRules == 4 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 100000000000000 + 161642 * 10000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 100000000000000 + 161642 * 10000 + priorCounter
 				elseif getSpellColumn.methodsSortingRules == 5 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 10000000000 + 161642 * 10000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 10000000000 + 161642 * 10000 + priorCounter
 				elseif getSpellColumn.methodsSortingRules == 6 then
-					prior = (VART.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 10000 + priorCounter
+					prior = (VMRT.ExCD2.Priority[161642] or 50) * 1000000000000 + 161642 * 10000 + priorCounter
 				end
-				local secondPrior = (VART.ExCD2.Priority[161642] or 50) * 1000000 + (161642 or 0)
+				local secondPrior = (VMRT.ExCD2.Priority[161642] or 50) * 1000000 + (161642 or 0)
 
 				if not h then
 					local spellName,_,spellTexture = GetSpellInfo(spellData[1])
@@ -4034,7 +4034,7 @@ local function UpdateRoster()
 				tremove(_C, i)
 			end
 		end
-		local testModeMax = ART_CD_TESTMODENUM or 300
+		local testModeMax = MRT_CD_TESTMODENUM or 300
 		while #_C > testModeMax do
 			tremove(_C, math.random(1,#_C))
 		end
@@ -4103,7 +4103,7 @@ do
 				local session_gGUID = _db.session_gGUIDs[fullName][talentSpellID]
 				if session_gGUID and (not _db.spell_isPvpTalent[talentSpellID] or module.IsPvpTalentsOn(fullName)) then
 					local timeReduce = durationTable[j+1]
-					if type(timeReduce) == 'table' and EART.isClassic then
+					if type(timeReduce) == 'table' and ExRT.isClassic then
 						local talent_rank = _db.talent_classic_rank[fullName][talentSpellID] or #timeReduce
 						timeReduce = timeReduce[talent_rank] or timeReduce[1]
 					elseif type(timeReduce) == 'table' and #timeReduce <= 5 then
@@ -4145,7 +4145,7 @@ do
 						timeReduce = scale_data[fullName] or scale_data[1]
 					else
 						timeReduce = cdTable[j+1]
-						if type(timeReduce) == 'table' and EART.isClassic then
+						if type(timeReduce) == 'table' and ExRT.isClassic then
 							local talent_rank = _db.talent_classic_rank[fullName][talentSpellID] or #timeReduce
 							timeReduce = timeReduce[talent_rank] or timeReduce[1]
 						elseif type(timeReduce) == 'table' and #timeReduce <= 5 then
@@ -4253,15 +4253,15 @@ do
 		["Profiles"] = true,
 	}
 	function module:SaveCurrentProfiletoDB()
-		local profileName = VART.ExCD2.Profiles.Now
+		local profileName = VMRT.ExCD2.Profiles.Now
 
 		local saveDB = {}
-		VART.ExCD2.Profiles.List[ profileName ] = saveDB
+		VMRT.ExCD2.Profiles.List[ profileName ] = saveDB
 
-		for key,val in pairs(VART.ExCD2) do
+		for key,val in pairs(VMRT.ExCD2) do
 			if not IGNORE_PROFILE_KEYS[key] then
 				if type(val) == "table" then
-					saveDB[key] = EART.F.table_copy2(val)
+					saveDB[key] = ExRT.F.table_copy2(val)
 				else
 					saveDB[key] = val
 				end
@@ -4269,41 +4269,41 @@ do
 		end
 	end
 	function module:SelectProfile(name)
-		if name == VART.ExCD2.Profiles.Now or not name then
+		if name == VMRT.ExCD2.Profiles.Now or not name then
 			return
 		end
-		if not VART.ExCD2.Profiles.List[name] then
+		if not VMRT.ExCD2.Profiles.List[name] then
 			return
 		end
 		module:SaveCurrentProfiletoDB()
 
 		local savedKeys = {}
 		for key in pairs(IGNORE_PROFILE_KEYS) do
-			if VART.ExCD2[key] then
-				savedKeys[key] = VART.ExCD2[key]
+			if VMRT.ExCD2[key] then
+				savedKeys[key] = VMRT.ExCD2[key]
 			end
 		end
-		EART.F.table_rewrite(VART.ExCD2,VART.ExCD2.Profiles.List[name])
+		ExRT.F.table_rewrite(VMRT.ExCD2,VMRT.ExCD2.Profiles.List[name])
 		for key,val in pairs(savedKeys) do
-			VART.ExCD2[key] = val
+			VMRT.ExCD2[key] = val
 		end
 
-		VART.ExCD2.Profiles.Now = name
+		VMRT.ExCD2.Profiles.Now = name
 
 		module:ReloadProfile()
 
-		VART.ExCD2.Profiles.List[name] = nil	--remove data only if reload is successful
+		VMRT.ExCD2.Profiles.List[name] = nil	--remove data only if reload is successful
 
 		return true
 	end
 	function module:ReloadProfile()
 		module.main:ADDON_LOADED()
 		if module.options.isLoaded then
-			module.options.chkLock:SetChecked(VART.ExCD2.lock)
-			module.options.chkEnable:SetChecked(VART.ExCD2.enabled)
+			module.options.chkLock:SetChecked(VMRT.ExCD2.lock)
+			module.options.chkEnable:SetChecked(VMRT.ExCD2.enabled)
 			module.options.chkEnable:ColorState()
-			module.options.chkSplit:SetChecked(VART.ExCD2.SplitOpt)
-			module.options.chkNoRaid:SetChecked(VART.ExCD2.NoRaid)
+			module.options.chkSplit:SetChecked(VMRT.ExCD2.SplitOpt)
+			module.options.chkNoRaid:SetChecked(VMRT.ExCD2.NoRaid)
 			module.options.categories:Update()
 			module.options.categories.buttons[1]:Click()
 			module.options.optColTabs.tabs[module.db.maxColumns+3].currentName:UpdateText()
@@ -4318,31 +4318,31 @@ do
 		local _, zoneType = GetInstanceInfo()
 
 		if zoneType == "arena" then
-			if VART.ExCD2.Profiles.Arena then
-				module:SelectProfile(VART.ExCD2.Profiles.Arena)
+			if VMRT.ExCD2.Profiles.Arena then
+				module:SelectProfile(VMRT.ExCD2.Profiles.Arena)
 			end
 		elseif zoneType == "party" then
-			if VART.ExCD2.Profiles.Dung then
-				module:SelectProfile(VART.ExCD2.Profiles.Dung)
+			if VMRT.ExCD2.Profiles.Dung then
+				module:SelectProfile(VMRT.ExCD2.Profiles.Dung)
 			end
 		elseif zoneType == "raid" then
-			if VART.ExCD2.Profiles.Raid then
-				module:SelectProfile(VART.ExCD2.Profiles.Raid)
+			if VMRT.ExCD2.Profiles.Raid then
+				module:SelectProfile(VMRT.ExCD2.Profiles.Raid)
 			end
 		elseif zoneType == "pvp" then
-			if VART.ExCD2.Profiles.BG then
-				module:SelectProfile(VART.ExCD2.Profiles.BG)
+			if VMRT.ExCD2.Profiles.BG then
+				module:SelectProfile(VMRT.ExCD2.Profiles.BG)
 			end
 		else
-			if VART.ExCD2.Profiles.Other then
-				module:SelectProfile(VART.ExCD2.Profiles.Other)
+			if VMRT.ExCD2.Profiles.Other then
+				module:SelectProfile(VMRT.ExCD2.Profiles.Other)
 			end
 		end
 	end
 end
 
 function module:Enable()
-	VART.ExCD2.enabled = true
+	VMRT.ExCD2.enabled = true
 	module.frame.IsEnabled = true
 
 	module:UpdateLockState()
@@ -4364,9 +4364,9 @@ function module:Enable()
 end
 
 function module:Disable()
-	VART.ExCD2.enabled = nil
+	VMRT.ExCD2.enabled = nil
 	module.frame.IsEnabled = false
-	if not VART.ExCD2.SplitOpt then 
+	if not VMRT.ExCD2.SplitOpt then 
 		module.frame:Hide()
 	else
 		for i=1,module.db.maxColumns do 
@@ -4388,114 +4388,114 @@ function module:IsEnabled()
 	end
 end
 
-local NewVARTTableData = {
+local NewVMRTTableData = {
 	NoRaid = true,
 	upd4380 = true,
 	upd4525 = true,
 }
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
-	VART.ExCD2 = VART.ExCD2 or EART.F.table_copy2(NewVARTTableData)
+	VMRT = _G.VMRT
+	VMRT.ExCD2 = VMRT.ExCD2 or ExRT.F.table_copy2(NewVMRTTableData)
 
-	VART.ExCD2.Profiles = VART.ExCD2.Profiles or {}
-	VART.ExCD2.Profiles.List = VART.ExCD2.Profiles.List or {}
-	VART.ExCD2.Profiles.Now = VART.ExCD2.Profiles.Now or "default"
+	VMRT.ExCD2.Profiles = VMRT.ExCD2.Profiles or {}
+	VMRT.ExCD2.Profiles.List = VMRT.ExCD2.Profiles.List or {}
+	VMRT.ExCD2.Profiles.Now = VMRT.ExCD2.Profiles.Now or "default"
 
-	if VART.Addon.Version < 4235 then
-		if VART.ExCD2.Priority then
-			for k,v in pairs(VART.ExCD2.Priority) do
+	if VMRT.Addon.Version < 4235 then
+		if VMRT.ExCD2.Priority then
+			for k,v in pairs(VMRT.ExCD2.Priority) do
 				if type(v) == 'number' then
-					VART.ExCD2.Priority[k] = floor((v - 1) / 29 * 100)
+					VMRT.ExCD2.Priority[k] = floor((v - 1) / 29 * 100)
 				end
 			end
 		end
 	end
-	if VART.Addon.Version < 4240 then
-		if VART.ExCD2.userDB then
-			for i=#VART.ExCD2.userDB,1,-1 do
+	if VMRT.Addon.Version < 4240 then
+		if VMRT.ExCD2.userDB then
+			for i=#VMRT.ExCD2.userDB,1,-1 do
 				for j=1,#module.db.AllSpells do
-					if module.db.AllSpells[j][1] == VART.ExCD2.userDB[i][1] then
-						tremove(VART.ExCD2.userDB,i)
+					if module.db.AllSpells[j][1] == VMRT.ExCD2.userDB[i][1] then
+						tremove(VMRT.ExCD2.userDB,i)
 						break
 					end
 				end
 			end
-			for i=1,#VART.ExCD2.userDB do
-				if type(VART.ExCD2.userDB[i][3]) ~= "number" then
+			for i=1,#VMRT.ExCD2.userDB do
+				if type(VMRT.ExCD2.userDB[i][3]) ~= "number" then
 					for j=8,4,-1 do
-						VART.ExCD2.userDB[i][j] = VART.ExCD2.userDB[i][j-1]
+						VMRT.ExCD2.userDB[i][j] = VMRT.ExCD2.userDB[i][j-1]
 					end
-					VART.ExCD2.userDB[i][3] = 1
+					VMRT.ExCD2.userDB[i][3] = 1
 				end
 			end
 		end
-		VART.ExCD2.default_userCD = nil
-		VART.ExCD2.default_userDuration = nil
+		VMRT.ExCD2.default_userCD = nil
+		VMRT.ExCD2.default_userDuration = nil
 	end
 
-	if VART.ExCD2.Left and VART.ExCD2.Top then
+	if VMRT.ExCD2.Left and VMRT.ExCD2.Top then
 		module.frame:ClearAllPoints()
-		module.frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VART.ExCD2.Left,VART.ExCD2.Top)
+		module.frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VMRT.ExCD2.Left,VMRT.ExCD2.Top)
 	end
 
-	VART.ExCD2.CDE = VART.ExCD2.CDE or {}
-	VART.ExCD2.CDECol = VART.ExCD2.CDECol or {}
+	VMRT.ExCD2.CDE = VMRT.ExCD2.CDE or {}
+	VMRT.ExCD2.CDECol = VMRT.ExCD2.CDECol or {}
 
-	if not VART.ExCD2.colSet then
-		VART.ExCD2.colSet = {}
+	if not VMRT.ExCD2.colSet then
+		VMRT.ExCD2.colSet = {}
 		for i=1,module.db.maxColumns+1 do
-			VART.ExCD2.colSet[i] = {}
+			VMRT.ExCD2.colSet[i] = {}
 			for optName,optVal in pairs(module.db.colsInit) do
-				VART.ExCD2.colSet[i][optName] = optVal
+				VMRT.ExCD2.colSet[i][optName] = optVal
 			end
 			if i <= 3 then 
-				VART.ExCD2.colSet[i].enabled = true
+				VMRT.ExCD2.colSet[i].enabled = true
 			end
 		end
 	end
 	for i=1,module.db.maxColumns+1 do
-		VART.ExCD2.colSet[i] = VART.ExCD2.colSet[i] or {}
+		VMRT.ExCD2.colSet[i] = VMRT.ExCD2.colSet[i] or {}
 	end
 
-	if not VART.ExCD2.upd4380 then
+	if not VMRT.ExCD2.upd4380 then
 		for i=1,module.db.maxColumns+1 do
-			local colSet = VART.ExCD2.colSet[i]
-			colSet.methodsSortByAvailability = VART.ExCD2.SortByAvailability
-			colSet.methodsSortActiveToTop = VART.ExCD2.SortByAvailabilityActiveToTop
-			colSet.methodsReverseSorting = VART.ExCD2.ReverseSorting
+			local colSet = VMRT.ExCD2.colSet[i]
+			colSet.methodsSortByAvailability = VMRT.ExCD2.SortByAvailability
+			colSet.methodsSortActiveToTop = VMRT.ExCD2.SortByAvailabilityActiveToTop
+			colSet.methodsReverseSorting = VMRT.ExCD2.ReverseSorting
 		end
-		VART.ExCD2.upd4380 = true
+		VMRT.ExCD2.upd4380 = true
 	end
-	if not VART.ExCD2.upd4525 then
+	if not VMRT.ExCD2.upd4525 then
 		for i=1,module.db.maxColumns do
-			local colSet = VART.ExCD2.colSet[i]
+			local colSet = VMRT.ExCD2.colSet[i]
 			if colSet.ATF then
 				colSet.frameStrata = nil
 			end
 		end
-		VART.ExCD2.upd4525 = true
+		VMRT.ExCD2.upd4525 = true
 	end
 
-	VART.ExCD2.userDB = VART.ExCD2.userDB or {}
+	VMRT.ExCD2.userDB = VMRT.ExCD2.userDB or {}
 
-	VART.ExCD2.Priority = VART.ExCD2.Priority or {}
+	VMRT.ExCD2.Priority = VMRT.ExCD2.Priority or {}
 
-	VART.ExCD2.gnGUIDs = VART.ExCD2.gnGUIDs or {}
-	if VART.ExCD2.gnGUIDs and EART.F.table_len(VART.ExCD2.gnGUIDs) > 500 then
-		wipe(VART.ExCD2.gnGUIDs)
+	VMRT.ExCD2.gnGUIDs = VMRT.ExCD2.gnGUIDs or {}
+	if VMRT.ExCD2.gnGUIDs and ExRT.F.table_len(VMRT.ExCD2.gnGUIDs) > 500 then
+		wipe(VMRT.ExCD2.gnGUIDs)
 	end
-	globalGUIDs = VART.ExCD2.gnGUIDs
+	globalGUIDs = VMRT.ExCD2.gnGUIDs
 
-	VART.ExCD2.OptFav = VART.ExCD2.OptFav or {}
+	VMRT.ExCD2.OptFav = VMRT.ExCD2.OptFav or {}
 
-	VART.ExCD2.Save = VART.ExCD2.Save or {}
+	VMRT.ExCD2.Save = VMRT.ExCD2.Save or {}
 
 	module:RegisterEvents('ZONE_CHANGED_NEW_AREA')
-	if EART.isClassic then
+	if ExRT.isClassic then
 		module:RegisterEvents('LOADING_SCREEN_DISABLED')
 	end
-	if not VART.ExCD2.enabled then
+	if not VMRT.ExCD2.enabled then
 		module:Disable()
 		C_Timer.After(2,module.CheckZoneProfiles)
 	else
@@ -4618,8 +4618,8 @@ function module.main:PLAYER_SPECIALIZATION_CHANGED(unit)
 	local class = (select(2,UnitClass'player')) or ""
 
 	local key = "Spec" .. spec .. class
-	if VART.ExCD2.Profiles[key] then
-		module:SelectProfile(VART.ExCD2.Profiles[key])
+	if VMRT.ExCD2.Profiles[key] then
+		module:SelectProfile(VMRT.ExCD2.Profiles[key])
 	end
 end
 
@@ -4641,7 +4641,7 @@ do
 		end
 		if str then
 			str = str:sub(1,-2)
-			EART.F.SendExMsg("rcd","SQ\t"..str)
+			ExRT.F.SendExMsg("rcd","SQ\t"..str)
 			str = nil
 		end
 	end
@@ -4721,7 +4721,7 @@ function module.main:UNIT_AURA(unitID)
 		end
 		if not FD_Found then
 			local line = _db.cdsNav[UnitName(unitID)][5384]
-			if EART.isClassic and not EART.isCata and not line then
+			if ExRT.isClassic and not ExRT.isCata and not line then
 				line = _db.cdsNav[UnitName(unitID)][GetSpellName(5384)]
 			end
 			if line then
@@ -4812,7 +4812,7 @@ local hotfixTableNameToType = {
 }
 
 function module:ApplyHotfixes()
-	local text, line = VART.ExCD2.Hotfixes or ""
+	local text, line = VMRT.ExCD2.Hotfixes or ""
 	line, text = strsplit("\n",text,2)
 	while line do
 		line = line:trim()
@@ -5043,7 +5043,7 @@ do
 		GetUnitInfoByUnitFlag = GetUnitInfoByUnitFlag,
 		GetTime = GetTime,
 		IsAuraActive = IsAuraActive,
-		EART = EART,
+		ExRT = ExRT,
 
 		SOULBIND_DEF_RANK_NOW = SOULBIND_DEF_RANK_NOW,
 
@@ -5545,7 +5545,7 @@ do
 				local CDspellID = spell_aura_list[spellID]
 				if CDspellID then
 					if CDspellID == 198839 then	--Earthen Wall
-						sourceName = EART.F.Pets:getOwnerNameByGUID(destGUID)
+						sourceName = ExRT.F.Pets:getOwnerNameByGUID(destGUID)
 					end
 					local line = CDList[sourceName][ CDspellID ]
 					if line then
@@ -5737,7 +5737,7 @@ do
 				for i=1,#db do 
 					full = full:gsub("%$%$%$1",db[i].."$$$1")
 				end
-				if EART.isClassic and not EART.isCata then
+				if ExRT.isClassic and not ExRT.isCata then
 					if db.classic then
 						full = full:gsub("%$%$%$2",db.classic.."$$$2")
 					end
@@ -5824,7 +5824,7 @@ do
 
 			if spellID == 5384 then
 				local line = _db.cdsNav[name][5384]
-				if EART.isClassic and not EART.isCata and not line then
+				if ExRT.isClassic and not ExRT.isCata and not line then
 					line = _db.cdsNav[name][GetSpellName(5384)]
 				end
 				if line then
@@ -5885,7 +5885,7 @@ do
 			module:RegisterEvents('UNIT_SPELLCAST_SUCCEEDED')
 			isSCSAdded = true
 			SCSSpells[5384] = true
-		elseif EART.isClassic and spellID == 20608 and not isAnkhAdded then
+		elseif ExRT.isClassic and spellID == 20608 and not isAnkhAdded then
 			_db.spell_ReincarnationFix = {}
 			module:RegisterEvents('UNIT_FLAGS')
 			eventsView.UNIT_DIED = module.main.UNIT_DIED
@@ -5900,7 +5900,7 @@ function module.options:Load()
 
 	self.decorationLine = ELib:DecorationLine(self,true,"BACKGROUND",-5):Point("TOPLEFT",self,0,-25):Point("BOTTOMRIGHT",self,"TOPRIGHT",0,-45)
 
-	self.chkEnable = ELib:Check(self,L.Enable,VART.ExCD2.enabled):Point(720,-26):Size(18,18):Tooltip("/rt cd"):AddColorState():TextButton():OnClick(function(self) 
+	self.chkEnable = ELib:Check(self,L.Enable,VMRT.ExCD2.enabled):Point(720,-26):Size(18,18):Tooltip("/rt cd"):AddColorState():TextButton():OnClick(function(self) 
 		if self:GetChecked() then
 			module:Enable()
 		else
@@ -5908,11 +5908,11 @@ function module.options:Load()
 		end
 	end)
 
-	self.chkLock = ELib:Check(self,L.cd2fix,VART.ExCD2.lock):Point(590,-26):Size(18,18):OnClick(function(self) 
+	self.chkLock = ELib:Check(self,L.cd2fix,VMRT.ExCD2.lock):Point(590,-26):Size(18,18):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.ExCD2.lock = true
+			VMRT.ExCD2.lock = true
 		else
-			VART.ExCD2.lock = nil
+			VMRT.ExCD2.lock = nil
 		end
 		module:UpdateLockState()
 	end)
@@ -5928,7 +5928,7 @@ function module.options:Load()
 		"FAV",
 	}
 	self.CATEGORIES_VIS = {
-		["ALL"] = {name = L.cd2CatAll,icon = EART.isClassic and 133733 or 1495827, sort = 0},
+		["ALL"] = {name = L.cd2CatAll,icon = ExRT.isClassic and 133733 or 1495827, sort = 0},
 
 		["RAID"] = {name = L.cd2CatMajor,icon = 136107, sort = 10, ignoreSubcats = true},
 		["DEFTAR"] = {name = L.cd2CatSingleTar,icon = 135928, sort = 15, ignoreSubcats = true},
@@ -5975,7 +5975,7 @@ function module.options:Load()
 		["OTHER"] = {name = L.cd2CatOther,icon = 136011, sort = 197, ignoreSubcats = true},
 		["USER"] = {name = L.cd2CatUser,icon = 133667, sort = 199, ignoreOwncat = true},
 
-		["ENABLED"] = {name = L.cd2CatEnabled,icon = EART.isClassic and 136170 or 236372, sort = 5, ignoreSubcats = true},
+		["ENABLED"] = {name = L.cd2CatEnabled,icon = ExRT.isClassic and 136170 or 236372, sort = 5, ignoreSubcats = true},
 		["FAV"] = {name = L.cd2Favorite,icon = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\star2", iconTcoord = {0,.5,0,.5}, sort = 310, ignoreSubcats = true},
 
 	}
@@ -6036,8 +6036,8 @@ function module.options:Load()
 				end
 			end
 		end
-		for i=1,#VART.ExCD2.userDB do
-			local line = VART.ExCD2.userDB[i]
+		for i=1,#VMRT.ExCD2.userDB do
+			local line = VMRT.ExCD2.userDB[i]
 			if type(line[2]) == "string" and type(line[3]) == "number" then
 				new[#new+1] = line
 
@@ -6062,11 +6062,11 @@ function module.options:Load()
 	end
 
 	function self.categories:Update()
-		local cats = EART.F.table_copy2(module.options.CATEGORIES_DEF)
+		local cats = ExRT.F.table_copy2(module.options.CATEGORIES_DEF)
 		local AllSpells = module.options:GetAllSpells(true)
 		for _,data in pairs(AllSpells) do
 			for cat in string.gmatch(data[2], "[^,]+") do
-				if not EART.F.table_find(cats,cat) then
+				if not ExRT.F.table_find(cats,cat) then
 					cats[#cats+1] = cat
 				end
 			end
@@ -6093,7 +6093,7 @@ function module.options:Load()
 				button.icon:SetPoint("TOP",0,-3)
 				button.icon:SetSize(30,30)
 
-				button.text = button:CreateFontString(nil,"ARTWORK","EARTFontNormal")
+				button.text = button:CreateFontString(nil,"ARTWORK","ExRTFontNormal")
 				button.text:SetFont(button.text:GetFont(),11,"")
 				button.text:SetPoint("TOP",button.icon,"BOTTOM",0,-3)
 				button.text:SetPoint("BOTTOM",0,1)
@@ -6143,8 +6143,8 @@ function module.options:Load()
 			if cat == "ALL" then 
 				button.category = nil 
 			end
-			if EART.GDB.ClassID[cat] then
-				local r,g,b = EART.F.classColorNum(cat)
+			if ExRT.GDB.ClassID[cat] then
+				local r,g,b = ExRT.F.classColorNum(cat)
 				button.class:SetColorTexture(r,g,b,.3)
 				button.class:Show()
 			else
@@ -6174,7 +6174,7 @@ function module.options:Load()
 			return
 		end
 		local alpha = 0.4
-		if self:IsMouseOver() and not EART.lib.ScrollDropDown.DropDownList[1]:IsShown() then
+		if self:IsMouseOver() and not ExRT.lib.ScrollDropDown.DropDownList[1]:IsShown() then
 			alpha = 0.8
 		end
 		self.backClassColor:SetGradient("HORIZONTAL",CreateColor(self.backClassColorR, self.backClassColorG, self.backClassColorB, alpha), CreateColor(self.backClassColorR, self.backClassColorG, self.backClassColorB, 0))
@@ -6203,7 +6203,7 @@ function module.options:Load()
 			additional[#additional+1] = L.cd2ResurrectTooltip
 		end
 		if module.db.spell_isTalent[ parent.data[1] ] and not parent.isItem and not module.db.spell_covenant[ parent.data[1] ] then
-			additional[#additional+1] = "|cffffffff"..L.cd2AddSpellFrameTalent.."|r"..(EART.isClassic and " |cffff8888(*will be shown only after first usage)|r" or "")
+			additional[#additional+1] = "|cffffffff"..L.cd2AddSpellFrameTalent.."|r"..(ExRT.isClassic and " |cffff8888(*will be shown only after first usage)|r" or "")
 		end
 		if module.db.spell_dispellsList[ parent.data[1] ] then
 			additional[#additional+1] = "|cffffffaa"..L.cd2AddSpellFrameDispel.."|r"
@@ -6240,14 +6240,14 @@ function module.options:Load()
 	end
 	local function SpellsListChkOnClick(self)
 		if self.disabled then
-			VART.ExCD2.CDE[ self:GetParent().data[1] ] = nil
+			VMRT.ExCD2.CDE[ self:GetParent().data[1] ] = nil
 			if self:GetChecked() then
 				self:SetChecked(false)
 			end
 		elseif self:GetChecked() then
-			VART.ExCD2.CDE[ self:GetParent().data[1] ] = true
+			VMRT.ExCD2.CDE[ self:GetParent().data[1] ] = true
 		else
-			VART.ExCD2.CDE[ self:GetParent().data[1] ] = nil
+			VMRT.ExCD2.CDE[ self:GetParent().data[1] ] = nil
 		end	  
  		self:UpdateColors()
 
@@ -6284,9 +6284,9 @@ function module.options:Load()
 					if module.db.specIcons[module.db.specByClass[className][i]] then
 						icon = "|T".. module.db.specIcons[module.db.specByClass[className][i]] ..":20|t"
 					else
-						icon = EART.F.classIconInText(className,20) or ""
+						icon = ExRT.F.classIconInText(className,20) or ""
 					end
-					GameTooltip:AddLine(icon.." |c"..EART.F.classColor(className)..L.specLocalizate[module.db.specInLocalizate[module.db.specByClass[className][i]]].. ":|r|cffffffff "..L.cd2AddSpellFrameCDText.." "..format("%d:%02d",data[i+3][2]/60,data[i+3][2]%60).. (data[i+3][3] > 0 and ", "..L.cd2AddSpellFrameDurationText.." "..data[i+3][3] or ""))
+					GameTooltip:AddLine(icon.." |c"..ExRT.F.classColor(className)..L.specLocalizate[module.db.specInLocalizate[module.db.specByClass[className][i]]].. ":|r|cffffffff "..L.cd2AddSpellFrameCDText.." "..format("%d:%02d",data[i+3][2]/60,data[i+3][2]%60).. (data[i+3][3] > 0 and ", "..L.cd2AddSpellFrameDurationText.." "..data[i+3][3] or ""))
 				end
 			end
 		else
@@ -6310,7 +6310,7 @@ function module.options:Load()
 					local cd = module.db.spell_cdByTalent_fix[ data[1] ][j+1]
 					local isSoulbind
 					local isRank
-					if type(cd) == 'table' and EART.isLK then
+					if type(cd) == 'table' and ExRT.isLK then
 						cd = cd[#cd]
 					elseif type(cd) == 'table' and #cd > 5 then
 						cd = cd[5]
@@ -6460,16 +6460,16 @@ function module.options:Load()
 	  	ELib.Tooltip:HideAdd()	 
 	end
 	local function SpellsListColSetValue(self,value)
-		local isEnabled = VART.ExCD2.colSet[value] and VART.ExCD2.colSet[value].enabled
+		local isEnabled = VMRT.ExCD2.colSet[value] and VMRT.ExCD2.colSet[value].enabled
 		if value == 0 and self.zeroToNil then value = nil end
 	  	self.text:SetText(value and (L.cd2AddSpellFrameColumnText.." "..(not isEnabled and "|cffff0000" or "|cffffffff")..value) or UNUSED)
 		if self.lock then return end
 		if type(self.keystr) == "table" then
 			for i=1,#self.keystr do
-				VART.ExCD2.CDECol[ self.keystr[i] ] = value
+				VMRT.ExCD2.CDECol[ self.keystr[i] ] = value
 			end
 		else
-			VART.ExCD2.CDECol[self.keystr] = value
+			VMRT.ExCD2.CDECol[self.keystr] = value
 		end
 		module.options.list:Update()
 		module:UpdateSpellDB()
@@ -6479,7 +6479,7 @@ function module.options:Load()
 	local function SpellsListPrioritySetValue(self,value)
 	  	self.text:SetText(L.cd2Priority.." |cffffffff"..(100-value).."%")
 		if self.lock then return end
-		VART.ExCD2.Priority[ self:GetParent().data[1] ] = value
+		VMRT.ExCD2.Priority[ self:GetParent().data[1] ] = value
 		if not priorChangeDelay then
 			priorChangeDelay = C_Timer.NewTimer(.5,function()
 				priorChangeDelay = nil
@@ -6507,8 +6507,8 @@ function module.options:Load()
 
 	local function SpellsListButtonStarButOnClick(self)
 		local spellID = self:GetParent().data[1]
-		VART.ExCD2.OptFav[spellID] = not VART.ExCD2.OptFav[spellID]
-		self:Update(VART.ExCD2.OptFav[spellID] and 2 or 1)
+		VMRT.ExCD2.OptFav[spellID] = not VMRT.ExCD2.OptFav[spellID]
+		self:Update(VMRT.ExCD2.OptFav[spellID] and 2 or 1)
 	end
 	local function SpellsListButtonStarButUpdate(self,type)
 		if type == 1 or not type then
@@ -6562,7 +6562,7 @@ function module.options:Load()
 		line.icon:SetTexCoord(.1,.9,.1,.9)
 		ELib:Border(line.icon,1,.12,.13,.15,1)
 
-		line.spellName = ELib:Text(line):Size(200,SPELL_LINE_HEIGHT):Point("LEFT",line.icon,"RIGHT",5,0):Font(EART.F.defFont,12):Shadow()
+		line.spellName = ELib:Text(line):Size(200,SPELL_LINE_HEIGHT):Point("LEFT",line.icon,"RIGHT",5,0):Font(ExRT.F.defFont,12):Shadow()
 
 		line.tooltipFrame = CreateFrame("Frame",nil,line)
 		line.tooltipFrame:SetAllPoints(line.spellName)
@@ -6626,7 +6626,7 @@ function module.options:Load()
 		line.colBack:SetPoint("LEFT",line.col)
 		line.colBack:SetPoint("RIGHT",line.col)
 
-		line.colExpand = ELib:Button(line,L.cd2BySpec):Size(90,8):Point("LEFT",line.col,(EART.isClassic and not EART.isLK) and 15 or -30,0):Point("BOTTOM",line,0,0):OnClick(SpellsListLineColExpand)
+		line.colExpand = ELib:Button(line,L.cd2BySpec):Size(90,8):Point("LEFT",line.col,(ExRT.isClassic and not ExRT.isLK) and 15 or -30,0):Point("BOTTOM",line,0,0):OnClick(SpellsListLineColExpand)
 		line.colExpand.Texture:SetGradient("VERTICAL",CreateColor(0.05,0.26,0.09,1), CreateColor(0.20,0.41,0.25,1))
 		local textObj = line.colExpand:GetTextObj()
 		textObj:SetFont(textObj:GetFont(),8,"")
@@ -6635,7 +6635,7 @@ function module.options:Load()
 		line.colExpand2.Texture:SetGradient("VERTICAL",CreateColor(0.26,0.05,0.09,1), CreateColor(0.41,0.20,0.25,1))
 		local textObj = line.colExpand2:GetTextObj()
 		textObj:SetFont(textObj:GetFont(),8,"")
-		if EART.isClassic and not EART.isLK then
+		if ExRT.isClassic and not ExRT.isLK then
 			line.colExpand2.Show = line.colExpand2.Hide
 			line.colExpand2:Hide()
 		end
@@ -6658,13 +6658,13 @@ function module.options:Load()
 		line.prior.Text:SetTextColor(0.84,0.85,0.90,1)
 		line.prior:SetScript("OnMouseWheel",nil)
 
-		line.cd = ELib:Text(line,""):Size(40,SPELL_LINE_HEIGHT):Point("LEFT",line.prior,"RIGHT",15,1):Font(EART.F.defFont,14):Shadow():Center():Color(1,.3,.3)
+		line.cd = ELib:Text(line,""):Size(40,SPELL_LINE_HEIGHT):Point("LEFT",line.prior,"RIGHT",15,1):Font(ExRT.F.defFont,14):Shadow():Center():Color(1,.3,.3)
 		line.cdTooltipFrame = CreateFrame("Frame",nil,line)
 		line.cdTooltipFrame:SetAllPoints(line.cd)
 		line.cdTooltipFrame:SetScript("OnEnter", SpellsListCDTooltipFrameOnEnter)
 		line.cdTooltipFrame:SetScript("OnLeave", SpellsListCDTooltipFrameOnLeave)
 
-		line.dur = ELib:Text(line,""):Size(40,SPELL_LINE_HEIGHT):Point("LEFT",line.cd,"RIGHT",5,0):Font(EART.F.defFont,14):Shadow():Center():Color(.3,1,.3)
+		line.dur = ELib:Text(line,""):Size(40,SPELL_LINE_HEIGHT):Point("LEFT",line.cd,"RIGHT",5,0):Font(ExRT.F.defFont,14):Shadow():Center():Color(.3,1,.3)
 		line.durTooltipFrame = CreateFrame("Frame",nil,line)
 		line.durTooltipFrame:SetAllPoints(line.dur)
 		line.durTooltipFrame:SetScript("OnEnter", SpellsListDurTooltipFrameOnEnter)
@@ -6715,7 +6715,7 @@ function module.options:Load()
 		local class = line.data_class
 		local spellID = line.data[1]
 
-		local r,g,b = EART.F.classColorNum(class)
+		local r,g,b = ExRT.F.classColorNum(class)
 		self.background:SetColorTexture(r*0.5,g*0.5,b*0.5,1)
 
 		local specs = line.colExpand.specs
@@ -6746,11 +6746,11 @@ function module.options:Load()
 				slider.icon:SetPoint("RIGHT",slider,"LEFT",-5,0)
 				slider.icon:SetSize(20,20)
 			end
-			slider.icon:SetTexture(EART.GDB.ClassSpecializationIcons[ specs[i] ])
+			slider.icon:SetTexture(ExRT.GDB.ClassSpecializationIcons[ specs[i] ])
 
 			local specPos = line.colExpand.specsPos[i]
 			local colStr = line.data[1]..";"..(specPos or 1)
-			local col = VART.ExCD2.CDECol[colStr] or module.db.def_col[colStr] or line.data[3]
+			local col = VMRT.ExCD2.CDECol[colStr] or module.db.def_col[colStr] or line.data[3]
 			slider.keystr = colStr
 			slider.lock = true
 			slider:SetTo(col)
@@ -6793,7 +6793,7 @@ function module.options:Load()
 		local class = line.data_class
 		local spellID = line.data[1]
 
-		local r,g,b = EART.F.classColorNum(class)
+		local r,g,b = ExRT.F.classColorNum(class)
 		self.background:SetColorTexture(r*0.5,g*0.5,b*0.5,1)
 
 		for i=1,3 do
@@ -6803,7 +6803,7 @@ function module.options:Load()
 					SpellsListColSetValue(self,...)
 					for j=1,#_C do
 						if _C[j].db[1] == line.data[1] then
-							_C[j].checkRole = (VART.ExCD2.CDECol[ line.data[1] ..";HEALER"] or VART.ExCD2.CDECol[ line.data[1] ..";TANK"] or VART.ExCD2.CDECol[ line.data[1] ..";DAMAGER"]) and true or false
+							_C[j].checkRole = (VMRT.ExCD2.CDECol[ line.data[1] ..";HEALER"] or VMRT.ExCD2.CDECol[ line.data[1] ..";TANK"] or VMRT.ExCD2.CDECol[ line.data[1] ..";DAMAGER"]) and true or false
 						end
 					end
 				end)
@@ -6834,7 +6834,7 @@ function module.options:Load()
 			slider.icon:SetAtlas(i == 1 and "groupfinder-icon-role-large-dps" or i == 2 and "groupfinder-icon-role-large-heal" or "groupfinder-icon-role-large-tank")
 
 			local colStr = line.data[1]..";"..(i == 1 and "DAMAGER" or i == 2 and "HEALER" or "TANK")
-			local col = VART.ExCD2.CDECol[colStr] or 0
+			local col = VMRT.ExCD2.CDECol[colStr] or 0
 			slider.keystr = colStr
 			slider.lock = true
 			slider:SetTo(col)
@@ -6876,10 +6876,10 @@ function module.options:Load()
 					end
 					cats[cat] = true
 				end
-				if (categoryNow == "ENABLED" and data[1] and GetSpellName(data[1]) and VART.ExCD2.CDE[ data[1] ]) then
+				if (categoryNow == "ENABLED" and data[1] and GetSpellName(data[1]) and VMRT.ExCD2.CDE[ data[1] ]) then
 					list[#list+1] = data
 				end
-				if (categoryNow == "FAV" and data[1] and VART.ExCD2.OptFav[ data[1] ]) then
+				if (categoryNow == "FAV" and data[1] and VMRT.ExCD2.OptFav[ data[1] ]) then
 					list[#list+1] = data
 				end
 			end
@@ -6898,7 +6898,7 @@ function module.options:Load()
 		cats = SortCategories(cats)
 		if categoryNow and module.options.CATEGORIES_VIS[categoryNow].isClassCategory then
 			local class = categoryNow
-			local specList = not EART.isClassic and module.db.specByClass[class] or {0}
+			local specList = not ExRT.isClassic and module.db.specByClass[class] or {0}
 
 			local newList = {}
 			local specsLen = #specList - 1
@@ -6908,9 +6908,9 @@ function module.options:Load()
 				if module.db.specIcons[specID] then
 					icon = "|T".. module.db.specIcons[specID] ..":20|t"
 				else
-					icon = EART.F.classIconInText(class,20) or ""
+					icon = ExRT.F.classIconInText(class,20) or ""
 				end
-				newList[#newList+1] = {cat = (icon or "").." |c"..EART.F.classColor(class)..L.specLocalizate[module.db.specInLocalizate[specID]], specID = specID, specPos = i, sortBut = i==1}
+				newList[#newList+1] = {cat = (icon or "").." |c"..ExRT.F.classColor(class)..L.specLocalizate[module.db.specInLocalizate[specID]], specID = specID, specPos = i, sortBut = i==1}
 				local count = 0
 				for j=1,#list do
 					local line = list[j]
@@ -6978,7 +6978,7 @@ function module.options:Load()
 					end
 					--[[
 					local cat1,cat2 = strsplit(",",list[j][2])
-					local cat = (not EART.GDB.ClassID[cat1] and cat1 ~= "NO") and cat1 or cat2 or cat1
+					local cat = (not ExRT.GDB.ClassID[cat1] and cat1 ~= "NO") and cat1 or cat2 or cat1
 					if cat == cats[i] then
 						newList[#newList+1] = list[j]
 						count = count + 1
@@ -7003,13 +7003,13 @@ function module.options:Load()
 			for i=1,#list do
 				local data = list[i]
 				if data[1] then
-					local col = VART.ExCD2.CDECol[data[1]..";1"] or module.db.def_col[data[1]..";1"] or data[3]
+					local col = VMRT.ExCD2.CDECol[data[1]..";1"] or module.db.def_col[data[1]..";1"] or data[3]
 					if extraData[i] and extraData[i].specPos then
-						col = VART.ExCD2.CDECol[data[1]..";"..(extraData[i].specPos)] or col
+						col = VMRT.ExCD2.CDECol[data[1]..";"..(extraData[i].specPos)] or col
 					elseif not data[4] then
 						for j=5,8 do
 							if data[j] then
-								local newcol = VART.ExCD2.CDECol[data[1]..";"..(j-3)]
+								local newcol = VMRT.ExCD2.CDECol[data[1]..";"..(j-3)]
 								if newcol then
 									col = newcol
 									break
@@ -7127,12 +7127,12 @@ function module.options:Load()
 				local class,specPos = nil
 				local dataSpecs = 0
 				for cat in string.gmatch(data[2], "[^,]+") do
-					if EART.GDB.ClassID[cat] then
+					if ExRT.GDB.ClassID[cat] then
 						class = cat
 						break
 					end
 				end
-				local cR,cG,cB = EART.F.classColorNum(class)
+				local cR,cG,cB = ExRT.F.classColorNum(class)
 
 				line.backClassColorR = cR
 				line.backClassColorG = cG
@@ -7149,7 +7149,7 @@ function module.options:Load()
 					line.class:Show()
 
 
-					local specs = EART.GDB.ClassSpecializationList[class]
+					local specs = ExRT.GDB.ClassSpecializationList[class]
 					local specID = nil
 					for j=4,4+#specs do
 						if data[j] then
@@ -7157,7 +7157,7 @@ function module.options:Load()
 							specID = specs[j-4]
 						end
 					end
-					if data[4] and not EART.isClassic then
+					if data[4] and not ExRT.isClassic then
 						dataSpecs = #specs
 					end
 					line.colExpand.specs = {}
@@ -7171,7 +7171,7 @@ function module.options:Load()
 							if data[j] then
 								local icon = line["spec"..specIcon]
 								if icon then
-									icon:SetTexture(EART.GDB.ClassSpecializationIcons[ specs[j-4] ])
+									icon:SetTexture(ExRT.GDB.ClassSpecializationIcons[ specs[j-4] ])
 									icon:Show()
 									specIcon = specIcon + 1
 								end
@@ -7183,7 +7183,7 @@ function module.options:Load()
 					else
 						line.colBack:Hide()
 						if specID then
-							line.spec:SetTexture(EART.GDB.ClassSpecializationIcons[specID])
+							line.spec:SetTexture(ExRT.GDB.ClassSpecializationIcons[specID])
 							line.spec:Show()
 							line.spec1:Hide()
 						else
@@ -7223,10 +7223,10 @@ function module.options:Load()
 					line.col.ThumbBySpec[j]:Hide()
 				end
 				local colDefStr = data[1]..";"..(specPos or 1)
-				local col = VART.ExCD2.CDECol[colDefStr] or module.db.def_col[colDefStr] or data[3]
+				local col = VMRT.ExCD2.CDECol[colDefStr] or module.db.def_col[colDefStr] or data[3]
 				if extraData and extraData.specPos then
 					local specPos = extraData.specPos
-					col = VART.ExCD2.CDECol[data[1]..";"..specPos] or col or data[3]
+					col = VMRT.ExCD2.CDECol[data[1]..";"..specPos] or col or data[3]
 				end
 				local defCol = col
 				line.col.keystr = colDefStr
@@ -7238,20 +7238,20 @@ function module.options:Load()
 					end
 					local miniIcon = {}
 					for j=5,8 do
-						if data[j] or (data[4] and EART.GDB.ClassSpecializationList[class][j-4]) then
+						if data[j] or (data[4] and ExRT.GDB.ClassSpecializationList[class][j-4]) then
 							local str = data[1]..";"..(j-3)
 							line.col.keystr[#line.col.keystr+1] = str
-							if not updateCol and VART.ExCD2.CDECol[str] then
+							if not updateCol and VMRT.ExCD2.CDECol[str] then
 								updateCol = true
-								col = VART.ExCD2.CDECol[str]
+								col = VMRT.ExCD2.CDECol[str]
 							end
-							local specs = EART.GDB.ClassSpecializationList[class]
+							local specs = ExRT.GDB.ClassSpecializationList[class]
 							if specs then
-								local p = VART.ExCD2.CDECol[str] or VART.ExCD2.CDECol[data[1]..";1"] or module.db.def_col[str] or module.db.def_col[data[1]..";1"] or data[3]
+								local p = VMRT.ExCD2.CDECol[str] or VMRT.ExCD2.CDECol[data[1]..";1"] or module.db.def_col[str] or module.db.def_col[data[1]..";1"] or data[3]
 								if p ~= defCol then
 									local t = line.col.ThumbBySpec[j-4]
 									t:SetPoint("CENTER",line.col,"LEFT",7 + (line.col:GetWidth() - 14) / 9 * (p-1),miniIcon[p] == 1 and -5 or miniIcon[p] == 2 and 5 or 0)
-									t:SetTexture(EART.GDB.ClassSpecializationIcons[ specs[j-4] ])
+									t:SetTexture(ExRT.GDB.ClassSpecializationIcons[ specs[j-4] ])
 									t:Show()
 									miniIcon[p] = (miniIcon[p] or 0) + 1
 								end
@@ -7261,7 +7261,7 @@ function module.options:Load()
 				end
 				if extraData and extraData.specPos then
 					local specPos = extraData.specPos
-					col = VART.ExCD2.CDECol[data[1]..";"..specPos] or col or data[3]
+					col = VMRT.ExCD2.CDECol[data[1]..";"..specPos] or col or data[3]
 					line.col.keystr = data[1]..";"..specPos
 				end
 				line.col.lock = true
@@ -7270,7 +7270,7 @@ function module.options:Load()
 
 
 				line.prior.lock = true
-				line.prior:SetTo(VART.ExCD2.Priority[ data[1] ] or 50)
+				line.prior:SetTo(VMRT.ExCD2.Priority[ data[1] ] or 50)
 				line.prior.lock = false
 
 				local first = nil
@@ -7308,10 +7308,10 @@ function module.options:Load()
 				else
 					line.chk.disabled = true
 				end
-				line.chk:SetChecked(VART.ExCD2.CDE[ data[1] ])
+				line.chk:SetChecked(VMRT.ExCD2.CDE[ data[1] ])
 				line.chk:UpdateColors()
 
-				if spellName and VART.ExCD2.OptFav[ data[1] ] then
+				if spellName and VMRT.ExCD2.OptFav[ data[1] ] then
 					line.starBut:Update(2)
 				else
 					line.starBut:Update(1)
@@ -7397,7 +7397,7 @@ function module.options:Load()
 				end
 			end
 			if isNew then
-				VART.ExCD2.userDB[#VART.ExCD2.userDB+1] = data
+				VMRT.ExCD2.userDB[#VMRT.ExCD2.userDB+1] = data
 			end
 			module.options.list:UpdateDB(module.options.list.current)
 			module.options.list:Update()
@@ -7527,16 +7527,16 @@ function module.options:Load()
 	for i=1,#module.db.classNames do
 		local class = module.db.classNames[i]
 		self.addModSpellFrame.dropDown.List[#self.addModSpellFrame.dropDown.List + 1] = {
-			text = "|c"..EART.F.classColor(class)..L.classLocalizate[class],
+			text = "|c"..ExRT.F.classColor(class)..L.classLocalizate[class],
 			justifyH = "CENTER",
 			func = self.addModSpellFrame.dropDown.SetValue,
 			arg1 = class,
 		}
 	end
-	if EART.isClassic then
+	if ExRT.isClassic then
 		tremove(self.addModSpellFrame.dropDown.List, 12)
 		tremove(self.addModSpellFrame.dropDown.List, 10)
-		if not EART.isLK then tremove(self.addModSpellFrame.dropDown.List, 6) end
+		if not ExRT.isLK then tremove(self.addModSpellFrame.dropDown.List, 6) end
 	end
 
 	self.addModSpellFrame.dropDown.List[#self.addModSpellFrame.dropDown.List + 1] = {
@@ -7557,9 +7557,9 @@ function module.options:Load()
 	self.addModSpellFrame.Delete = ELib:Button(self.addModSpellFrame,DELETE):Size(100,20):Point("LEFT",self.addModSpellFrame.dropDown,"RIGHT",50,0):OnClick(function(self)
 		local parent = self:GetParent()
 		local data = parent.data
-		for i=1,#VART.ExCD2.userDB do
-			if data == VART.ExCD2.userDB[i] then
-				tremove(VART.ExCD2.userDB, i)
+		for i=1,#VMRT.ExCD2.userDB do
+			if data == VMRT.ExCD2.userDB[i] then
+				tremove(VMRT.ExCD2.userDB, i)
 				break
 			end
 		end
@@ -7625,17 +7625,17 @@ function module.options:Load()
 			end
 		end
 
-		local specList = not EART.isClassic and module.db.specByClass[class] or {0}
+		local specList = not ExRT.isClassic and module.db.specByClass[class] or {0}
 		for i=1,#specList do
 			local specID = specList[i]
 			local icon 
 			if module.db.specIcons[specID] then
 				icon = "|T".. module.db.specIcons[specID] ..":20|t"
 			else
-				icon = EART.F.classIconInText(class,20) or ""
+				icon = ExRT.F.classIconInText(class,20) or ""
 			end
 
-			self["spellIDCLEU"..i]:LeftText((icon or "").." |c"..EART.F.classColor(class)..L.specLocalizate[module.db.specInLocalizate[specID]])
+			self["spellIDCLEU"..i]:LeftText((icon or "").." |c"..ExRT.F.classColor(class)..L.specLocalizate[module.db.specInLocalizate[specID]])
 
 			local dataSpec = data[3+i] or {0,0,0}
 			data[3+i] = dataSpec
@@ -7710,7 +7710,7 @@ function module.options:Load()
 
 		local optColSet = module.options.optColSet
 		local defOpt = module.db.colsDefaults
-		local VColOpt = VART.ExCD2.colSet[i]
+		local VColOpt = VMRT.ExCD2.colSet[i]
 
 		optColSet.superTabFrame:Show()
 
@@ -7766,8 +7766,8 @@ function module.options:Load()
 
 		do
 			local texturePos = nil
-			for j=1,#EART.F.textureList do
-				if EART.F.textureList[j] == (VColOpt.textureFile or EART.F.barImg) then
+			for j=1,#ExRT.F.textureList do
+				if ExRT.F.textureList[j] == (VColOpt.textureFile or ExRT.F.barImg) then
 					texturePos = j
 					break
 				end
@@ -7923,9 +7923,9 @@ function module.options:Load()
 		end
 
 		optColSet.LOCK = nil
-		currColOpt = VART.ExCD2.colSet[module.options.optColTabs.selected]
+		currColOpt = VMRT.ExCD2.colSet[module.options.optColTabs.selected]
 
-		if VColOpt.enabled and not isGeneralTab and VART.ExCD2.enabled and not VColOpt.ATF then
+		if VColOpt.enabled and not isGeneralTab and VMRT.ExCD2.enabled and not VColOpt.ATF then
 			optColSet.NavLineF.f = module.frame.colFrame[i]
 			optColSet.FindFrameBut:Show()
 		else
@@ -7981,7 +7981,7 @@ function module.options:Load()
 
 	self.tab.tabs[2].decorationLine = ELib:DecorationLine(self.tab.tabs[2],true,"BACKGROUND",-5):Point("TOPLEFT",self.tab.tabs[2],0,-28):Point("RIGHT",self,0,0):Size(0,20)
 
-	self.optColSet.superTabFrame = EART.lib:ScrollTabsFrame(self.optColTabs,L.cd2OtherSetTabNameGeneral,L.cd2OtherSetTabNameIcons,L.cd2OtherSetTabNameColors,L.cd2OtherSetTabNameFont,L.cd2OtherSetTabNameText,L.cd2OtherSetTabNameOther,L.cd2OtherSetTabNameVisibility,L.cd2OtherSetTabNameBlackList,L.cd2OtherSetTabNameTemplate,L.cd2ATF):Size(660,450):Point("TOP",0,-10)
+	self.optColSet.superTabFrame = ExRT.lib:ScrollTabsFrame(self.optColTabs,L.cd2OtherSetTabNameGeneral,L.cd2OtherSetTabNameIcons,L.cd2OtherSetTabNameColors,L.cd2OtherSetTabNameFont,L.cd2OtherSetTabNameText,L.cd2OtherSetTabNameOther,L.cd2OtherSetTabNameVisibility,L.cd2OtherSetTabNameBlackList,L.cd2OtherSetTabNameTemplate,L.cd2ATF):Size(660,450):Point("TOP",0,-10)
 	self.optColSet.superTabFrame.list.LDisabled = {}
 	self.optColSet.superTabFrame.list:SetScript("OnUpdate",function(self)
 		for i=1,#self.List do
@@ -8065,7 +8065,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneral:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].frameGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.sliderLinesNum,module.options.optColSet.sliderAlpha,module.options.optColSet.sliderScale,module.options.optColSet.sliderWidth,module.options.optColSet.sliderColsInCol,module.options.optColSet.sliderBetweenLines,module.options.optColSet.sliderBlackBack,module.options.optColSet.butToCenter,module.options.optColSet.dropDownStrata,module.options.optColSet.textdropDownStrata)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].frameGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.sliderLinesNum,module.options.optColSet.sliderAlpha,module.options.optColSet.sliderScale,module.options.optColSet.sliderWidth,module.options.optColSet.sliderColsInCol,module.options.optColSet.sliderBetweenLines,module.options.optColSet.sliderBlackBack,module.options.optColSet.butToCenter,module.options.optColSet.dropDownStrata,module.options.optColSet.textdropDownStrata)
 	end
 
 	self.optColSet.sliderLinesNum = ELib:Slider(self.optColSet.superTabFrame.tab[1],L.cd2lines):Size(400):Point("TOP",0,-50):Range(1,module.db.maxLinesInCol):SetObey(true):OnChange(function(self,event) 
@@ -8212,29 +8212,29 @@ function module.options:Load()
 
 	self.optColSet.chkCooldownTextDef = ELib:Radio(self.optColSet.superTabFrame.tab[2],L.cd2ColSetCDTimeDef):Point("TOPLEFT",self.optColSet.chkCooldown,25,-25):Tooltip(L.cd2ColSetCDTimeDefTooltip):OnClick(function(self) 
 		currColOpt.iconCooldownHideNumbers = nil
-		currColOpt.iconCooldownEARTNumbers = nil
+		currColOpt.iconCooldownExRTNumbers = nil
 		module.options.optColSet:chkCooldownTextUpdate()
 		module:ReloadAllSplits()
 	end)
 
-	self.optColSet.chkCooldownEARTNumbers = ELib:Radio(self.optColSet.superTabFrame.tab[2],L.cd2ColSetCDTimeEART):Point("TOPLEFT",self.optColSet.chkCooldownTextDef,0,-25):Tooltip(L.cd2ColSetCDTimeEARTTooltip):OnClick(function(self) 
+	self.optColSet.chkCooldownExRTNumbers = ELib:Radio(self.optColSet.superTabFrame.tab[2],L.cd2ColSetCDTimeExRT):Point("TOPLEFT",self.optColSet.chkCooldownTextDef,0,-25):Tooltip(L.cd2ColSetCDTimeExRTTooltip):OnClick(function(self) 
 		currColOpt.iconCooldownHideNumbers = nil
-		currColOpt.iconCooldownEARTNumbers = true
+		currColOpt.iconCooldownExRTNumbers = true
 		module.options.optColSet:chkCooldownTextUpdate()
 		module:ReloadAllSplits()
 	end)
 
-	self.optColSet.chkCooldownHideNumbers = ELib:Radio(self.optColSet.superTabFrame.tab[2],L.BattleResHideTime):Point("TOPLEFT",self.optColSet.chkCooldownEARTNumbers,0,-25):Tooltip(L.BattleResHideTimeTooltip):OnClick(function(self) 
+	self.optColSet.chkCooldownHideNumbers = ELib:Radio(self.optColSet.superTabFrame.tab[2],L.BattleResHideTime):Point("TOPLEFT",self.optColSet.chkCooldownExRTNumbers,0,-25):Tooltip(L.BattleResHideTimeTooltip):OnClick(function(self) 
 		currColOpt.iconCooldownHideNumbers = true
-		currColOpt.iconCooldownEARTNumbers = nil
+		currColOpt.iconCooldownExRTNumbers = nil
 		module.options.optColSet:chkCooldownTextUpdate()
 		module:ReloadAllSplits()
 	end)
 
 	self.optColSet.chkCooldownTextUpdate = function(self)
 		local v1,v2,v3
-		local currColOpt = VART.ExCD2.colSet[module.options.optColTabs.selected]
-		if currColOpt.iconCooldownEARTNumbers then
+		local currColOpt = VMRT.ExCD2.colSet[module.options.optColTabs.selected]
+		if currColOpt.iconCooldownExRTNumbers then
 			v3 = true
 		elseif currColOpt.iconCooldownHideNumbers then
 			v2 = true
@@ -8243,7 +8243,7 @@ function module.options:Load()
 		end
 		module.options.optColSet.chkCooldownTextDef:SetChecked(v1)
 		module.options.optColSet.chkCooldownHideNumbers:SetChecked(v2)
-		module.options.optColSet.chkCooldownEARTNumbers:SetChecked(v3)
+		module.options.optColSet.chkCooldownExRTNumbers:SetChecked(v3)
 	end
 
 	self.optColSet.chkCooldownShowSwipe = ELib:Check(self.optColSet.superTabFrame.tab[2],L.cd2ShowEgde):Point("TOPLEFT",self.optColSet.chkCooldownHideNumbers,0,-25):OnClick(function(self) 
@@ -8307,7 +8307,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralIcons:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].iconGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkGray,module.options.optColSet.sliderHeight,module.options.optColSet.dropDownIconPos,module.options.optColSet.chkCooldown,module.options.optColSet.chkShowTitles,module.options.optColSet.chkHideBlizzardEdges,module.options.optColSet.chkCooldownShowSwipe,module.options.optColSet.chkCooldownHideNumbers,module.options.optColSet.textIconPos, module.options.optColSet.textGlowType, module.options.optColSet.dropDownCooldownGlowType,module.options.optColSet.chkCooldownTextDef,module.options.optColSet.chkCooldownEARTNumbers,module.options.optColSet.chkMasque)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].iconGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkGray,module.options.optColSet.sliderHeight,module.options.optColSet.dropDownIconPos,module.options.optColSet.chkCooldown,module.options.optColSet.chkShowTitles,module.options.optColSet.chkHideBlizzardEdges,module.options.optColSet.chkCooldownShowSwipe,module.options.optColSet.chkCooldownHideNumbers,module.options.optColSet.textIconPos, module.options.optColSet.textGlowType, module.options.optColSet.dropDownCooldownGlowType,module.options.optColSet.chkCooldownTextDef,module.options.optColSet.chkCooldownExRTNumbers,module.options.optColSet.chkMasque)
 	end
 
 	--> Texture and colors Options
@@ -8321,17 +8321,17 @@ function module.options:Load()
 
 	self.optColSet.textDDTexture = ELib:Text(self.optColSet.superTabFrame.tab[3],L.cd2OtherSetTexture..":"):Size(200,20):Point(10,-35)
 	self.optColSet.dropDownTexture = ELib:DropDown(self.optColSet.superTabFrame.tab[3],200,15):Size(200):Point(180,-35)
-	for i=1,#EART.F.textureList do
+	for i=1,#ExRT.F.textureList do
 		self.optColSet.dropDownTexture.List[i] = {}
 		local info = self.optColSet.dropDownTexture.List[i]
 		info.text = i
-		info.arg1 = EART.F.textureList[i]
+		info.arg1 = ExRT.F.textureList[i]
 		info.arg2 = i
 		info.func = dropDownTextureButtonClick
-		info.texture = EART.F.textureList[i]
+		info.texture = ExRT.F.textureList[i]
 		info.justifyH = "CENTER" 
 	end
-	for key,texture in EART.F.IterateMediaData("statusbar") do
+	for key,texture in ExRT.F.IterateMediaData("statusbar") do
 		local info = {}
 		self.optColSet.dropDownTexture.List[#self.optColSet.dropDownTexture.List+1] = info
 
@@ -8351,12 +8351,12 @@ function module.options:Load()
 		self:tooltipReload(self)
 		module:ReloadAllSplits()
 	end)
-	self.optColSet.colorPickerBorder = EART.lib.CreateColorPickButton(self.optColSet.superTabFrame.tab[3],20,20,nil,361,-65)
+	self.optColSet.colorPickerBorder = ExRT.lib.CreateColorPickButton(self.optColSet.superTabFrame.tab[3],20,20,nil,361,-65)
 	self.optColSet.colorPickerBorder:SetScript("OnClick",function (self)
 		if not ColorPickerFrame.SetupColorPickerAndShow then
 			ColorPickerFrame.previousValues = {currColOpt.textureBorderColorR or module.db.colsDefaults.textureBorderColorR,currColOpt.textureBorderColorG or module.db.colsDefaults.textureBorderColorG,currColOpt.textureBorderColorB or module.db.colsDefaults.textureBorderColorB, currColOpt.textureBorderColorA or module.db.colsDefaults.textureBorderColorA}
 			ColorPickerFrame.hasOpacity = true
-			local nilFunc = EART.NULLfunc
+			local nilFunc = ExRT.NULLfunc
 			local function changedCallback(restore)
 				local newR, newG, newB, newA
 				if restore then
@@ -8459,7 +8459,7 @@ function module.options:Load()
 	local function colorPickerButtonClick(self)
 		if not ColorPickerFrame.SetupColorPickerAndShow then
 			ColorPickerFrame.previousValues = {currColOpt[self.inOptName.."R"] or module.db.colsDefaults[self.inOptName.."R"],currColOpt[self.inOptName.."G"] or module.db.colsDefaults[self.inOptName.."G"],currColOpt[self.inOptName.."B"] or module.db.colsDefaults[self.inOptName.."B"], 1}
-			local nilFunc = EART.NULLfunc
+			local nilFunc = ExRT.NULLfunc
 			local function changedCallback(restore)
 				local newR, newG, newB, newA
 				if restore then
@@ -8508,7 +8508,7 @@ function module.options:Load()
 	local function colorPickerSliderValue(self,newval)
 		currColOpt[self.inOptName] = newval / 100
 		module:ReloadAllSplits()
-		self.tooltipText = EART.F.Round(newval)
+		self.tooltipText = ExRT.F.Round(newval)
 		self:tooltipReload(self)
 	end
 
@@ -8529,7 +8529,7 @@ function module.options:Load()
 	local colorSetupFrameColorsNames_Text = {L.cd2OtherSetColorFrameText..":",L.cd2OtherSetColorFrameActive..":",L.cd2OtherSetColorFrameCooldown..":"}
 	for j=1,3 do
 		for i=1,3 do
-			local colorf = EART.lib.CreateColorPickButton(self.colorSetupFrame,20,20,nil,240+(i-1)*40,-35-(j-1)*20)
+			local colorf = ExRT.lib.CreateColorPickButton(self.colorSetupFrame,20,20,nil,240+(i-1)*40,-35-(j-1)*20)
 			self.colorSetupFrame[ "color"..colorSetupFrameColorsObjectsNames[i]..colorSetupFrameColorsNames[j] ] = colorf
 			colorf.inOptName = "textureColor"..colorSetupFrameColorsObjectsNames[i]..colorSetupFrameColorsNames[j]
 			colorf:SetScript("OnClick",colorPickerButtonClick)
@@ -8592,7 +8592,7 @@ function module.options:Load()
 	end)
 
 	function self:showColorFrame()
-		local currColOpt = VART.ExCD2.colSet[module.options.optColTabs.selected]
+		local currColOpt = VMRT.ExCD2.colSet[module.options.optColTabs.selected]
 		for j=1,3 do
 			for i=1,3 do
 				local this = module.options.colorSetupFrame[ "color"..colorSetupFrameColorsObjectsNames[i]..colorSetupFrameColorsNames[j] ]
@@ -8621,7 +8621,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralColorize:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].textureGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.dropDownTexture,module.options.optColSet.chkAnimation,module.options.colorSetupFrame,module.options.optColSet.colorPickerBorder,module.options.optColSet.sliderBorderSize,module.options.optColSet.chkHideSpark,module.options.optColSet.textDDTexture, module.options.optColSet.textDDBorder, module.options.optColSet.chkSmoothAnimation, module.options.optColSet.sliderSmoothAnimationDuration)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].textureGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.dropDownTexture,module.options.optColSet.chkAnimation,module.options.colorSetupFrame,module.options.optColSet.colorPickerBorder,module.options.optColSet.sliderBorderSize,module.options.optColSet.chkHideSpark,module.options.optColSet.textDDTexture, module.options.optColSet.textDDBorder, module.options.optColSet.chkSmoothAnimation, module.options.optColSet.sliderSmoothAnimationDuration)
 	end
 
 	--> Font Options
@@ -8641,12 +8641,12 @@ function module.options:Load()
 
 		local i = module.options.optColTabs.selected
 		do
-			local FontNameForDropDown = select(3,string.find(VART.ExCD2.colSet[i][self.fontMark.."Name"] or module.db.colsDefaults.fontName,"\\([^\\]*)$"))
-			module.options.optColSet.dropDownFont:SetText(  (FontNameForDropDown or VART.ExCD2.colSet[i][self.fontMark.."Name"] or module.db.colsDefaults.fontName or "?") )
+			local FontNameForDropDown = select(3,string.find(VMRT.ExCD2.colSet[i][self.fontMark.."Name"] or module.db.colsDefaults.fontName,"\\([^\\]*)$"))
+			module.options.optColSet.dropDownFont:SetText(  (FontNameForDropDown or VMRT.ExCD2.colSet[i][self.fontMark.."Name"] or module.db.colsDefaults.fontName or "?") )
 		end
-		module.options.optColSet.sliderFont:SetValue(VART.ExCD2.colSet[i][self.fontMark.."Size"] or module.db.colsDefaults.fontSize)
-		module.options.optColSet.chkFontOutline:SetChecked(VART.ExCD2.colSet[i][self.fontMark.."Outline"])
-		module.options.optColSet.chkFontShadow:SetChecked(VART.ExCD2.colSet[i][self.fontMark.."Shadow"])
+		module.options.optColSet.sliderFont:SetValue(VMRT.ExCD2.colSet[i][self.fontMark.."Size"] or module.db.colsDefaults.fontSize)
+		module.options.optColSet.chkFontOutline:SetChecked(VMRT.ExCD2.colSet[i][self.fontMark.."Outline"])
+		module.options.optColSet.chkFontShadow:SetChecked(VMRT.ExCD2.colSet[i][self.fontMark.."Shadow"])
 	end
 	for i=1,5 do
 		self.optColSet.fontsTab.tabs[i].button:SetScript("OnClick",fontsTabButtonClick)
@@ -8698,24 +8698,24 @@ function module.options:Load()
 		module:ReloadAllSplits()
 		local FontNameForDropDown = select(3,string.find(arg1,"\\([^\\]*)$"))
 		if arg2 then
-			module.options.optColSet.dropDownFont:SetText(FontNameForDropDown or EART.F.fontList[arg2])
+			module.options.optColSet.dropDownFont:SetText(FontNameForDropDown or ExRT.F.fontList[arg2])
 		else
 			module.options.optColSet.dropDownFont:SetText(FontNameForDropDown or arg2)
 		end
 	end
 
 	self.optColSet.dropDownFont = ELib:DropDown(self.optColSet.fontsTab,350,10):Size(200):Point(180,-15)
-	for i=1,#EART.F.fontList do
+	for i=1,#ExRT.F.fontList do
 		self.optColSet.dropDownFont.List[i] = {}
 		local info = self.optColSet.dropDownFont.List[i]
-		info.text = EART.F.fontList[i]
-		info.arg1 = EART.F.fontList[i]
+		info.text = ExRT.F.fontList[i]
+		info.arg1 = ExRT.F.fontList[i]
 		info.arg2 = i
 		info.func = dropDownFontButtonClick
-		info.font = EART.F.fontList[i]
+		info.font = ExRT.F.fontList[i]
 		info.justifyH = "CENTER" 
 	end
-	for name,font in EART.F.IterateMediaData("font") do
+	for name,font in ExRT.F.IterateMediaData("font") do
 		local info = {}
 		self.optColSet.dropDownFont.List[#self.optColSet.dropDownFont.List+1] = info
 
@@ -8754,7 +8754,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralFont:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].fontGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.dropDownFont,module.options.optColSet.sliderFont,module.options.optColSet.chkFontOutline,module.options.optColSet.chkFontShadow,module.options.optColSet.chkFontOtherAvailable)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].fontGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.dropDownFont,module.options.optColSet.sliderFont,module.options.optColSet.chkFontOutline,module.options.optColSet.chkFontShadow,module.options.optColSet.chkFontOtherAvailable)
 	end
 
 	--> Text options
@@ -8863,7 +8863,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralText:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].textGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.textLeftTemEdit,module.options.optColSet.textRightTemEdit,module.options.optColSet.textCenterTemEdit,module.options.optColSet.chkIconName,module.options.optColSet.textAllTemplates,module.options.optColSet.textLeftTemText,module.options.optColSet.textRightTemText,module.options.optColSet.textCenterTemText,module.options.optColSet.textResetButton,module.options.optColSet.sliderIconNameChars,module.options.optColSet.dropDownIconCDStyle,module.options.optColSet.textdropDownIconCDStyle,module.options.optColSet.chkShowTargetName)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].textGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.textLeftTemEdit,module.options.optColSet.textRightTemEdit,module.options.optColSet.textCenterTemEdit,module.options.optColSet.chkIconName,module.options.optColSet.textAllTemplates,module.options.optColSet.textLeftTemText,module.options.optColSet.textRightTemText,module.options.optColSet.textCenterTemText,module.options.optColSet.textResetButton,module.options.optColSet.sliderIconNameChars,module.options.optColSet.dropDownIconCDStyle,module.options.optColSet.textdropDownIconCDStyle,module.options.optColSet.chkShowTargetName)
 	end
 
 	--> Method options
@@ -9126,7 +9126,7 @@ function module.options:Load()
 
 
 	function self.optColSet.chkGeneralMethods:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].methodsGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkShowOnlyOnCD,module.options.optColSet.chkBotToTop,module.options.optColSet.chkRightToLeft,module.options.optColSet.dropDownStyleAnimation,module.options.optColSet.dropDownTimeLineAnimation,module.options.optColSet.chkIconTooltip,module.options.optColSet.chkLineClick,module.options.optColSet.chkNewSpellNewLine,
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].methodsGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkShowOnlyOnCD,module.options.optColSet.chkBotToTop,module.options.optColSet.chkRightToLeft,module.options.optColSet.dropDownStyleAnimation,module.options.optColSet.dropDownTimeLineAnimation,module.options.optColSet.chkIconTooltip,module.options.optColSet.chkLineClick,module.options.optColSet.chkNewSpellNewLine,
 			module.options.optColSet.dropDownSortingRules,module.options.optColSet.textSortingRules,module.options.optColSet.textStyleAnimation,module.options.optColSet.textTimeLineAnimation,module.options.optColSet.chkHideOwnSpells,module.options.optColSet.chkAlphaNotInRange,module.options.optColSet.sliderAlphaNotInRange,module.options.optColSet.chkDisableActive,module.options.optColSet.chkOneSpellPerCol,module.options.optColSet.chkLineClickWhisper,module.options.optColSet.chkSortByAvailability, 
 			module.options.optColSet.chkSortByAvailability_activeToTop, module.options.optColSet.chkReverseSorting, module.options.optColSet.chkCDOnlyTimer, module.options.optColSet.chkTextIgnoreActive, module.options.optColSet.chkShowOnlyNotOnCD, module.options.optColSet.dropDownLineClickMod, module.options.optColSet.textLineClickMod,module.options.optColSet.chkTopBottomCol)
 	end
@@ -9235,7 +9235,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralVisibility:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].visibilityGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkOnlyInCombat,module.options.optColSet.visibilityTextPartyType,module.options.optColSet.chkVisibilityPartyTypeAlways,module.options.optColSet.chkVisibilityPartyTypeParty,module.options.optColSet.chkVisibilityPartyTypeRaid,module.options.optColSet.visibilityTextZoneType,module.options.optColSet.chkVisibilityZoneArena,module.options.optColSet.chkVisibilityZoneBG,module.options.optColSet.chkVisibilityZoneScenario,module.options.optColSet.chkVisibilityZone5ppl,module.options.optColSet.chkVisibilityZoneRaid,module.options.optColSet.chkVisibilityZoneOutdoor)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].visibilityGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.chkOnlyInCombat,module.options.optColSet.visibilityTextPartyType,module.options.optColSet.chkVisibilityPartyTypeAlways,module.options.optColSet.chkVisibilityPartyTypeParty,module.options.optColSet.chkVisibilityPartyTypeRaid,module.options.optColSet.visibilityTextZoneType,module.options.optColSet.chkVisibilityZoneArena,module.options.optColSet.chkVisibilityZoneBG,module.options.optColSet.chkVisibilityZoneScenario,module.options.optColSet.chkVisibilityZone5ppl,module.options.optColSet.chkVisibilityZoneRaid,module.options.optColSet.chkVisibilityZoneOutdoor)
 	end
 
 	--> Black List
@@ -9255,7 +9255,7 @@ function module.options:Load()
 			end
 			currColOpt.blacklistText = strtrim( self:GetText() )
 			if not scheluded then
-				scheluded = EART.F.ScheduleTimer(ScheludeFunc, 1)
+				scheluded = ExRT.F.ScheduleTimer(ScheludeFunc, 1)
 			end
 		end
 	end
@@ -9275,7 +9275,7 @@ function module.options:Load()
 			end
 			currColOpt.whitelistText = strtrim( self:GetText() )
 			if not scheluded then
-				scheluded = EART.F.ScheduleTimer(ScheludeFunc, 1)
+				scheluded = ExRT.F.ScheduleTimer(ScheludeFunc, 1)
 			end
 		end
 	end
@@ -9290,7 +9290,7 @@ function module.options:Load()
 		self:doAlphas()
 	end)
 	function self.optColSet.chkGeneralBlackList:doAlphas()
-		EART.lib.SetAlphas(VART.ExCD2.colSet[module.options.optColTabs.selected].blacklistGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.blacklistEditBox,module.options.optColSet.whitelistEditBox,module.options.optColSet.whitelistText,module.options.optColSet.blacklistText)
+		ExRT.lib.SetAlphas(VMRT.ExCD2.colSet[module.options.optColTabs.selected].blacklistGeneral and module.options.optColTabs.selected ~= (module.db.maxColumns + 1) and 0.5 or 1,module.options.optColSet.blacklistEditBox,module.options.optColSet.whitelistEditBox,module.options.optColSet.whitelistText,module.options.optColSet.blacklistText)
 	end
 
 	--> Templates Tab
@@ -9310,10 +9310,10 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = true,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = false,
-			textureFile = EART.F.barImg,
+			textureFile = ExRT.F.barImg,
 			colorsText = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
 			colorsBack = {0,1,0, 0,1,0, 1,0,0, 1,1,0},
 			colorsTL = {0,1,0, 0,1,0, 1,0,0, 1,1,0},
@@ -9337,10 +9337,10 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = false,
-			textureFile = EART.F.barImg,
+			textureFile = ExRT.F.barImg,
 			colorsText = {1,1,1, 0.5,1,0.5, 1,0.5,0.5, 1,1,0.5,},
 			colorsBack = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
 			colorsTL = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
@@ -9364,10 +9364,10 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = true,
 			fontSize = 10,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = false,
-			textureFile = EART.F.barImg,
+			textureFile = ExRT.F.barImg,
 			colorsText = {1,1,1, 0.5,1,0.5, 1,0.5,0.5, 1,1,0.5,},
 			colorsBack = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
 			colorsTL = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
@@ -9427,7 +9427,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar19.tga",
@@ -9455,10 +9455,10 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = true,
 			fontSize = 10,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = false,
-			textureFile = EART.F.barImg,
+			textureFile = ExRT.F.barImg,
 			colorsText = {1,1,1, 0.5,1,0.5, 1,0.5,0.5, 1,1,0.5,},
 			colorsBack = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
 			colorsTL = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
@@ -9487,10 +9487,10 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = false,
-			textureFile = EART.F.barImg,
+			textureFile = ExRT.F.barImg,
 			colorsText = {1,1,1, 0.5,1,0.5, 1,0.5,0.5, 1,1,0.5,},
 			colorsBack = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
 			colorsTL = {1,1,1, 1,1,1, 1,1,1, 1,1,1},
@@ -9513,7 +9513,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar29.tga",
@@ -9539,7 +9539,7 @@ function module.options:Load()
 			iconPosition = 2,
 			iconGray = true,
 			fontSize = 13,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar6.tga",
@@ -9565,7 +9565,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar16.tga",
@@ -9594,7 +9594,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar16.tga",
@@ -9626,7 +9626,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = true,
 			fontSize = 14,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = true,
 			fontShadow = false,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar17.tga",
@@ -9667,7 +9667,7 @@ function module.options:Load()
 			iconPosition = 2,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar19.tga",
@@ -9705,7 +9705,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar19.tga",
@@ -9736,7 +9736,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 12,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar19.tga",
@@ -9777,7 +9777,7 @@ function module.options:Load()
 			iconPosition = 1,
 			iconGray = false,
 			fontSize = 10,
-			fontName = EART.F.defFont,
+			fontName = ExRT.F.defFont,
 			fontOutline = false,
 			fontShadow = true,
 			textureFile = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar26.tga",
@@ -9909,7 +9909,7 @@ function module.options:Load()
 		end
 	  	module.options.optColSet.templateRestore:Show()
 	  	module.options.optColSet.templateSaveData = {}
-	  	EART.F.table_copy(currColOpt,module.options.optColSet.templateSaveData)
+	  	ExRT.F.table_copy(currColOpt,module.options.optColSet.templateSaveData)
 	  	for key,val in pairs(module.options.optColSet.templateData.toOptions) do
 			if type(val) == "boolean" then
 				val = key
@@ -9935,7 +9935,7 @@ function module.options:Load()
 	self.optColSet.templatesScrollFrame = ELib:ScrollFrame(self.optColSet.superTabFrame.tab[9]):Size(430,380):Point("TOP",0,-50):Height( ceil(#self.optColSet.templateData/2) * 125 + 10 )
 	for i=1,#self.optColSet.templateData do 
 		local templateData = self.optColSet.templateData[i]
-		if EART.F.table_len(templateData) > 0 then
+		if ExRT.F.table_len(templateData) > 0 then
 			local buttonFrame = CreateFrame("Button",nil,self.optColSet.templatesScrollFrame.C)
 			if templateData._twoSized then
 				buttonFrame:SetSize(370,120)
@@ -9991,8 +9991,8 @@ function module.options:Load()
 
 
 					bar.data = {
-						name = EART.SDB.charName,
-						fullName = EART.SDB.charName,
+						name = ExRT.SDB.charName,
+						fullName = ExRT.SDB.charName,
 						icon = spellTexture,
 						spellName = i == 3 and spellName:sub(1,spellName:find(' ')) or spellName,
 						db = {spellID,spellClass},
@@ -10040,7 +10040,7 @@ function module.options:Load()
 	self.optColSet.templateRestore = CreateFrame("Button",nil,self.optColSet.superTabFrame.tab[9], BackdropTemplateMixin and "BackdropTemplate")
 	self.optColSet.templateRestore:SetPoint("TOP",0,-10)
 	self.optColSet.templateRestore:SetSize(430,30)
-	self.optColSet.templateRestore:SetBackdrop({edgeFile = EART.F.defBorder, edgeSize = 8})
+	self.optColSet.templateRestore:SetBackdrop({edgeFile = ExRT.F.defBorder, edgeSize = 8})
 	self.optColSet.templateRestore:SetBackdropBorderColor(1,0.5,0.5,1)
 	self.optColSet.templateRestore.text = ELib:Text(self.optColSet.templateRestore,L.cd2OtherSetTemplateRestore,12):Point('x'):Center():Color():Shadow()
 	self.optColSet.templateRestore:SetScript("OnEnter",function (self)
@@ -10051,7 +10051,7 @@ function module.options:Load()
 	end)
 	self.optColSet.templateRestore:SetScript("OnClick",function (self)
 		wipe(currColOpt)
-		EART.F.table_copy(module.options.optColSet.templateSaveData,currColOpt)
+		ExRT.F.table_copy(module.options.optColSet.templateSaveData,currColOpt)
 		module:ReloadAllSplits()
 		module.options.selectColumnTab()
 		self:Hide()
@@ -10102,7 +10102,7 @@ function module.options:Load()
 		for k,v in pairs(self.optColSet.ATFRadios) do
 			v:SetChecked(false)
 		end
-		local pos = VART.ExCD2.colSet[module.options.optColTabs.selected].ATFPos or 1
+		local pos = VMRT.ExCD2.colSet[module.options.optColTabs.selected].ATFPos or 1
 		local k = pos == 1 and "LB" or
 			pos == 2 and "LT" or
 			pos == 3 and "TL" or
@@ -10259,7 +10259,7 @@ function module.options:Load()
 	end
 	function self.optColSet.dropDownATFFramePrior:Update(opt)
 		opt = opt or currColOpt.ATFFramePrior
-		local optData = EART.F.table_find3(module.db.rframes, opt, "name")
+		local optData = ExRT.F.table_find3(module.db.rframes, opt, "name")
 		if optData then
 			self:SetText(optData.text or optData.name or "")
 		else
@@ -10280,11 +10280,11 @@ function module.options:Load()
 
 	local advTab = self.optColTabs.tabs[module.db.maxColumns+2]
 
-	advTab.hotfixEdit = ELib:MultiEdit(advTab):Size(650,200):Point("TOPLEFT",0,-30):SetText(VART.ExCD2.Hotfixes or ""):OnChange(function(self,isUser)
+	advTab.hotfixEdit = ELib:MultiEdit(advTab):Size(650,200):Point("TOPLEFT",0,-30):SetText(VMRT.ExCD2.Hotfixes or ""):OnChange(function(self,isUser)
 		if not isUser then
 			return
 		end
-		VART.ExCD2.Hotfixes = self:GetText()
+		VMRT.ExCD2.Hotfixes = self:GetText()
 		advTab.hotfixApplyBut:Show()
 	end)
 	--advTab.hotfixEdit.EditBox:Disable()
@@ -10300,7 +10300,7 @@ function module.options:Load()
 	local profilesTab = self.optColTabs.tabs[module.db.maxColumns+3]
 
 	local function GetCurrentProfileName()
-		return VART.ExCD2.Profiles.Now=="default" and L.ProfilesDefault or VART.ExCD2.Profiles.Now
+		return VMRT.ExCD2.Profiles.Now=="default" and L.ProfilesDefault or VMRT.ExCD2.Profiles.Now
 	end
 
 	profilesTab.currentText = ELib:Text(profilesTab,L.ProfilesCurrent,11):Size(650,200):Point(15,-15):Top():Color()
@@ -10319,12 +10319,12 @@ function module.options:Load()
 	profilesTab.choseNewButton = ELib:Button(profilesTab,L.ProfilesAdd):Size(70,20):Point("LEFT",profilesTab.choseNew,"RIGHT",0,0):OnClick(function (self)
 		local text = profilesTab.choseNew:GetText()
 		profilesTab.choseNew:SetText("")
-		if text == "" or text == "default" or VART.ExCD2.Profiles.List[text] or text == VART.ExCD2.Profiles.Now then
+		if text == "" or text == "default" or VMRT.ExCD2.Profiles.List[text] or text == VMRT.ExCD2.Profiles.Now then
 			return
 		end
-		VART.ExCD2.Profiles.List[text] = EART.F.table_copy2(NewVARTTableData)
+		VMRT.ExCD2.Profiles.List[text] = ExRT.F.table_copy2(NewVMRTTableData)
 
-		StaticPopupDialogs["EART_EXCD_ACTIVATENEW"] = {
+		StaticPopupDialogs["EXRT_EXCD_ACTIVATENEW"] = {
 			text = L.ProfilesActivateAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
@@ -10336,7 +10336,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_EXCD_ACTIVATENEW")
+		StaticPopup_Show("EXRT_EXCD_ACTIVATENEW")
 	end)
 
 	profilesTab.choseSelectText = ELib:Text(profilesTab,L.ProfilesSelect,11):Size(605,200):Point(335,-75+12):Top()
@@ -10344,10 +10344,10 @@ function module.options:Load()
 
 	local function GetCurrentProfilesList(func)
 		local list = {
-			{ text = GetCurrentProfileName(), func = func, arg1 = VART.ExCD2.Profiles.Now, _sort = "0" },
+			{ text = GetCurrentProfileName(), func = func, arg1 = VMRT.ExCD2.Profiles.Now, _sort = "0" },
 		}
-		for name,_ in pairs(VART.ExCD2.Profiles.List) do
-			if name ~= VART.ExCD2.Profiles.Now then
+		for name,_ in pairs(VMRT.ExCD2.Profiles.List) do
+			if name ~= VMRT.ExCD2.Profiles.Now then
 				list[#list + 1] = { text = name == "default" and L.ProfilesDefault or name, func = func, arg1 = name, _sort = "1"..name }
 			end
 		end
@@ -10363,11 +10363,11 @@ function module.options:Load()
 	end
 
 	local function CopyProfile(name)
-		local newdb = VART.ExCD2.Profiles.List[name]
-		local currname = VART.ExCD2.Profiles.Now
+		local newdb = VMRT.ExCD2.Profiles.List[name]
+		local currname = VMRT.ExCD2.Profiles.Now
 		if module:SelectProfile(name) then
-			VART.ExCD2.Profiles.List[name] = newdb
-			VART.ExCD2.Profiles.Now = currname
+			VMRT.ExCD2.Profiles.List[name] = newdb
+			VMRT.ExCD2.Profiles.Now = currname
 
 			profilesTab.currentName:UpdateText()
 
@@ -10382,7 +10382,7 @@ function module.options:Load()
 			CopyProfile(arg1)
 		end)
 		for i=1,#self.List do
-			if self.List[i].arg1 == VART.ExCD2.Profiles.Now then
+			if self.List[i].arg1 == VMRT.ExCD2.Profiles.Now then
 				tremove(self.List, i)
 				break
 			end
@@ -10390,12 +10390,12 @@ function module.options:Load()
 	end
 
 	local function DeleteProfile(name)
-		StaticPopupDialogs["EART_EXCD_PROFILES_REMOVE"] = {
+		StaticPopupDialogs["EXRT_EXCD_PROFILES_REMOVE"] = {
 			text = L.ProfilesDeleteAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
 			OnAccept = function()
-				VART.ExCD2.Profiles.List[name] = nil
+				VMRT.ExCD2.Profiles.List[name] = nil
 				profilesTab:UpdateAutoTexts()
 			end,
 			timeout = 0,
@@ -10403,7 +10403,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_EXCD_PROFILES_REMOVE")
+		StaticPopup_Show("EXRT_EXCD_PROFILES_REMOVE")
 	end
 	profilesTab.deleteText = ELib:Text(profilesTab,L.ProfilesDelete,11):Size(605,200):Point(15,-160+12):Top()
 	profilesTab.deleteDropDown = ELib:DropDown(profilesTab,220,10):Point(10,-160):Size(235)
@@ -10413,7 +10413,7 @@ function module.options:Load()
 			DeleteProfile(arg1)
 		end)
 		for i=#self.List,1,-1 do
-			if self.List[i].arg1 == VART.ExCD2.Profiles.Now then
+			if self.List[i].arg1 == VMRT.ExCD2.Profiles.Now then
 				tremove(self.List, i)
 			elseif self.List[i].arg1 == "default" then
 				tremove(self.List, i)
@@ -10422,14 +10422,14 @@ function module.options:Load()
 	end
 
 
-	profilesTab.importWindow, profilesTab.exportWindow = EART.F.CreateImportExportWindows()
+	profilesTab.importWindow, profilesTab.exportWindow = ExRT.F.CreateImportExportWindows()
 
 	function profilesTab.importWindow:ImportFunc(str)
-		local headerLen = str:sub(1,4) == "EART" and 8 or 7
+		local headerLen = str:sub(1,4) == "EXRT" and 8 or 7
 
 		local header = str:sub(1,headerLen)
-		if (header:sub(1,headerLen-1) ~= "EARTCDP" and header:sub(1,headerLen-1) ~= "ARTCDP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
-			StaticPopupDialogs["EART_EXCD_IMPORT"] = {
+		if (header:sub(1,headerLen-1) ~= "EXRTCDP" and header:sub(1,headerLen-1) ~= "MRTCDP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+			StaticPopupDialogs["EXRT_EXCD_IMPORT"] = {
 				text = "|cffff0000"..ERROR_CAPS.."|r "..L.ProfilesFail3,
 				button1 = OKAY,
 				timeout = 0,
@@ -10437,7 +10437,7 @@ function module.options:Load()
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-			StaticPopup_Show("EART_EXCD_IMPORT")
+			StaticPopup_Show("EXRT_EXCD_IMPORT")
 			return
 		end
 
@@ -10459,12 +10459,12 @@ function module.options:Load()
 	}
 	function profilesTab:ProfileToText()
 		local new = {}
-		for key,val in pairs(VART.ExCD2) do
+		for key,val in pairs(VMRT.ExCD2) do
 			if not IGNORE_PROFILE_KEYS[key] then
 				new[key] = val
 			end
 		end
-		local strlist = EART.F.TableToText(new)
+		local strlist = ExRT.F.TableToText(new)
 		strlist[1] = "0,"..strlist[1]
 		local str = table.concat(strlist)
 
@@ -10472,11 +10472,11 @@ function module.options:Load()
 		if #str < 1000000 then
 			compressed = LibDeflate:CompressDeflate(str,{level = 5})
 		end
-		local encoded = "ARTCDP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+		local encoded = "MRTCDP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
 
-		EART.F.dprint("Str len:",#str,"Encoded len:",#encoded)
+		ExRT.F.dprint("Str len:",#str,"Encoded len:",#encoded)
 
-		if EART.isDev then
+		if ExRT.isDev then
 			module.db.exportTable = new
 		end
 		profilesTab.exportWindow.Edit:SetText(encoded)
@@ -10520,7 +10520,7 @@ function module.options:Load()
 			["OptFav"] = true,
 		}
 		for k,v in pairs(KeysToErase) do
-			res[k] = VART.ExCD2[k]
+			res[k] = VMRT.ExCD2[k]
 		end
 	end
 
@@ -10537,17 +10537,17 @@ function module.options:Load()
 		local _,tableData = strsplit(",",decompressed,2)
 		decompressed = nil
 
-		local successful, res = pcall(EART.F.TextToTable,tableData)
-		if EART.isDev then
+		local successful, res = pcall(ExRT.F.TextToTable,tableData)
+		if ExRT.isDev then
 			module.db.lastImportDB = res
 			if module.db.exportTable and type(res)=="table" then
 				module.db.diffTable = {}
-				print("Compare table",EART.F.table_compare(res,module.db.exportTable,module.db.diffTable))
+				print("Compare table",ExRT.F.table_compare(res,module.db.exportTable,module.db.diffTable))
 			end
 		end
 		if successful and res then
 			profilesTab:LockedFilter(res)
-			StaticPopupDialogs["EART_EXCD_IMPORT"] = {
+			StaticPopupDialogs["EXRT_EXCD_IMPORT"] = {
 				text = L.cd2ProfileRewriteAlert,
 				button1 = APPLY,
 				button2 = L.cd2ImportOnlyVisual,
@@ -10555,32 +10555,32 @@ function module.options:Load()
 				button4 = CANCEL,
 				selectCallbackByIndex = true,
 				OnButton1 = function()
-					local saved = profilesTab:SaveDataFilter(VART.ExCD2)
-					EART.F.table_rewrite(VART.ExCD2,res)
-					saved:Restore(VART.ExCD2)
+					local saved = profilesTab:SaveDataFilter(VMRT.ExCD2)
+					ExRT.F.table_rewrite(VMRT.ExCD2,res)
+					saved:Restore(VMRT.ExCD2)
 					module:ReloadProfile()
 					res = nil
 				end,
 				OnButton2 = function()
 					profilesTab:OnlyVisualFilter(res)
-					local saved = profilesTab:SaveDataFilter(VART.ExCD2)
-					EART.F.table_rewrite(VART.ExCD2,res)
-					saved:Restore(VART.ExCD2)
+					local saved = profilesTab:SaveDataFilter(VMRT.ExCD2)
+					ExRT.F.table_rewrite(VMRT.ExCD2,res)
+					saved:Restore(VMRT.ExCD2)
 					module:ReloadProfile()
 					res = nil
 				end,
 				OnButton3 = function()
-					EART.F.ShowInput(L.ProfilesNewProfile,function(_,name)
-						if name == "" or VART.ExCD2.Profiles.List[name] or name == "default" or name == VART.ExCD2.Profiles.Now then
+					ExRT.F.ShowInput(L.ProfilesNewProfile,function(_,name)
+						if name == "" or VMRT.ExCD2.Profiles.List[name] or name == "default" or name == VMRT.ExCD2.Profiles.Now then
 							res = nil
 							return
 						end
-						VART.ExCD2.Profiles.List[name] = res
+						VMRT.ExCD2.Profiles.List[name] = res
 						module:SelectProfile(name)
 						res = nil
 					end,nil,nil,nil,function(self)
 						local name = self:GetText()
-						if name == "" or VART.ExCD2.Profiles.List[name] or name == "default" or name == VART.ExCD2.Profiles.Now then
+						if name == "" or VMRT.ExCD2.Profiles.List[name] or name == "default" or name == VMRT.ExCD2.Profiles.Now then
 							self:GetParent().OK:Disable()
 						else
 							self:GetParent().OK:Enable()
@@ -10596,7 +10596,7 @@ function module.options:Load()
 				preferredIndex = 3,
 			}
 		else
-			StaticPopupDialogs["EART_EXCD_IMPORT"] = {
+			StaticPopupDialogs["EXRT_EXCD_IMPORT"] = {
 				text = L.ProfilesFail1..(res and "\nError code: "..res or ""),
 				button1 = OKAY,
 				timeout = 0,
@@ -10606,7 +10606,7 @@ function module.options:Load()
 			}
 		end
 
-		StaticPopup_Show("EART_EXCD_IMPORT")
+		StaticPopup_Show("EXRT_EXCD_IMPORT")
 	end
 
 
@@ -10617,9 +10617,9 @@ function module.options:Load()
 			return
 		end
 		local prefix
-		if profileName == VART.ExCD2.Profiles.Now then
+		if profileName == VMRT.ExCD2.Profiles.Now then
 			prefix = "|cff00ff00"
-		elseif not VART.ExCD2.Profiles.List[profileName] then
+		elseif not VMRT.ExCD2.Profiles.List[profileName] then
 			prefix = "|cffff0000"
 		end
 		if profileName == "default" then
@@ -10628,21 +10628,21 @@ function module.options:Load()
 		return (prefix or "")..profileName
 	end
 	function profilesTab:UpdateAutoTexts()
-		self.autoRaidDown:SetText(GetTextProfileName(VART.ExCD2.Profiles.Raid) or "|cff999999"..L.cd2DontChange)
-		self.autoDungDown:SetText(GetTextProfileName(VART.ExCD2.Profiles.Dung) or "|cff999999"..L.cd2DontChange)
-		self.autoArenaDown:SetText(GetTextProfileName(VART.ExCD2.Profiles.Arena) or "|cff999999"..L.cd2DontChange)
-		self.autoBGDown:SetText(GetTextProfileName(VART.ExCD2.Profiles.BG) or "|cff999999"..L.cd2DontChange)
-		self.autoOtherDown:SetText(GetTextProfileName(VART.ExCD2.Profiles.Other) or "|cff999999"..L.cd2DontChange)
+		self.autoRaidDown:SetText(GetTextProfileName(VMRT.ExCD2.Profiles.Raid) or "|cff999999"..L.cd2DontChange)
+		self.autoDungDown:SetText(GetTextProfileName(VMRT.ExCD2.Profiles.Dung) or "|cff999999"..L.cd2DontChange)
+		self.autoArenaDown:SetText(GetTextProfileName(VMRT.ExCD2.Profiles.Arena) or "|cff999999"..L.cd2DontChange)
+		self.autoBGDown:SetText(GetTextProfileName(VMRT.ExCD2.Profiles.BG) or "|cff999999"..L.cd2DontChange)
+		self.autoOtherDown:SetText(GetTextProfileName(VMRT.ExCD2.Profiles.Other) or "|cff999999"..L.cd2DontChange)
 
 		for _,dd in pairs({self.autoSpec1Down,self.autoSpec2Down,self.autoSpec3Down,self.autoSpec4Down}) do
-			dd:SetText(GetTextProfileName(VART.ExCD2.Profiles[dd.OptKey]) or "|cff999999"..L.cd2DontChange)
+			dd:SetText(GetTextProfileName(VMRT.ExCD2.Profiles[dd.OptKey]) or "|cff999999"..L.cd2DontChange)
 		end
 	end
 
 	local function AutoDropDown_ToggleUpadte(self)
 		local func = function(_,arg1)
 			ELib:DropDownClose()
-			VART.ExCD2.Profiles[self.OptKey] = arg1
+			VMRT.ExCD2.Profiles[self.OptKey] = arg1
 			profilesTab:UpdateAutoTexts()
 		end
 		self.List = GetCurrentProfilesList(func)
@@ -10699,7 +10699,7 @@ function module.options:Load()
 		for i=1,4 do
 			local _, name = GetSpecializationInfo(i)
 			--if not name then
-			--	_, name = EART.Classic.GetSpecializationInfoByID(EART.GDB.ClassSpecializationList[class][i])
+			--	_, name = ExRT.Classic.GetSpecializationInfoByID(ExRT.GDB.ClassSpecializationList[class][i])
 			--end
 			if name then
 				profilesTab["autoSpec"..i.."Down"]:AddText(name,11,function(self)self:NewPoint("TOPLEFT",'x',5,12):Color(1,.82,0,1) end)
@@ -10715,22 +10715,22 @@ function module.options:Load()
 	--> Other setts
 	self.optSetTab = ELib:OneTab(self.tab.tabs[2],L.cd2OtherSet):Size(652,34):Point("TOP",0,-532)
 
-	self.chkSplit = ELib:Check(self.optSetTab,L.cd2split,VART.ExCD2.SplitOpt):Point("LEFT",10,0):Tooltip(L.cd2splittooltip):OnClick(function(self,event)
+	self.chkSplit = ELib:Check(self.optSetTab,L.cd2split,VMRT.ExCD2.SplitOpt):Point("LEFT",10,0):Tooltip(L.cd2splittooltip):OnClick(function(self,event)
 		if self:GetChecked() then
-			VART.ExCD2.SplitOpt = true
+			VMRT.ExCD2.SplitOpt = true
 		else
-			VART.ExCD2.SplitOpt = nil
+			VMRT.ExCD2.SplitOpt = nil
 		end
 		module:UpdateLockState()
 		module:SplitExCD2Window()
 		module:ReloadAllSplits()
 	end)
 
-	self.chkNoRaid = ELib:Check(self.optSetTab,L.cd2noraid,VART.ExCD2.NoRaid):Point("LEFT",165,0):OnClick(function(self,event)
+	self.chkNoRaid = ELib:Check(self.optSetTab,L.cd2noraid,VMRT.ExCD2.NoRaid):Point("LEFT",165,0):OnClick(function(self,event)
 		if self:GetChecked() then
-			VART.ExCD2.NoRaid = true
+			VMRT.ExCD2.NoRaid = true
 		else
-			VART.ExCD2.NoRaid = nil
+			VMRT.ExCD2.NoRaid = nil
 		end
 		module:UpdateRoster()
 	end)
@@ -10747,17 +10747,17 @@ function module.options:Load()
 
 	self.butResetToDef = ELib:Button(self.optSetTab,L.cd2OtherSetReset):Size(160,20):Point("LEFT",480,0):Tooltip(L.cd2HelpButtonDefault):OnClick(function()
 		local tabSelected = module.options.optColTabs.selected
-		StaticPopupDialogs["EART_EXCD_DEFAULT"] = {
+		StaticPopupDialogs["EXRT_EXCD_DEFAULT"] = {
 			text = L.cd2OtherSetReset,
 			button1 = L.YesText,
 			button2 = L.NoText,
 			OnAccept = function()
-				if not VART.ExCD2.colSet[tabSelected] then
-					VART.ExCD2.colSet[tabSelected] = {}
+				if not VMRT.ExCD2.colSet[tabSelected] then
+					VMRT.ExCD2.colSet[tabSelected] = {}
 				end
-				table_wipe2(VART.ExCD2.colSet[tabSelected])
+				table_wipe2(VMRT.ExCD2.colSet[tabSelected])
 				for optName,optVal in pairs(module.db.colsInit) do
-					VART.ExCD2.colSet[tabSelected][optName] = optVal
+					VMRT.ExCD2.colSet[tabSelected][optName] = optVal
 				end
 
 				module.options.selectColumnTab(self.optColTabs.tabs[tabSelected].button)
@@ -10768,7 +10768,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_EXCD_DEFAULT")
+		StaticPopup_Show("EXRT_EXCD_DEFAULT")
 	end) 
 
 
@@ -10784,10 +10784,10 @@ function module.options:Load()
 		table_wipe2(historyBoxUpdateTable)
 		local count = 0
 		for i=1,#module.db.historyUsage do
-			if VART.ExCD2.CDE[module.db.historyUsage[i][2]] then
+			if VMRT.ExCD2.CDE[module.db.historyUsage[i][2]] then
 				count = count + 1
 			end
-			if count >= v and VART.ExCD2.CDE[module.db.historyUsage[i][2]] then
+			if count >= v and VMRT.ExCD2.CDE[module.db.historyUsage[i][2]] then
 				local tm = date("%X",module.db.historyUsage[i][1])
 				local bosshpstr = module.db.historyUsage[i][4] and format(" (%d:%.2d)",module.db.historyUsage[i][4]/60,module.db.historyUsage[i][4]%60) or ""
 				local spellName,_,spellIcon = GetSpellInfo(module.db.historyUsage[i][2])
@@ -10805,7 +10805,7 @@ function module.options:Load()
 		historyBoxUpdate(1)
 		local count = 0
 		for i=1,#module.db.historyUsage do
-			if VART.ExCD2.CDE[module.db.historyUsage[i][2]] then
+			if VMRT.ExCD2.CDE[module.db.historyUsage[i][2]] then
 				count = count + 1
 			end
 		end
@@ -10813,7 +10813,7 @@ function module.options:Load()
 		module.options.historyBox.ScrollBar:UpdateButtons()
 	end)
 	self.historyBox.ScrollBar:SetScript("OnValueChanged",function (self,val)
-		val = EART.F.Round(val)
+		val = ExRT.F.Round(val)
 		historyBoxUpdate(val)
 		self:UpdateButtons()
 	end)
@@ -10827,8 +10827,8 @@ function module.options:Load()
 			[3] = { ButtonPos = { x = 500,	y = -550 },  	HighLightBox = { x = 490, y = -560, width = 160, height = 30 },		ToolTipDir = "LEFT",	ToolTipText = L.cd2HelpButtonDefault },
 		},
 	}
-	if not EART.isClassic then
-		self.HELPButton = EART.lib.CreateHelpButton(self.tab.tabs[2],self.HelpPlate,self.tab)
+	if not ExRT.isClassic then
+		self.HELPButton = ExRT.lib.CreateHelpButton(self.tab.tabs[2],self.HelpPlate,self.tab)
 		self.HELPButton:SetPoint("LEFT",self.title,"RIGHT",20,-2)
 	end
 
@@ -10886,7 +10886,7 @@ local function IconGlowNoLibStart(self)
 	elseif iconGlowType == 3 then
 		return LCG.PixelGlow_Start(self)
 	elseif iconGlowType == 4 then
-		return EART.NULLfunc(self)
+		return ExRT.NULLfunc(self)
 	end
 end
 
@@ -10903,7 +10903,7 @@ local function IconGlowNoLibStop(self)
 	elseif iconGlowType == 3 then
 		return LCG.PixelGlow_Stop(self)
 	elseif iconGlowType == 4 then
-		return EART.NULLfunc(self)
+		return ExRT.NULLfunc(self)
 	end
 end
 
@@ -10928,7 +10928,7 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	if currColOpt.ATF then
 		linesTotal = 150
 	end
-	if VART.ExCD2.SplitOpt then 
+	if VMRT.ExCD2.SplitOpt then 
 		columnFrame.Gheight = columnFrame.iconSize*linesShown+frameBetweenLines*(linesShown-1)
 		columnFrame:SetHeight(columnFrame.iconSize*linesShown+frameBetweenLines*(linesShown-1)) 
 	elseif not currColOpt.ATF then
@@ -10967,9 +10967,9 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	columnFrame:SetAlpha(frameAlpha/100) 
 
 	local frameScale = (not currColOpt.frameGeneral and currColOpt.frameScale) or (currColOpt.frameGeneral and generalOpt.frameScale) or defOpt.frameScale
-	if VART.ExCD2.SplitOpt then 
+	if VMRT.ExCD2.SplitOpt then 
 		if argScaleFix == "ScaleFix" then
-			EART.F.SetScaleFix(columnFrame,frameScale/100)
+			ExRT.F.SetScaleFix(columnFrame,frameScale/100)
 		else
 			columnFrame:SetScale(frameScale/100) 
 		end
@@ -10996,8 +10996,8 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	columnFrame.optionTimeLineAnimation = (not currColOpt.methodsGeneral and currColOpt.methodsTimeLineAnimation) or (currColOpt.methodsGeneral and generalOpt.methodsTimeLineAnimation) or defOpt.methodsTimeLineAnimation
 	columnFrame.optionCooldown = (not currColOpt.iconGeneral and currColOpt.methodsCooldown) or (currColOpt.iconGeneral and generalOpt.methodsCooldown)
 	columnFrame.optionCooldownHideNumbers = (not currColOpt.iconGeneral and currColOpt.iconCooldownHideNumbers) or (currColOpt.iconGeneral and generalOpt.iconCooldownHideNumbers)
-	columnFrame.optionCooldownUseEART = (not currColOpt.iconGeneral and currColOpt.iconCooldownEARTNumbers) or (currColOpt.iconGeneral and generalOpt.iconCooldownEARTNumbers)
-		if columnFrame.optionCooldownUseEART then columnFrame.optionCooldownHideNumbers = true end
+	columnFrame.optionCooldownUseExRT = (not currColOpt.iconGeneral and currColOpt.iconCooldownExRTNumbers) or (currColOpt.iconGeneral and generalOpt.iconCooldownExRTNumbers)
+		if columnFrame.optionCooldownUseExRT then columnFrame.optionCooldownHideNumbers = true end
 	columnFrame.optionCooldownShowSwipe = (not currColOpt.iconGeneral and currColOpt.iconCooldownShowSwipe) or (currColOpt.iconGeneral and generalOpt.iconCooldownShowSwipe)
 	columnFrame.optionIconName = (not currColOpt.textGeneral and currColOpt.textIconName) or (currColOpt.textGeneral and generalOpt.textIconName)
 	columnFrame.optionHideSpark = (not currColOpt.textureGeneral and currColOpt.textureHideSpark) or (currColOpt.textureGeneral and generalOpt.textureHideSpark)
@@ -11015,12 +11015,12 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	elseif LCG and iconGlowType == 3 then
 		glowStart, glowStop = LCG.PixelGlow_Start, LCG.PixelGlow_Stop
 	elseif LCG and iconGlowType == 4 then
-		glowStart, glowStop = EART.NULLfunc, EART.NULLfunc
+		glowStart, glowStop = ExRT.NULLfunc, ExRT.NULLfunc
 	elseif not LCG then
 		glowStart, glowStop = IconGlowNoLibStart, IconGlowNoLibStop
 	end
-	columnFrame.glowStart = glowStart or EART.NULLfunc
-	columnFrame.glowStop = glowStop or EART.NULLfunc
+	columnFrame.glowStart = glowStart or ExRT.NULLfunc
+	columnFrame.glowStop = glowStop or ExRT.NULLfunc
 
 	columnFrame.methodsIconTooltip = (not currColOpt.methodsGeneral and currColOpt.methodsIconTooltip) or (currColOpt.methodsGeneral and generalOpt.methodsIconTooltip) 
 	columnFrame.methodsLineClick = (not currColOpt.methodsGeneral and currColOpt.methodsLineClick) or (currColOpt.methodsGeneral and generalOpt.methodsLineClick)
@@ -11210,11 +11210,11 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 
 		local framePriorOpt
 		if currColOpt.ATFFramePrior then
-			local new = EART.F.table_find3(module.db.rframes, currColOpt.ATFFramePrior, "name")
+			local new = ExRT.F.table_find3(module.db.rframes, currColOpt.ATFFramePrior, "name")
 			if new then
 				new = new.opts
 
-				framePriorOpt = EART.F.table_copy2(module.db.rframes_def)
+				framePriorOpt = ExRT.F.table_copy2(module.db.rframes_def)
 
 				for j=#new,1,-1 do
 					tinsert(framePriorOpt,1,new[j])
@@ -11289,7 +11289,7 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 				colLine.ATFanchored = nil
 			else
 				local inLine = (n-1) % frameColumns
-				line = EART.F.Round( ((n-1) - inLine) / frameColumns )
+				line = ExRT.F.Round( ((n-1) - inLine) / frameColumns )
 				if frameAnchorTopBottomCol then
 					inLine = floor((n-1) / linesShown)
 					line = (n-1) % linesShown
@@ -11316,7 +11316,7 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 		end
 	end
 
-	if currColOpt.enabled and VART.ExCD2.enabled then
+	if currColOpt.enabled and VMRT.ExCD2.enabled then
 		columnFrame.optionIsEnabled = true
 		columnFrame:Show()
 	else
@@ -11326,7 +11326,7 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	if currColOpt.ATF then
 		columnFrame:ClearAllPoints()
 		columnFrame:SetPoint("LEFT",UIParent,"RIGHT",-2000, 0)
-	elseif not VART.ExCD2.SplitOpt and mainWidth then
+	elseif not VMRT.ExCD2.SplitOpt and mainWidth then
 		columnFrame:ClearAllPoints()
 		columnFrame:SetPoint("TOPLEFT",module.frame,mainWidth, 0)
 	else
@@ -11359,11 +11359,11 @@ function module:ReloadAllSplits(argScaleFix)
 	local Width = 0
 	local maxHeight = 0
 
-	local generalOpt = VART.ExCD2.colSet[module.db.maxColumns+1]
+	local generalOpt = VMRT.ExCD2.colSet[module.db.maxColumns+1]
 	local defOpt = module.db.colsDefaults
 	for i=1,module.db.maxColumns do 
 		local columnFrame = module.frame.colFrame[i]
-		local currColOpt = VART.ExCD2.colSet[i]
+		local currColOpt = VMRT.ExCD2.colSet[i]
 
 		module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,Width,argScaleFix)
 
@@ -11378,7 +11378,7 @@ function module:ReloadAllSplits(argScaleFix)
 	module.frame:SetHeight(maxHeight)
 	module.frame:SetAlpha((generalOpt.frameAlpha or defOpt.frameAlpha)/100)
 	if argScaleFix == "ScaleFix" then
-		EART.F.SetScaleFix(module.frame,(generalOpt.frameScale or defOpt.frameScale)/100)
+		ExRT.F.SetScaleFix(module.frame,(generalOpt.frameScale or defOpt.frameScale)/100)
 	else
 		module.frame:SetScale((generalOpt.frameScale or defOpt.frameScale)/100) 
 	end
@@ -11392,7 +11392,7 @@ function module:ReloadAllSplits(argScaleFix)
 end
 
 function module:SplitExCD2Window()
-	if VART.ExCD2.SplitOpt then
+	if VMRT.ExCD2.SplitOpt then
 		for i=1,module.db.maxColumns do 
 			module.frame.colFrame[i]:SetParent(UIParent)
 			module.frame.colFrame[i]:EnableMouse(false)
@@ -11401,30 +11401,30 @@ function module:SplitExCD2Window()
 	else
 		for i=1,module.db.maxColumns do 
 			module.frame.colFrame[i]:SetParent(module.frame)
-			EART.F.LockMove(module.frame.colFrame[i],nil,module.frame.colFrame[i].lockTexture)
-			EART.lib.AddShadowComment(module.frame.colFrame[i],1)
+			ExRT.F.LockMove(module.frame.colFrame[i],nil,module.frame.colFrame[i].lockTexture)
+			ExRT.lib.AddShadowComment(module.frame.colFrame[i],1)
 		end
 		module.frame:Show()
 	end
 end
 
 function module:UpdateLockState()
-	if VART.ExCD2.lock then
-		EART.F.LockMove(module.frame,nil,module.frame.texture)
-		EART.lib.AddShadowComment(module.frame,1)
-		if VART.ExCD2.SplitOpt then 
+	if VMRT.ExCD2.lock then
+		ExRT.F.LockMove(module.frame,nil,module.frame.texture)
+		ExRT.lib.AddShadowComment(module.frame,1)
+		if VMRT.ExCD2.SplitOpt then 
 			for i=1,module.db.maxColumns do 
-				EART.F.LockMove(module.frame.colFrame[i],nil,module.frame.colFrame[i].lockTexture)
-				EART.lib.AddShadowComment(module.frame.colFrame[i],1)
+				ExRT.F.LockMove(module.frame.colFrame[i],nil,module.frame.colFrame[i].lockTexture)
+				ExRT.lib.AddShadowComment(module.frame.colFrame[i],1)
 			end 
 		end
 	else
-		EART.F.LockMove(module.frame,true,module.frame.texture)
-		EART.lib.AddShadowComment(module.frame,nil,L.cd2)
-		if VART.ExCD2.SplitOpt then 
+		ExRT.F.LockMove(module.frame,true,module.frame.texture)
+		ExRT.lib.AddShadowComment(module.frame,nil,L.cd2)
+		if VMRT.ExCD2.SplitOpt then 
 			for i=1,module.db.maxColumns do 
-				EART.F.LockMove(module.frame.colFrame[i],true,module.frame.colFrame[i].lockTexture)
-				EART.lib.AddShadowComment(module.frame.colFrame[i],nil,L.cd2,i,72,"OUTLINE")
+				ExRT.F.LockMove(module.frame.colFrame[i],true,module.frame.colFrame[i].lockTexture)
+				ExRT.lib.AddShadowComment(module.frame.colFrame[i],nil,L.cd2,i,72,"OUTLINE")
 			end 
 		end
 	end
@@ -11452,13 +11452,13 @@ function module:slash(arg1,arg2)
 			end
 		end
 	elseif arg1 == "cd" then
-		if not VART.ExCD2.enabled then
+		if not VMRT.ExCD2.enabled then
 			module:Enable()
 		else
 			module:Disable()
 		end
 		if module.options.chkEnable then
-			module.options.chkEnable:SetChecked(VART.ExCD2.enabled)
+			module.options.chkEnable:SetChecked(VMRT.ExCD2.enabled)
 		end
 	end
 end
@@ -11978,7 +11978,7 @@ module.db.AllSpells = {
 		isTalent=true,cdDiff={296320,"*0.80",336742,"*0.65"},
 		CLEU_SPELL_DAMAGE=[[
 			if spellID == 83381 and critical then
-				local petOwner = EART.F.Pets:getOwnerNameByGUID(sourceGUID)
+				local petOwner = ExRT.F.Pets:getOwnerNameByGUID(sourceGUID)
 				if petOwner and session_gGUIDs[petOwner][339704] then
 					local line = CDList[petOwner][193530]
 					if line then
@@ -15133,7 +15133,7 @@ module.db.AllSpells = {
 		isTalent=true,isCovenant=2},
 }
 
-if EART.isCata then
+if ExRT.isCata then
 	module.db.AllSpells = {
 		{29166,	"DRUID",	1,	{29166,	180,	10}},	--Озарение
 		{20484,	"DRUID",	1,	{20484,	600,	0}},	--BR
@@ -15260,7 +15260,7 @@ if EART.isCata then
 	module.db.spell_startCDbyAuraFade[GetSpellInfo(57934) or "spell:57934"] = GetSpellInfo(57934)		module.db.spell_startCDbyAuraFade[57934] = GetSpellInfo(57934)
 
 	module.db.spell_sharingCD[GetSpellInfo(31884) or "spell:31884"] = {[GetSpellInfo(642) or "spell:642"]=30}
-elseif EART.isLK then
+elseif ExRT.isLK then
 	module.db.AllSpells = {
 		{29166,	"DRUID",	1,	{29166,	180,	20}},	--Озарение
 		{20748,	"DRUID",	1,	{20748,	600,	0}},	--BR
@@ -15372,7 +15372,7 @@ elseif EART.isLK then
 
 	module.db.spell_sharingCD[GetSpellInfo(31884) or "spell:31884"] = {[GetSpellInfo(642) or "spell:642"]=30}
 
-elseif EART.isBC then
+elseif ExRT.isBC then
 	module.db.AllSpells = {
 		{29166,	"DRUID",	1,	{29166,	360,	20}},	--Озарение
 		{20748,	"DRUID",	1,	{20748,	1200,	0}},	--BR
@@ -15424,7 +15424,7 @@ elseif EART.isBC then
 	module.db.spell_resetOtherSpells[GetSpellInfo(11958) or "spell:11958"] = {GetSpellInfo(45438)}
 	module.db.spell_aura_list[GetSpellInfo(45438) or "spell:45438"] = GetSpellInfo(45438)
 
-elseif EART.isClassic then
+elseif ExRT.isClassic then
 	module.db.AllSpells = {
 		{29166,	"DRUID",	1,	{29166,	360,	20}},	--Озарение
 		{20748,	"DRUID",	1,	{20748,	1800,	0}},	--BR

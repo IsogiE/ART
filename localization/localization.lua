@@ -1,9 +1,9 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-local localization = EART.L
-EART.Ldef = localization
+local localization = ExRT.L
+ExRT.Ldef = localization
 
-EART.L = setmetatable({}, {__index=function (t, k)
+ExRT.L = setmetatable({}, {__index=function (t, k)
 	return localization[k] or k
 end})
 
@@ -28,13 +28,13 @@ local L = localization
 
 local GetClassInfo,GetSpecializationInfoByID,EJ_GetEncounterInfo,EJ_GetInstanceInfo = GetClassInfo,GetSpecializationInfoByID,EJ_GetEncounterInfo,EJ_GetInstanceInfo
 
-if EART.isClassic then
-	if not EART.isCata then
-		GetClassInfo = EART.Classic.GetClassInfo
-		EJ_GetEncounterInfo = EART.NULLfunc
-		EJ_GetInstanceInfo = EART.NULLfunc
+if ExRT.isClassic then
+	if not ExRT.isCata then
+		GetClassInfo = ExRT.Classic.GetClassInfo
+		EJ_GetEncounterInfo = ExRT.NULLfunc
+		EJ_GetInstanceInfo = ExRT.NULLfunc
 	end
-	GetSpecializationInfoByID = GetSpecializationInfoForSpecID or EART.Classic.GetSpecializationInfoByID
+	GetSpecializationInfoByID = GetSpecializationInfoForSpecID or ExRT.Classic.GetSpecializationInfoByID
 
 	--Global rewrite
 	if not EXPANSION_NAME7 then EXPANSION_NAME7 = "BFA" end
@@ -292,8 +292,8 @@ local encounterIDtoEJidData = {
 [366]=415,[365]=414,[364]=413,[363]=412,[362]=411,[361]=410,[350]=406,[349]=409,[348]=408,[347]=407,[346]=405,[345]=404,[344]=403,[343]=402,[275]=396,[274]=394,[273]=395,[272]=393,[271]=392,[270]=391,[269]=390,
 [268]=389,[267]=388,[250]=536,[245]=387,[244]=386,[243]=385,[242]=384,[241]=383,[239]=381,[238]=380,[237]=379,[236]=378,[235]=377,[234]=376,[233]=375,[232]=374,[231]=373,[230]=372,[229]=371,[228]=370,[227]=369,
 }
-if EART.GDB then
-	EART.GDB.encounterIDtoEJ = encounterIDtoEJidData
+if ExRT.GDB then
+	ExRT.GDB.encounterIDtoEJ = encounterIDtoEJidData
 end
 
 local encounterIDtoEJidChache = {

@@ -1,16 +1,16 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
 local UnitName, GetRaidTargetIndex, SetRaidTargetIcon = UnitName, GetRaidTargetIndex, SetRaidTargetIcon
 
-local VART = nil
+local VMRT = nil
 
-local module = EART:New("Marks",EART.L.Marks)
-local ELib,L = EART.lib,EART.L
+local module = ExRT:New("Marks",ExRT.L.Marks)
+local ELib,L = ExRT.lib,ExRT.L
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
-	VART.Marks = VART.Marks or {}
-	VART.Marks.list = VART.Marks.list or {}
+	VMRT = _G.VMRT
+	VMRT.Marks = VMRT.Marks or {}
+	VMRT.Marks.list = VMRT.Marks.list or {}
 end
 
 function module:Enable()
@@ -29,7 +29,7 @@ do
 		if tmr > .5 then
 			tmr = 0
 			for i=1,8 do
-				local name = VART.Marks.list[i]
+				local name = VMRT.Marks.list[i]
 				if name and name:find("[, ]") then
 					for subname in name:gmatch("[^, ]+") do
 						if UnitName(subname) then
@@ -51,16 +51,16 @@ function module:SetName(markNum,name)
 	if name == "" then
 		name = nil
 	end
-	VART.Marks.list[markNum] = name
+	VMRT.Marks.list[markNum] = name
 end
 
 function module:GetName(markNum)
-	return VART.Marks.list[markNum]
+	return VMRT.Marks.list[markNum]
 end
 
 function module:ClearNames()
 	for i=1,8 do
-		VART.Marks.list[i] = nil
+		VMRT.Marks.list[i] = nil
 	end
 end
 
@@ -77,12 +77,12 @@ function module.options:Load()
 		if name == "" then
 			name = nil
 		end
-		VART.Marks.list[i] = name
+		VMRT.Marks.list[i] = name
 	end
 
 	self.namesEditBox = {}
 	for i=1,8 do
-		self.namesEditBox[i] = ELib:Edit(self):Size(600,20):Point(45,-65-(i-1)*24):Text(VART.Marks.list[i]):OnChange(MarksEditBoxTextChanged):Tooltip(L.MarksMultiplyNames)
+		self.namesEditBox[i] = ELib:Edit(self):Size(600,20):Point(45,-65-(i-1)*24):Text(VMRT.Marks.list[i]):OnChange(MarksEditBoxTextChanged):Tooltip(L.MarksMultiplyNames)
 		self.namesEditBox[i]._i = i
 		self.namesEditBox[i].icon = ELib:Icon(self.namesEditBox[i],"Interface\\TargetingFrame\\UI-RaidTargetingIcon_"..i,22):Point("RIGHT",self.namesEditBox[i],"LEFT",-5,0)
 	end

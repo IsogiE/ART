@@ -1,23 +1,23 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-local module = EART:New("RaidGroups",EART.L.RaidGroups)
-local ELib,L = EART.lib,EART.L
+local module = ExRT:New("RaidGroups",ExRT.L.RaidGroups)
+local ELib,L = ExRT.lib,ExRT.L
 
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
-local UnitGroupRolesAssigned = UnitGroupRolesAssigned or EART.NULLfunc
+local UnitGroupRolesAssigned = UnitGroupRolesAssigned or ExRT.NULLfunc
 
-local VART = nil
+local VMRT = nil
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
+	VMRT = _G.VMRT
 
-	VART.RaidGroups = VART.RaidGroups or {}
-	VART.RaidGroups.profiles = VART.RaidGroups.profiles or {}
+	VMRT.RaidGroups = VMRT.RaidGroups or {}
+	VMRT.RaidGroups.profiles = VMRT.RaidGroups.profiles or {}
 
-	if not VART.RaidGroups.upd4550 then
-		VART.RaidGroups.KeepPosInGroup = true
-		VART.RaidGroups.upd4550 = true
+	if not VMRT.RaidGroups.upd4550 then
+		VMRT.RaidGroups.KeepPosInGroup = true
+		VMRT.RaidGroups.upd4550 = true
 	end
 
 	module:RegisterSlash()
@@ -77,11 +77,11 @@ function module.options:Load()
 	local function EditOnChange(self,isUser)
 		local name = self:GetText()
 		if name and UnitName(name) then
-			local r,g,b = EART.F.classColorNum(select(2,UnitClass(name)))
+			local r,g,b = ExRT.F.classColorNum(select(2,UnitClass(name)))
 			self:SetTextColor(r,g,b,1)
 			self:ColorBorder()
 		elseif self.preclass then
-			local r,g,b = EART.F.classColorNum(self.preclass)
+			local r,g,b = ExRT.F.classColorNum(self.preclass)
 			self:SetTextColor(r,g,b,1)
 			self:ColorBorder()
 		else
@@ -170,7 +170,7 @@ function module.options:Load()
 			local guildList = {}
 			for i=1, GetNumGuildMembers() do
 				local name, _, rankIndex, level, _, _, _, _, _, _, class = GetGuildRosterInfo(i)
-				if select(2,strsplit("-",name)) == EART.SDB.realmKey then
+				if select(2,strsplit("-",name)) == ExRT.SDB.realmKey then
 					name = strsplit("-",name)
 				end
 				if not inList[name] and (level or 0) >= myLvl then
@@ -295,13 +295,13 @@ function module.options:Load()
 		module:ApplyGroups(list)
 	end) 
 
-	self.keepPosCheck = ELib:Check(self,L.RaidGroupsKeepPosInGroup,VART.RaidGroups.KeepPosInGroup):Point("BOTTOMLEFT",self.processRoster,"BOTTOMRIGHT",5,0):OnClick(function(self) 
+	self.keepPosCheck = ELib:Check(self,L.RaidGroupsKeepPosInGroup,VMRT.RaidGroups.KeepPosInGroup):Point("BOTTOMLEFT",self.processRoster,"BOTTOMRIGHT",5,0):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.RaidGroups.KeepPosInGroup = true
+			VMRT.RaidGroups.KeepPosInGroup = true
 		else
-			VART.RaidGroups.KeepPosInGroup = nil
+			VMRT.RaidGroups.KeepPosInGroup = nil
 		end
-	end):Shown(EART.isClassic)
+	end):Shown(ExRT.isClassic)
 
 	self.presetList = ELib:ScrollList(self):Size(190,505-25):Point("TOPRIGHT",-10,-40):AddDrag()
 	ELib:Text(self,L.RaidGroupsQuickLoad..":"):Point("BOTTOMLEFT",self.presetList,"TOPLEFT",5,3):Color():Shadow()
@@ -310,10 +310,10 @@ function module.options:Load()
 	self.presetList.ButtonRemove:Hide()
 	self.presetList.ButtonRemove:SetSize(8,8)
 	self.presetList.ButtonRemove:SetScript("OnClick",function(self)
-		for i=#VART.RaidGroups.profiles,1,-1 do
-			local entry = VART.RaidGroups.profiles[i]
+		for i=#VMRT.RaidGroups.profiles,1,-1 do
+			local entry = VMRT.RaidGroups.profiles[i]
 			if entry == self.data then
-				tremove(VART.RaidGroups.profiles,i)
+				tremove(VMRT.RaidGroups.profiles,i)
 				break
 			end
 		end
@@ -384,7 +384,7 @@ function module.options:Load()
 		module.options:UpdateNotInList()
 
 		module.options.LAST_CLICK = index
-		if not VART.RaidGroups.SaveCurrent then
+		if not VMRT.RaidGroups.SaveCurrent then
 			module.options.presetList.selected = nil
 		else
 			module.options.CURR_SAVE = data
@@ -417,27 +417,27 @@ function module.options:Load()
 
 		local tmp
 		if obj1.index < obj2.index then
-			for i=#VART.RaidGroups.profiles,1,-1 do
-				if VART.RaidGroups.profiles[i] == data1 then
-					tmp = VART.RaidGroups.profiles[i]
-					VART.RaidGroups.profiles[i] = VART.RaidGroups.profiles[i-1]
-				elseif VART.RaidGroups.profiles[i] == data2 then
-					VART.RaidGroups.profiles[i] = tmp
+			for i=#VMRT.RaidGroups.profiles,1,-1 do
+				if VMRT.RaidGroups.profiles[i] == data1 then
+					tmp = VMRT.RaidGroups.profiles[i]
+					VMRT.RaidGroups.profiles[i] = VMRT.RaidGroups.profiles[i-1]
+				elseif VMRT.RaidGroups.profiles[i] == data2 then
+					VMRT.RaidGroups.profiles[i] = tmp
 					break
 				elseif tmp then
-					VART.RaidGroups.profiles[i] = VART.RaidGroups.profiles[i-1]
+					VMRT.RaidGroups.profiles[i] = VMRT.RaidGroups.profiles[i-1]
 				end
 			end
 		else
-			for i=1,#VART.RaidGroups.profiles do
-				if VART.RaidGroups.profiles[i] == data1 then
-					tmp = VART.RaidGroups.profiles[i]
-					VART.RaidGroups.profiles[i] = VART.RaidGroups.profiles[i+1]
-				elseif VART.RaidGroups.profiles[i] == data2 then
-					VART.RaidGroups.profiles[i] = tmp
+			for i=1,#VMRT.RaidGroups.profiles do
+				if VMRT.RaidGroups.profiles[i] == data1 then
+					tmp = VMRT.RaidGroups.profiles[i]
+					VMRT.RaidGroups.profiles[i] = VMRT.RaidGroups.profiles[i+1]
+				elseif VMRT.RaidGroups.profiles[i] == data2 then
+					VMRT.RaidGroups.profiles[i] = tmp
 					break
 				elseif tmp then
-					VART.RaidGroups.profiles[i] = VART.RaidGroups.profiles[i+1]
+					VMRT.RaidGroups.profiles[i] = VMRT.RaidGroups.profiles[i+1]
 				end
 			end
 		end
@@ -448,8 +448,8 @@ function module.options:Load()
 	function self:UpdateList()
 		local list = {}
 
-		for i=#VART.RaidGroups.profiles,1,-1 do
-			local entry = VART.RaidGroups.profiles[i]
+		for i=#VMRT.RaidGroups.profiles,1,-1 do
+			local entry = VMRT.RaidGroups.profiles[i]
 			list[#list+1] = {entry.name,entry}
 		end
 
@@ -478,7 +478,7 @@ function module.options:Load()
 
 		local new = module.options:CreateCurrentData()
 		new.name = name
-		VART.RaidGroups.profiles[#VART.RaidGroups.profiles+1] = new
+		VMRT.RaidGroups.profiles[#VMRT.RaidGroups.profiles+1] = new
 
 		module.options:UpdateList()
 		module.options:SetCurrentSave(new)
@@ -493,20 +493,20 @@ function module.options:Load()
 		end	
 	end
 
-	self.chkSaveCurrent = ELib:Check(self,L.RaidGroupsSaveCurrent,VART.RaidGroups.SaveCurrent):Point("TOPLEFT",self.presetList,"BOTTOMLEFT",0,-5):Tooltip(L.RaidGroupsSaveCurrentTip):OnClick(function(self) 
+	self.chkSaveCurrent = ELib:Check(self,L.RaidGroupsSaveCurrent,VMRT.RaidGroups.SaveCurrent):Point("TOPLEFT",self.presetList,"BOTTOMLEFT",0,-5):Tooltip(L.RaidGroupsSaveCurrentTip):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.RaidGroups.SaveCurrent = true
+			VMRT.RaidGroups.SaveCurrent = true
 		else
-			VART.RaidGroups.SaveCurrent = nil
+			VMRT.RaidGroups.SaveCurrent = nil
 			module.options:ResetCurrentSave()
 		end
 	end)  
 
 	self.presetListSave = ELib:Button(self,L.RaidGroupsSave):Size(192,20):Point("TOPLEFT",self.chkSaveCurrent,"BOTTOMLEFT",0,-5):OnClick(function(self) 
-		EART.F.ShowInput(L.RaidGroupsEnterName,SaveData,nil,nil,nil,SaveInputOnEdit)		
+		ExRT.F.ShowInput(L.RaidGroupsEnterName,SaveData,nil,nil,nil,SaveInputOnEdit)		
 	end)
 
-	self.importWindow, self.exportWindow = EART.F.CreateImportExportWindows()
+	self.importWindow, self.exportWindow = ExRT.F.CreateImportExportWindows()
 
 	do
 		self.importWindow:SetHeight(180)
@@ -523,7 +523,7 @@ function module.options:Load()
 				c:Enable()
 				if self == c then
 					importWindow.importType = index
-					VART.RaidGroups.importType = index
+					VMRT.RaidGroups.importType = index
 				end
 				index = index + 1
 				c = importWindow["c"..index]
@@ -533,7 +533,7 @@ function module.options:Load()
 		end
 
 		local function CreateButton()
-			local self = ELib:Template("EARTButtonTransparentTemplate",importWindow)
+			local self = ELib:Template("ExRTButtonTransparentTemplate",importWindow)
 			self:SetSize(importWindow:GetWidth()/4,77)
 
 			self.DisabledTexture = self:CreateTexture()
@@ -561,9 +561,9 @@ function module.options:Load()
 
 		importWindow.c4 = CreateButton()
 		importWindow.c4:SetPoint("LEFT",importWindow.c3,"RIGHT",0,0)
-		importWindow.c4:SetText("From EART export string")
+		importWindow.c4:SetText("From ExRT export string")
 
-		local importType = VART.RaidGroups.importType or 4
+		local importType = VMRT.RaidGroups.importType or 4
 		local c = importWindow["c"..importType]
 		if c then
 			c:Click()
@@ -585,7 +585,7 @@ function module.options:Load()
 				c:Enable()
 				if self == c then
 					exportWindow.exportType = index
-					VART.RaidGroups.exportType = index
+					VMRT.RaidGroups.exportType = index
 				end
 				index = index + 1
 				c = exportWindow["c"..index]
@@ -601,7 +601,7 @@ function module.options:Load()
 		end
 
 		local function CreateButton()
-			local self = ELib:Template("EARTButtonTransparentTemplate",exportWindow)
+			local self = ELib:Template("ExRTButtonTransparentTemplate",exportWindow)
 			self:SetSize(exportWindow:GetWidth()/4,77)
 
 			self.DisabledTexture = self:CreateTexture()
@@ -631,7 +631,7 @@ function module.options:Load()
 		exportWindow.c4:SetPoint("LEFT",exportWindow.c3,"RIGHT",0,0)
 		exportWindow.c4:SetText("ART export string")
 
-		local exportType = VART.RaidGroups.exportType or 4
+		local exportType = VMRT.RaidGroups.exportType or 4
 		local c = exportWindow["c"..exportType]
 		if c then
 			c:Disable()
@@ -646,7 +646,7 @@ function module.options:Load()
 		rec.name = name
 		rec.time = time()
 
-		VART.RaidGroups.profiles[#VART.RaidGroups.profiles+1] = rec
+		VMRT.RaidGroups.profiles[#VMRT.RaidGroups.profiles+1] = rec
 
 		module.options:UpdateList()
 		module.options:ResetCurrentSave()
@@ -654,11 +654,11 @@ function module.options:Load()
 
 	function self.importWindow:ImportFunc(str)
 		if self.importType == 4 then
-			local headerLen = str:sub(1,4) == "EART" and 8 or 7
+			local headerLen = str:sub(1,4) == "EXRT" and 8 or 7
 
 			local header = str:sub(1,headerLen)
-			if (header:sub(1,headerLen-1) ~= "EARTRGR" and header:sub(1,headerLen-1) ~= "ARTRGR") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
-				StaticPopupDialogs["EART_RAIDGROUP_IMPORT"] = {
+			if (header:sub(1,headerLen-1) ~= "EXRTRGR" and header:sub(1,headerLen-1) ~= "MRTRGR") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+				StaticPopupDialogs["EXRT_RAIDGROUP_IMPORT"] = {
 					text = "|cffff0000"..ERROR_CAPS.."|r "..L.ProfilesFail3,
 					button1 = OKAY,
 					timeout = 0,
@@ -666,7 +666,7 @@ function module.options:Load()
 					hideOnEscape = true,
 					preferredIndex = 3,
 				}
-				StaticPopup_Show("EART_RAIDGROUP_IMPORT")
+				StaticPopup_Show("EXRT_RAIDGROUP_IMPORT")
 				return
 			end
 	
@@ -700,7 +700,7 @@ function module.options:Load()
 					res[(group-0)*5+posInGroup] = right
 				end
 			end
-			EART.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
+			ExRT.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
 		elseif self.importType == 3 then
 			local res = {}
 
@@ -724,7 +724,7 @@ function module.options:Load()
 					res[(group-1)*5+posInGroup] = left
 				end
 			end
-			EART.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
+			ExRT.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
 		elseif self.importType == 2 then
 			local res = {}
 
@@ -745,7 +745,7 @@ function module.options:Load()
 					end
 				end
 			end
-			EART.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
+			ExRT.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
 		end
 	end
 
@@ -763,18 +763,18 @@ function module.options:Load()
 		local _,tableData = strsplit(",",decompressed,2)
 		decompressed = nil
 	
-		local successful, res = pcall(EART.F.TextToTable,tableData)
-		if EART.isDev then
+		local successful, res = pcall(ExRT.F.TextToTable,tableData)
+		if ExRT.isDev then
 			module.db.lastImportDB = res
 			if module.db.exportTable and type(res)=="table" then
 				module.db.diffTable = {}
-				print("Compare table",EART.F.table_compare(res,module.db.exportTable,module.db.diffTable))
+				print("Compare table",ExRT.F.table_compare(res,module.db.exportTable,module.db.diffTable))
 			end
 		end
 		if successful and res then
-			EART.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
+			ExRT.F.ShowInput(L.RaidGroupsEnterName,SaveDataFromTable,res,nil,nil,SaveInputOnEdit)
 		else
-			StaticPopupDialogs["EART_RAIDGROUP_IMPORT"] = {
+			StaticPopupDialogs["EXRT_RAIDGROUP_IMPORT"] = {
 				text = L.ProfilesFail1..(res and "\nError code: "..res or ""),
 				button1 = OKAY,
 				timeout = 0,
@@ -782,7 +782,7 @@ function module.options:Load()
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-			StaticPopup_Show("EART_RAIDGROUP_IMPORT")
+			StaticPopup_Show("EXRT_RAIDGROUP_IMPORT")
 		end
 	end
 
@@ -821,7 +821,7 @@ function module.options:Load()
 			end
 			exportWindow.Edit:SetText(text)
 		else
-			local strlist = EART.F.TableToText(new)
+			local strlist = ExRT.F.TableToText(new)
 			strlist[1] = "0,"..strlist[1]
 			local str = table.concat(strlist)
 	
@@ -829,11 +829,11 @@ function module.options:Load()
 			if #str < 1000000 then
 				compressed = LibDeflate:CompressDeflate(str,{level = 5})
 			end
-			local encoded = "ARTRGR"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
+			local encoded = "MRTRGR"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
 		
-			EART.F.dprint("Str len:",#str,"Encoded len:",#encoded)
+			ExRT.F.dprint("Str len:",#str,"Encoded len:",#encoded)
 		
-			if EART.isDev then
+			if ExRT.isDev then
 				module.db.exportTable = new
 			end
 			exportWindow.Edit:SetText(encoded)
@@ -915,7 +915,7 @@ function module:ApplyGroups(list)
 	end
 
 	--reports saying that too many swap events can trigger disconnect on classic, unconfirmed cause: other addons or pure swap events
-	if EART.isClassic and not VART.RaidGroups.KeepPosInGroup then
+	if ExRT.isClassic and not VMRT.RaidGroups.KeepPosInGroup then
 		wipe(needPosInGroup)
 	end
 
@@ -1104,8 +1104,8 @@ function module:slash(arg)
 	if arg and arg:find("^raidgroup ") then
 		local name = arg:match("^raidgroup (.-)$")
 		if name then
-			for i=#VART.RaidGroups.profiles,1,-1 do
-				local entry = VART.RaidGroups.profiles[i]
+			for i=#VMRT.RaidGroups.profiles,1,-1 do
+				local entry = VMRT.RaidGroups.profiles[i]
 				if entry.name == name then
 					module:ApplyGroups(entry)
 					return

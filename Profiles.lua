@@ -1,7 +1,7 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-local module = EART:New("Profiles",EART.L.Profiles)
-local ELib,L = EART.lib,EART.L
+local module = ExRT:New("Profiles",ExRT.L.Profiles)
+local ELib,L = ExRT.lib,ExRT.L
 
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
@@ -13,53 +13,53 @@ local MAJOR_KEYS = {
 }
 
 function module:ReselectProfileOnLoad()
-	if VART.ProfileKeys and not VART.ProfileKeys[ EART.SDB.charKey ] then
-		VART.ProfileKeys[ EART.SDB.charKey ] = "default"
+	if VMRT.ProfileKeys and not VMRT.ProfileKeys[ ExRT.SDB.charKey ] then
+		VMRT.ProfileKeys[ ExRT.SDB.charKey ] = "default"
 	end
-	if not VART.ProfileKeys or not VART.ProfileKeys[ EART.SDB.charKey ] or not VART.Profile or not VART.Profiles then
+	if not VMRT.ProfileKeys or not VMRT.ProfileKeys[ ExRT.SDB.charKey ] or not VMRT.Profile or not VMRT.Profiles then
 		return
 	end
-	local charProfile = VART.ProfileKeys[ EART.SDB.charKey ]
-	if charProfile == VART.Profile then
+	local charProfile = VMRT.ProfileKeys[ ExRT.SDB.charKey ]
+	if charProfile == VMRT.Profile then
 		return
 	end
-	if not VART.Profiles[ charProfile ] then
-		VART.ProfileKeys[ EART.SDB.charKey ] = VART.Profile
+	if not VMRT.Profiles[ charProfile ] then
+		VMRT.ProfileKeys[ ExRT.SDB.charKey ] = VMRT.Profile
 		return
 	end
 	local saveDB = {}
-	VART.Profiles[ VART.Profile ] = saveDB
+	VMRT.Profiles[ VMRT.Profile ] = saveDB
 	
-	for key,val in pairs(VART) do
+	for key,val in pairs(VMRT) do
 		if not MAJOR_KEYS[key] then
 			saveDB[key] = val
 		end
 	end
 	
-	for key,val in pairs(VART) do
+	for key,val in pairs(VMRT) do
 		if not MAJOR_KEYS[key] then
-			VART[key] = nil
+			VMRT[key] = nil
 		end
 	end
 	
-	for key,val in pairs( VART.Profiles[ charProfile ] ) do
+	for key,val in pairs( VMRT.Profiles[ charProfile ] ) do
 		if not MAJOR_KEYS[key] then
-			VART[key] = val
+			VMRT[key] = val
 		end
 	end
-	VART.Profiles[ charProfile ] = {}
-	VART.Profile = charProfile
+	VMRT.Profiles[ charProfile ] = {}
+	VMRT.Profile = charProfile
 end
 
 function module.options:Load()
 	local function GetCurrentProfileName()
-		return VART.Profile=="default" and L.ProfilesDefault or VART.Profile
+		return VMRT.Profile=="default" and L.ProfilesDefault or VMRT.Profile
 	end
 	local function GetCurrentProfilesList(func)
 		local list = {
 			{ text = L.ProfilesDefault, func = func, arg1 = "default", _sort = "0" },
 		}
-		for name,_ in pairs(VART.Profiles) do
+		for name,_ in pairs(VMRT.Profiles) do
 			if name ~= "default" then
 				list[#list + 1] = { text = name, func = func, arg1 = name, _sort = "1"..name }
 			end
@@ -68,36 +68,36 @@ function module.options:Load()
 		return list
 	end
 	local function SaveCurrentProfiletoDB()
-		local profileName = VART.Profile or "default"
+		local profileName = VMRT.Profile or "default"
 		local saveDB = {}
-		VART.Profiles[ profileName ] = saveDB
+		VMRT.Profiles[ profileName ] = saveDB
 		
-		for key,val in pairs(VART) do
+		for key,val in pairs(VMRT) do
 			if not MAJOR_KEYS[key] then
 				saveDB[key] = val
 			end
 		end
 	end
 	local function LoadProfileFromDB(profileName,isCopy)
-		local loadDB = VART.Profiles[ profileName ]
+		local loadDB = VMRT.Profiles[ profileName ]
 		if not loadDB then
 			print("Error")
 			return
 		end
 		
-		for key,val in pairs(VART) do
+		for key,val in pairs(VMRT) do
 			if not MAJOR_KEYS[key] then
-				VART[key] = nil
+				VMRT[key] = nil
 			end
 		end
 		for key,val in pairs(loadDB) do
 			if not MAJOR_KEYS[key] then
-				VART[key] = val
+				VMRT[key] = val
 			end
 		end
 		
 		if not isCopy then
-			VART.Profiles[ profileName ] = {}
+			VMRT.Profiles[ profileName ] = {}
 		end
 		
 		ReloadUI()
@@ -118,19 +118,19 @@ function module.options:Load()
 	self.choseNewButton = ELib:Button(self,L.ProfilesAdd):Size(70,20):Point("LEFT",self.choseNew,"RIGHT",0,0):OnClick(function (self)
 		local text = module.options.choseNew:GetText()
 		module.options.choseNew:SetText("")
-		if text == "" or text == "default" or VART.Profiles[text] then
+		if text == "" or text == "default" or VMRT.Profiles[text] then
 			return
 		end
-		VART.Profiles[text] = {}
+		VMRT.Profiles[text] = {}
 		
-		StaticPopupDialogs["EART_PROFILES_ACTIVATE"] = {
+		StaticPopupDialogs["EXRT_PROFILES_ACTIVATE"] = {
 			text = L.ProfilesActivateAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
 			OnAccept = function()
 				SaveCurrentProfiletoDB()
-				VART.Profile = text
-				VART.ProfileKeys[ EART.SDB.charKey ] = text
+				VMRT.Profile = text
+				VMRT.ProfileKeys[ ExRT.SDB.charKey ] = text
 				LoadProfileFromDB(text)
 			end,
 			timeout = 0,
@@ -138,7 +138,7 @@ function module.options:Load()
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_PROFILES_ACTIVATE")
+		StaticPopup_Show("EXRT_PROFILES_ACTIVATE")
 	end)
 	
 	self.choseSelectText = ELib:Text(self,L.ProfilesSelect,11):Size(605,200):Point(335,-158):Top()
@@ -146,12 +146,12 @@ function module.options:Load()
 	
 	local function SelectProfile(_,name)
 		ELib:DropDownClose()
-		if name == VART.Profile then
+		if name == VMRT.Profile then
 			return
 		end
 		SaveCurrentProfiletoDB()
-		VART.Profile = name
-		VART.ProfileKeys[ EART.SDB.charKey ] = name
+		VMRT.Profile = name
+		VMRT.ProfileKeys[ ExRT.SDB.charKey ] = name
 		LoadProfileFromDB(name)
 	end
 	function self.choseSelectDropDown:ToggleUpadte()
@@ -167,7 +167,7 @@ function module.options:Load()
 	function self.copyDropDown:ToggleUpadte()
 		self.List = GetCurrentProfilesList(CopyProfile)
 		for i=1,#self.List do
-			if self.List[i].arg1 == VART.Profile then
+			if self.List[i].arg1 == VMRT.Profile then
 				for j=i,#self.List do
 					self.List[j] = self.List[j+1]
 				end
@@ -178,26 +178,26 @@ function module.options:Load()
 	
 	local function DeleteProfile(_,name)
 		ELib:DropDownClose()
-		StaticPopupDialogs["EART_PROFILES_REMOVE"] = {
+		StaticPopupDialogs["EXRT_PROFILES_REMOVE"] = {
 			text = L.ProfilesDeleteAlert,
 			button1 = L.YesText,
 			button2 = L.NoText,
 			OnAccept = function()
-				VART.Profiles[name] = nil
+				VMRT.Profiles[name] = nil
 			end,
 			timeout = 0,
 			whileDead = true,
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("EART_PROFILES_REMOVE")
+		StaticPopup_Show("EXRT_PROFILES_REMOVE")
 	end
 	self.deleteText = ELib:Text(self,L.ProfilesDelete,11):Size(605,200):Point(15,-258):Top()
 	self.deleteDropDown = ELib:DropDown(self,220,10):Point(10,-270):Size(235)
 	function self.deleteDropDown:ToggleUpadte()
 		self.List = GetCurrentProfilesList(DeleteProfile)
 		for i=1,#self.List do
-			if self.List[i].arg1 == VART.Profile then
+			if self.List[i].arg1 == VMRT.Profile then
 				for j=i,#self.List do
 					self.List[j] = self.List[j+1]
 				end
@@ -214,20 +214,14 @@ function module.options:Load()
 		end
 	end
 
-	module.importWindow, module.exportWindow = EART.F.CreateImportExportWindows()
+	module.importWindow, module.exportWindow = ExRT.F.CreateImportExportWindows()
 
 	function module.importWindow:ImportFunc(str)
-		local headerLen = str:sub(1,4) == "EART" and 6 or (str:sub(1,4) == "EXRT" and 6 or 5)
-	
+		local headerLen = str:sub(1,4) == "EXRT" and 6 or 5
+
 		local header = str:sub(1,headerLen)
-		-- Add MRTP and EXRTP to accepted prefixes
-		if (header:sub(1,headerLen-1) ~= "EARTP" and 
-			header:sub(1,headerLen-1) ~= "ARTP" and 
-			header:sub(1,headerLen-1) ~= "MRTP" and 
-			header:sub(1,headerLen-1) ~= "EXRTP") or 
-			(header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
-			
-			StaticPopupDialogs["EART_PROFILES_IMPORT"] = {
+		if (header:sub(1,headerLen-1) ~= "EXRTP" and header:sub(1,headerLen-1) ~= "MRTP") or (header:sub(headerLen,headerLen) ~= "0" and header:sub(headerLen,headerLen) ~= "1") then
+			StaticPopupDialogs["EXRT_PROFILES_IMPORT"] = {
 				text = "|cffff0000"..ERROR_CAPS.."|r "..L.ProfilesFail3,
 				button1 = OKAY,
 				timeout = 0,
@@ -235,10 +229,10 @@ function module.options:Load()
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-			StaticPopup_Show("EART_PROFILES_IMPORT")
+			StaticPopup_Show("EXRT_PROFILES_IMPORT")
 			return
 		end
-	
+
 		module:TextToProfile(str:sub(headerLen+1),header:sub(headerLen,headerLen)=="0")
 	end
 
@@ -273,7 +267,7 @@ function module.options:Load()
 		end
 		for k,v in pairs(self:GetParent().data) do
 			if keyToIndex[k] then
-				VART[k] = v
+				VMRT[k] = v
 			end
 		end
 		ReloadUI()
@@ -293,11 +287,11 @@ function module.options:Load()
 			end
 		end
 		local name = self:GetParent().name
-		while VART.Profiles[name] do
+		while VMRT.Profiles[name] do
 			name = name .. "*"
 		end
 		print(L.ProfilesAddedText.." |cff00ff00"..name)
-		VART.Profiles[name] = new
+		VMRT.Profiles[name] = new
 		self:GetParent():Hide()
 	end)
 	self.selectReplaceWindow:SetScript("OnHide",function(self)
@@ -326,14 +320,14 @@ function module.options:Load()
 end
 
 function module.main:ADDON_LOADED()
-	if not VART then
+	if not VMRT then
 		return
 	end
-	VART.ProfileKeys = VART.ProfileKeys or {}
-	VART.Profiles = VART.Profiles or {}
-	VART.Profile = VART.Profile or "default"
+	VMRT.ProfileKeys = VMRT.ProfileKeys or {}
+	VMRT.Profiles = VMRT.Profiles or {}
+	VMRT.Profile = VMRT.Profile or "default"
 	
-	VART.ProfileKeys[ EART.SDB.charKey ] = VART.Profile
+	VMRT.ProfileKeys[ ExRT.SDB.charKey ] = VMRT.Profile
 end
 
 
@@ -366,29 +360,24 @@ module.db.EXPORT_FULL_KEYS = {
 
 function module:ProfileToText(isFullExport)
 	local new = {}
-	for key,val in pairs(VART) do
+	for key,val in pairs(VMRT) do
 		if module.db.EXPORT_KEYS[key] or (isFullExport and module.db.EXPORT_FULL_KEYS[key]) then
 			new[key] = val
 		end
 	end
-	local strlist = EART.F.TableToText(new)
-	strlist[1] = (VART.Profile or "default"):sub(1,200):gsub(",","")..","..(EART.isClassic and "1" or "0")..","..strlist[1]
+	local strlist = ExRT.F.TableToText(new)
+	strlist[1] = (VMRT.Profile or "default"):sub(1,200):gsub(",","")..","..(ExRT.isClassic and "1" or "0")..","..strlist[1]
 	local str = table.concat(strlist)
 
 	local compressed
 	if #str < 1000000 then
 		compressed = LibDeflate:CompressDeflate(str,{level = 5})
 	end
-	local encoded
-    if VART.EnableMRTCompatibility then
-        encoded = "MRTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
-    else
-        encoded = "ARTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
-    end
+	local encoded = "MRTP"..(compressed and "1" or "0")..LibDeflate:EncodeForPrint(compressed or str)
 
-	EART.F.dprint("Str len:",#str,"Encoded len:",#encoded)
+	ExRT.F.dprint("Str len:",#str,"Encoded len:",#encoded)
 
-	if EART.isDev then
+	if ExRT.isDev then
 		module.db.exportTable = new
 	end
 	if not module.exportWindow then
@@ -416,17 +405,17 @@ function module:TextToProfile(str,uncompressed)
 	local profileName,clientVersion,tableData = strsplit(",",decompressed,3)
 	decompressed = nil
 
-	if ((clientVersion == "0" and not EART.isClassic) or (clientVersion == "1" and EART.isClassic)) then
-		local successful, res = pcall(EART.F.TextToTable,tableData)
-		if EART.isDev then
+	if ((clientVersion == "0" and not ExRT.isClassic) or (clientVersion == "1" and ExRT.isClassic)) then
+		local successful, res = pcall(ExRT.F.TextToTable,tableData)
+		if ExRT.isDev then
 			module.db.lastImportDB = res
 			if module.db.exportTable and type(res)=="table" then
 				module.db.diffTable = {}
-				print("Compare table",EART.F.table_compare(res,module.db.exportTable,module.db.diffTable))
+				print("Compare table",ExRT.F.table_compare(res,module.db.exportTable,module.db.diffTable))
 			end
 		end
 		if successful and res then
-			StaticPopupDialogs["EART_PROFILES_IMPORT"] = {
+			StaticPopupDialogs["EXRT_PROFILES_IMPORT"] = {
 				text = L.ProfilesNewProfile.." \""..profileName.."\"",
 				button1 = L.ProfilesRewrite,
 				button2 = L.ProfilesSaveAsNew,
@@ -435,7 +424,7 @@ function module:TextToProfile(str,uncompressed)
 				selectCallbackByIndex = true,
 				OnButton1 = function()
 					for k,v in pairs(res) do
-						VART[k] = v
+						VMRT[k] = v
 					end
 					ReloadUI()
 				end,
@@ -444,11 +433,11 @@ function module:TextToProfile(str,uncompressed)
 				end,
 				OnButton2 = function()
 					local name = profileName
-					while VART.Profiles[name] do
+					while VMRT.Profiles[name] do
 						name = name .. "*"
 					end
 					print(L.ProfilesAddedText.." |cff00ff00"..name)
-					VART.Profiles[name] = res
+					VMRT.Profiles[name] = res
 				end,
 				OnButton3 = function()
 					if not module.SelectedReplace then
@@ -465,7 +454,7 @@ function module:TextToProfile(str,uncompressed)
 				preferredIndex = 3,
 			}
 		else
-			StaticPopupDialogs["EART_PROFILES_IMPORT"] = {
+			StaticPopupDialogs["EXRT_PROFILES_IMPORT"] = {
 				text = L.ProfilesFail1..(res and "\nError code: "..res or ""),
 				button1 = OKAY,
 				timeout = 0,
@@ -475,7 +464,7 @@ function module:TextToProfile(str,uncompressed)
 			}
 		end
 	else
-		StaticPopupDialogs["EART_PROFILES_IMPORT"] = {
+		StaticPopupDialogs["EXRT_PROFILES_IMPORT"] = {
 			text = L.ProfilesFail2,
 			button1 = OKAY,
 			timeout = 0,
@@ -485,5 +474,5 @@ function module:TextToProfile(str,uncompressed)
 		}
 	end
 
-	StaticPopup_Show("EART_PROFILES_IMPORT")
+	StaticPopup_Show("EXRT_PROFILES_IMPORT")
 end
