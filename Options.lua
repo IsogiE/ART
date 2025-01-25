@@ -3,15 +3,13 @@ local GlobalAddonName, ART = ...
 ART.Options = {}
 
 local ELib,L = ART.lib,ART.L
-local LSM = LibStub("LibSharedMedia-3.0")
-LSM:Register(LSM.MediaType.FONT, "PT Sans Narrow", [[Interface\Addons\ART\fonts\PTSansNarrow.ttf]])
 
 ------------------------------------------------------------
 --------------- New Options --------------------------------
 ------------------------------------------------------------
 
-local OptionsFrameName = "ARTOptionsFrame"
-local Options = ELib:Template("EARTBWInterfaceFrame",UIParent)
+local OptionsFrameName = "MRTOptionsFrame"
+local Options = ELib:Template("ExRTBWInterfaceFrame",UIParent)
 _G[OptionsFrameName] = Options
 
 ART.Options.Frame = Options
@@ -50,8 +48,8 @@ Options.modulesList.LINE_PADDING_LEFT = 7
 Options.modulesList.LINE_TEXTURE = "Interface\\Addons\\"..GlobalAddonName.."\\media\\White"
 Options.modulesList.LINE_TEXTURE_IGNOREBLEND = true
 Options.modulesList.LINE_TEXTURE_HEIGHT = 24
-Options.modulesList.LINE_TEXTURE_COLOR_HL = {0.1,0.1,0.1,.5}
-Options.modulesList.LINE_TEXTURE_COLOR_P = {0.3,0.1,0.7,.6}
+Options.modulesList.LINE_TEXTURE_COLOR_HL = {1,1,1,.5}
+Options.modulesList.LINE_TEXTURE_COLOR_P = {1,.82,0,.6}
 Options.modulesList.EnableHoverAnimation = true
 
 Options.modulesList.border_right = ELib:Texture(Options.modulesList,.24,.25,.30,1,"BORDER"):Point("TOPLEFT",Options.modulesList,"TOPRIGHT",0,0):Point("BOTTOMRIGHT",Options.modulesList,"BOTTOMRIGHT",1,0)
@@ -65,6 +63,8 @@ Options.modulesList.Frame.ScrollBar.border_right = ELib:Texture(Options.modulesL
 
 Options.Frames = {}
 
+
+
 Options:SetScript("OnShow",function(self)
 	self.modulesList:Update()
 	if Options.CurrentFrame and Options.CurrentFrame.AdditionalOnShow then
@@ -76,17 +76,20 @@ Options:SetScript("OnShow",function(self)
 	end
 end)
 
-function Options:SetPage(page)
-	if Options.CurrentFrame then
+function Options:SetPage(page,dontreload)
+	local isSamePage = Options.CurrentFrame == page
+	if Options.CurrentFrame and (not dontreload or not isSamePage) then
 		Options.CurrentFrame:Hide()
 	end
 	Options.CurrentFrame = page
 
-	if Options.CurrentFrame.AdditionalOnShow then
+	if Options.CurrentFrame.AdditionalOnShow and (not dontreload or not isSamePage) then
 		Options.CurrentFrame:AdditionalOnShow()
 	end
 
-	Options.CurrentFrame:Show()
+	if (not dontreload or not isSamePage) then
+		Options.CurrentFrame:Show()
+	end
 
 	if Options.CurrentFrame.isWide and Options.nowWide ~= Options.CurrentFrame.isWide then
 		local frameWidth = type(Options.CurrentFrame.isWide)=='number' and Options.CurrentFrame.isWide or 850
@@ -99,6 +102,10 @@ function Options:SetPage(page)
 
 	if Options.CurrentFrame.isWide then
 		Options.CurrentFrame:SetWidth(type(Options.CurrentFrame.isWide)=='number' and Options.CurrentFrame.isWide or 850)
+		Options.CurrentFrame._wasWide = true
+	elseif Options.CurrentFrame._wasWide then
+		Options.CurrentFrame:SetWidth(Options.Width-Options.ListWidth)
+		Options.CurrentFrame._wasWide = nil
 	end
 
 	if type(Options.CurrentFrame.OnShow) == 'function' then
@@ -116,6 +123,7 @@ function ART.Options:Add(moduleName,frameName)
 	local self = CreateFrame("Frame",OptionsFrameName..moduleName,Options)
 	self:SetSize(Options.Width-Options.ListWidth,Options.Height-16)
 	self:SetPoint("TOPLEFT",Options.ListWidth,-16)
+	self.moduleName = moduleName
 	
 	local pos = #Options.Frames + 1
 	Options.modulesList.L[pos] = frameName or moduleName
@@ -132,15 +140,32 @@ end
 
 function ART.Options:AddIcon(moduleName,icon)
 	Options.modulesList.IconsRight = Options.modulesList.IconsRight or {}
-	for i=1,#Options.modulesList.L do
-		if Options.modulesList.L[i] == moduleName then
+	for i=1,#Options.Frames do
+		if Options.Frames[i].moduleName == moduleName then
 			Options.modulesList.IconsRight[i] = icon
 			break
 		end
 	end
+	if Options:IsShown() then
+		Options.modulesList:Update()
+	end
+end
+function ART.Options:RemoveIcon(moduleName)
+	if not Options.modulesList.IconsRight then
+		return
+	end
+	for i=1,#Options.Frames do
+		if Options.Frames[i].moduleName == moduleName then
+			Options.modulesList.IconsRight[i] = nil
+			break
+		end
+	end
+	if Options:IsShown() then
+		Options.modulesList:Update()
+	end
 end
 
-local OptionsFrame = ART.Options:Add("Advance Raid Tools","|cffffffffAdvance Raid Tools|r")
+local OptionsFrame = ART.Options:Add("Advance Raid Tools","|cffffa800Advance Raid Tools|r")
 Options.modulesList:SetListValue(1)
 Options.modulesList.selected = 1
 Options.modulesList:Update()
@@ -187,26 +212,26 @@ end)
 ------------------------------------------------------------
 
 Options.scale = ELib:Slider(Options):_Size(70,8):Point("TOPRIGHT",-45,-5):Range(50,200,true):OnShow(function(self)
-	VART.Addon.Scale = tonumber(VART.Addon.Scale or "1") or 1
-	VART.Addon.Scale = max( min( VART.Addon.Scale,2 ),0.5)
+	VMRT.Addon.Scale = tonumber(VMRT.Addon.Scale or "1") or 1
+	VMRT.Addon.Scale = max( min( VMRT.Addon.Scale,2 ),0.5)
 
-	self:SetTo((VART.Addon.Scale or 1)*100):Scale(1 / (VART.Addon.Scale or 1)):OnChange(function(self,event) 
+	self:SetTo((VMRT.Addon.Scale or 1)*100):Scale(1 / (VMRT.Addon.Scale or 1)):OnChange(function(self,event) 
 		if self.disable then
 			self:SetTo(100)
 			self.tooltipText = L.bossmodsscale.."|n100%|n"..L.SetScaleReset
 			return
 		end
 		event = ART.F.Round(event)
-		VART.Addon.Scale = event / 100
-		ART.F.SetScaleFixTR(Options,VART.Addon.Scale)
-		self:SetScale(1 / VART.Addon.Scale)
+		VMRT.Addon.Scale = event / 100
+		ART.F.SetScaleFixTR(Options,VMRT.Addon.Scale)
+		self:SetScale(1 / VMRT.Addon.Scale)
 		self.tooltipText = L.bossmodsscale.."|n"..event.."%|n"..L.SetScaleReset
 		self:tooltipReload(self)
 	end)
 	self:SetScript("OnShow",nil)
-	self.tooltipText = L.bossmodsscale.."|n"..((VART.Addon.Scale or 1) * 100).."%|n"..L.SetScaleReset
-	self:Point("TOPRIGHT",-45 * (VART.Addon.Scale or 1),-5)
-	Options:SetScale(VART.Addon.Scale or 1)
+	self.tooltipText = L.bossmodsscale.."|n"..((VMRT.Addon.Scale or 1) * 100).."%|n"..L.SetScaleReset
+	self:Point("TOPRIGHT",-45 * (VMRT.Addon.Scale or 1),-5)
+	Options:SetScale(VMRT.Addon.Scale or 1)
 end,true)
 
 Options.scale:SetScript("OnMouseDown",function(self,button)
@@ -219,12 +244,12 @@ Options.scale:SetScript("OnMouseUp",function(self,button)
 	if button == "RightButton" then
 		self.disable = nil
 	end
-	self:Point("TOPRIGHT",-45 * (VART.Addon.Scale or 1),-5)
+	self:Point("TOPRIGHT",-45 * (VMRT.Addon.Scale or 1),-5)
 end)
 
 ----> Minimap Icon
 
-local MiniMapIcon = CreateFrame("Button", "LibDBIcon10_MethodRaidTools", Minimap)
+local MiniMapIcon = CreateFrame("Button", "LibDBIcon10_AdvanceRaidTools", Minimap)
 ART.MiniMapIcon = MiniMapIcon
 MiniMapIcon:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight") 
 MiniMapIcon:SetSize(32,32) 
@@ -303,8 +328,8 @@ local function IconMoveButton(self)
 		x, y = x / self:GetEffectiveScale() - centerX, y / self:GetEffectiveScale() - centerY
 		self:ClearAllPoints()
 		self:SetPoint("CENTER", x, y)
-		VART.Addon.IconMiniMapLeft = x
-		VART.Addon.IconMiniMapTop = y
+		VMRT.Addon.IconMiniMapLeft = x
+		VMRT.Addon.IconMiniMapTop = y
 	else
 		local mx, my = Minimap:GetCenter()
 		local px, py = GetCursorPosition()
@@ -329,8 +354,8 @@ local function IconMoveButton(self)
 		end
 		self:ClearAllPoints()
 		self:SetPoint("CENTER", Minimap, "CENTER", x, y)
-		VART.Addon.IconMiniMapLeft = x
-		VART.Addon.IconMiniMapTop = y
+		VMRT.Addon.IconMiniMapLeft = x
+		VMRT.Addon.IconMiniMapTop = y
 	end
 end
 
@@ -359,13 +384,13 @@ local function MiniMapIconOnClick(self, button)
 	end
 end
 
-ART_MinimapClickFunction = function()
+MRT_MinimapClickFunction = function()
 	ART.Options:Open()
 end
 
 MiniMapIcon:SetScript("OnMouseUp", MiniMapIconOnClick)
 
-ART.Options.MiniMapDropdown = CreateFrame("Frame", "ARTMiniMapMenuFrame", nil, "UIDropDownMenuTemplate")
+ART.Options.MiniMapDropdown = CreateFrame("Frame", "MRTMiniMapMenuFrame", nil, "UIDropDownMenuTemplate")
 
 local MinimapMenu_UIDs = {}
 local MinimapMenu_UIDnumeric = 0
@@ -447,6 +472,8 @@ ART.F.menuTable = {
 { text = L.minimapmenuset, func = ART.Options.Open, notCheckable = true, keepShownOnClick = true, },
 { text = " ", isTitle = true, notCheckable = true, notClickable = true },
 { text = " ", isTitle = true, notCheckable = true, notClickable = true },
+{ text = "Profiling", func = function() CloseDropDownMenus() ELib.ScrollDropDown.Close() ART.F:ProfilingWindow() end, notCheckable = true },
+{ text = " ", isTitle = true, notCheckable = true, notClickable = true },
 { text = L.minimapmenuclose, func = function() CloseDropDownMenus() ELib.ScrollDropDown.Close() end, notCheckable = true },
 }
 
@@ -464,7 +491,7 @@ function ART.Options:UpdateModulesList()
 end
 
 ----> Options
-local OptionsFrame_title, OptionsFrame_title2, OptionsFrame_image, OptionsFrame_imagehat
+local OptionsFrame_title, OptionsFrame_image, OptionsFrame_imagehat
 
 function OptionsFrame:AddSnowStorm(maxSnowflake)
 	local sf = OptionsFrame.SnowStorm or CreateFrame("ScrollFrame", nil, Options)
@@ -839,30 +866,51 @@ function OptionsFrame:AddChest(chestType)
 		captured = animated
 		animated.texture = animated:CreateTexture()
 		animated.texture:SetAllPoints()
-		animated.texture:SetTexture([[Interface\AddOns\ART\media\frieren.jpg]])
+		local list = {
+			{img = [[Interface\AddOns\ART\media\frieren.jpg]],w = 256*1.5,h = 256*1.5,s = 0.15,m = 14},
+			{img = [[Interface\AddOns\ART\media\frieren2.jpg]],w = 597 * 0.75,h = 408 * 0.75,s = 0.15},
+			{img = [[Interface\AddOns\ART\media\frieren3.jpg]],w = 1024 * 0.5,h = 576 * 0.5,s = 0.10,m=31,is=8,se={[16]={.6,.9,1,.4},[17]={.12,.52,1,.3},[18]=-1,[19]=-1,[20]={.12,.52,1,.1},[24]={.6,.9,1,.3},[25]={.12,.52,1,.3},[26]={.12,.52,1,.2},[27]={.12,.52,1,.1},[28]={.12,.52,1,.05},[29]=-1}},
+		}
+		local data = list[math.random(1,#list)]
+		animated.texture:SetTexture(data.img)
 		animated:SetFrameStrata("DIALOG")
+
+		animated.specialeffect = animated:CreateTexture(nil,"BACKGROUND")
+		animated.specialeffect:SetAllPoints(UIParent)
+		animated.specialeffect:SetColorTexture(.12,.52,1,0)
 		
 		animated:SetPoint("CENTER")
-		animated:SetSize(256*1.5,256*1.5)
+		animated:SetSize(data.w,data.h)
 		animated.texture:SetTexCoord(0,0.25,0,0.25)
 		
 		animated.frame = 0
-		animated.frame_max = 14
-		animated.tmr = 0
+		animated.frame_max = data.m or 15
+		animated.tmr = 1
 		animated:SetScript("OnUpdate",function(self,elapsed)
 			self.tmr = self.tmr + elapsed
-			if self.tmr > 0.15 then
+			if self.tmr > data.s then
 				self.tmr = 0
 				self.frame = self.frame + 1
 		
 				if self.frame > self.frame_max then
-					self.frame = 1
+					self.frame = 0
 				end
 		
-				local w = self.frame % 4
-				local h = floor(self.frame / 4)
+				local w = self.frame % (data.is or 4)
+				local h = floor(self.frame / (data.is or 4))
 				
-				self.texture:SetTexCoord(w * 0.25,(w + 1) * 0.25,h * 0.25,(h + 1) * 0.25)
+				local ww = 1 / (data.is or 4)
+				self.texture:SetTexCoord(w * ww,(w + 1) * ww,h * 0.25,(h + 1) * 0.25)
+
+				if data.se then
+					local c = data.se[self.frame]
+					if c then
+						if c == -1 then for i=self.frame-1,0,-1 do c = data.se[i] if c~=-1 then break end end end
+						animated.specialeffect:SetColorTexture(unpack(c))
+					else
+						animated.specialeffect:SetColorTexture(0,0,0,0)
+					end	
+				end
 			end
 		end)
 		animated:SetScript("OnClick",function(self)
@@ -888,8 +936,6 @@ function OptionsFrame:AddChest(chestType)
 	chest:RotateTextures(math.pi*2/360*(math.random(0,360)))
 end
 
-
-
 OptionsFrame_image = OptionsFrame:CreateTexture(nil,"ARTWORK")
 
 local p = {[0] = OptionsFrame_image[0]}
@@ -905,6 +951,159 @@ OptionsFrame_image.Point = OptionsFrame_image.SetPoint
 OptionsFrame_title = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\logoname2"):Point("LEFT",OptionsFrame_image,"RIGHT",15,-5):Size(512*0.7,128*0.7)
 OptionsFrame_title2 = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\meeting"):Point("LEFT",OptionsFrame_image,"CENTER",250,-475):Size(512*0.7,256*0.7)
 OptionsFrame_title3 = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\scrapps"):Point("LEFT",OptionsFrame_title2,"LEFT",-325,52):Size(400*0.8,360*0.8)
+
+
+function OptionsFrame:AddWeb()
+	local sf = OptionsFrame.HWWebFrame or CreateFrame("ScrollFrame", nil, Options)
+	OptionsFrame.HWWebFrame = sf
+
+	if not sf.c then
+		sf.c = CreateFrame("Frame", nil, sf) 
+		sf:SetScrollChild(sf.c)
+	
+		sf:SetSize(200,200)
+		sf:SetPoint("TOPRIGHT",0,-16)
+		sf.c:SetSize(200,200)
+	
+		local X,Y = -0,-0
+		local function l(x1,y1,x2,y2)
+			local line = sf.c:CreateLine(nil,"ARTWORK",nil,2)
+			line:SetColorTexture(1,1,1,.4)
+			line:SetStartPoint("TOPRIGHT",x1+X,y1+Y)
+			line:SetEndPoint("TOPRIGHT",x2+X,y2+Y)
+			line:SetThickness(2)
+		end
+		local ANGLE = 5
+		local RADIUS,SPACE,PIES = 160, 20, 18
+		local pie_angle = (360/PIES)
+		for i=0+ANGLE,359,pie_angle do
+			if i >= 180-45 and i <= 270+45 then
+				local x = math.cos(2*math.pi/360*i)*RADIUS
+				local y = math.sin(2*math.pi/360*i)*RADIUS
+				l(0,0,x,y)
+			end
+		end
+		
+		for i=0+ANGLE,359,pie_angle do
+			if i >= 180-45 and i <= 270+45 then
+				for j=RADIUS-10,SPACE,-SPACE do
+					local x1 = math.cos(2*math.pi/360*i)*j
+					local y1 = math.sin(2*math.pi/360*i)*j
+					local x2 = math.cos(2*math.pi/360*(i+pie_angle))*j
+					local y2 = math.sin(2*math.pi/360*(i+pie_angle))*j
+					l(x1,y1,x2,y2)
+				end
+			end
+		end
+	end
+
+	local sf = OptionsFrame.GhostFrame or CreateFrame("ScrollFrame", nil, Options)
+	OptionsFrame.GhostFrame = sf
+	sf:SetPoint("TOPLEFT")
+	sf:SetPoint("BOTTOMRIGHT")
+
+	if not sf.C then
+		sf.C = sf.C or CreateFrame("Frame", nil, sf) 
+		sf:SetScrollChild(sf.C)
+		sf.C:SetSize(Options:GetWidth(),Options:GetHeight())
+
+		sf.g = {}
+		sf.c = 0
+		local function CreateGhost(i,parent,size)
+			if not i then 
+				sf.c = sf.c + 1
+				i = sf.c
+			end
+			if sf.g[i] then
+				sf.g[i]:Show()
+				return sf.g[i]
+			end
+			local f = CreateFrame("Frame",nil,parent)
+			f:SetSize(1,1)
+		
+			f:SetAlpha(.3)
+
+			sf.g[i] = f
+		
+			local function ct(i,x)
+				local g1 = f:CreateTexture(nil, "BACKGROUND",nil,-6)
+				g1:SetTexture(i and "Interface\\AddOns\\ART\\media\\circle256inv" or "Interface\\AddOns\\ART\\media\\circle256")
+				g1:SetVertexColor(1,1,1,1)
+				g1:SetTexCoord(0,1,0,x and 1 or .5)
+				return g1
+			end
+		
+			local s = size / 100
+		
+			local g1 = ct()
+			g1:SetPoint("TOP",0,0)
+			g1:SetSize(130*s,70*s)
+			
+			local g2 = f:CreateTexture(nil, "BACKGROUND",nil,-6)
+			g2:SetColorTexture(1,1,1,1)
+			g2:SetPoint("TOP",g1,"BOTTOM",0,0)
+			g2:SetSize(130*s,200*s)
+			
+			local g3 = ct(true)
+			g3:SetPoint("TOPLEFT",g2,"BOTTOMLEFT",0,0)
+			g3:SetSize(40*s,20*s)
+			
+			local g4 = ct(true)
+			g4:SetPoint("LEFT",g3,"RIGHT",0,0)
+			g4:SetSize(50*s,20*s)
+			
+			local g5 = ct(true)
+			g5:SetPoint("LEFT",g4,"RIGHT",0,0)
+			g5:SetSize(40*s,20*s)
+			
+			local g6 = ct(nil,true)
+			g6:SetVertexColor(0,0,0,1)
+			g6:SetPoint("CENTER",g1,-25*s,-40*s)
+			g6:SetSize(20*s,30*s)
+			
+			local g7 = ct(nil,true)
+			g7:SetVertexColor(0,0,0,1)
+			g7:SetPoint("CENTER",g1,25*s,-40*s)
+			g7:SetSize(20*s,30*s)
+		
+			return f
+		end
+		sf.CreateGhost = CreateGhost
+	end
+
+
+	if not OptionsFrame.hatBut then
+		local hat = CreateFrame("Button",nil,OptionsFrame)  
+		OptionsFrame.hatBut = hat
+		hat:SetAllPoints(OptionsFrame_image) 
+
+		hat:RegisterForClicks("LeftButtonDown","RightButtonDown")
+		hat:SetScript("OnClick",function(self,button) 
+			if button == "RightButton" then
+				sf.c = 0
+				for i=1,#sf.g do sf.g[i]:Hide() end
+				return
+			end
+			local g = sf.CreateGhost(nil,sf.C,30)
+			g:SetPoint("TOPLEFT",math.random(0,Options:GetWidth()),-math.random(0,Options:GetHeight()))
+		end)
+	end
+end
+
+OptionsFrame_image = OptionsFrame:CreateTexture(nil,"ARTWORK")
+
+local p = {[0] = OptionsFrame_image[0]}
+setmetatable(p,getmetatable(OptionsFrame_image))
+OptionsFrame_image[0] = nil
+OptionsFrame_image = p
+
+OptionsFrame_image:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\OptionLogo2")
+OptionsFrame_image:SetPoint("TOPLEFT",15,5)
+OptionsFrame_image:SetSize(140,140)
+OptionsFrame_image.Point = OptionsFrame_image.SetPoint
+
+
+OptionsFrame_title = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\logoname2"):Point("LEFT",OptionsFrame_image,"RIGHT",15,-5):Size(512*0.7,128*0.7)
 
 local askFrame_show
 local pmove_pos = 40
@@ -934,6 +1133,23 @@ OptionsFrame.pmove:SetScript("OnMouseDown",function(self)
 	self.isReverse = false
 	self:SetScript("OnUpdate",pmove_OnUpdate)
 end)
+
+OptionsFrame.animLogo = CreateFrame("Frame",nil,OptionsFrame)
+OptionsFrame.animLogo.g = OptionsFrame.animLogo:CreateAnimationGroup()
+OptionsFrame.animLogo.g:SetLooping("BOUNCE")
+OptionsFrame.animLogo.g:SetScript('OnFinished', function(self) 
+	self.a:SetStartDelay(math.random(4,15))
+	self:Play()
+end)
+OptionsFrame.animLogo.g.a = OptionsFrame.animLogo.g:CreateAnimation()
+OptionsFrame.animLogo.g.a:SetDuration(.5)
+OptionsFrame.animLogo.g.a:SetScript("OnUpdate",function(self)
+	local p = 0.5-abs(0.5-self:GetProgress())
+	if pmove_pos ~= 40 then return end
+	OptionsFrame_image:SetRotation(p*10*PI/180)
+end)
+OptionsFrame.animLogo.g.a:SetStartDelay(4)
+OptionsFrame.animLogo.g:Play()
 
 OptionsFrame_imagehat = ELib:Texture(OptionsFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\OptionLogoHat","OVERLAY"):Point("CENTER",OptionsFrame_image,"CENTER",0,0):Size(140,140):Shown(false)
 
@@ -1007,6 +1223,14 @@ OptionsFrame.dateChecks:SetScript("OnShow",function(self)
 		OptionsFrame_image:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\OptionLogost")
 
 		OptionsFrame:AddDeathStar(nil,2)
+
+		return
+	end
+
+	if (today.month == 10 and today.day >= 30) or (today.month == 11 and today.day <= 1) then
+		OptionsFrame_image:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\OptionLogohw")
+
+		OptionsFrame:AddWeb()
 
 		return
 	end
@@ -1229,43 +1453,37 @@ do
 	end
 end
 
-OptionsFrame.chkIconMiniMap = ELib:Check(OptionsFrame,L.setminimap1):Point(500,-70):OnClick(function(self) 
+OptionsFrame.chkIconMiniMap = ELib:Check(OptionsFrame,L.setminimap1):Point(25,-155):OnClick(function(self) 
 	if self:GetChecked() then
-		VART.Addon.IconMiniMapHide = true
+		VMRT.Addon.IconMiniMapHide = true
 		ART.MiniMapIcon:Hide()
 	else
-		VART.Addon.IconMiniMapHide = nil
+		VMRT.Addon.IconMiniMapHide = nil
 		ART.MiniMapIcon:Show()
 	end
 end)
 OptionsFrame.chkIconMiniMap:SetScript("OnShow", function(self,event) 
-	self:SetChecked(VART.Addon.IconMiniMapHide) 
+	self:SetChecked(VMRT.Addon.IconMiniMapHide) 
 end)
 
-OptionsFrame.chkHideOnEsc = ELib:Check(OptionsFrame,"Check"):Point(500,-40):OnClick(function(self)
+OptionsFrame.chkHideOnEsc = ELib:Check(OptionsFrame,L.SetHideOnESC):Point(350,-155):OnClick(function(self) 
 	if self:GetChecked() then
-		VART.Addon.DisableHideESC = true
+		VMRT.Addon.DisableHideESC = true
 		for i=1,#UISpecialFrames do
-			if UISpecialFrames[i] == "ARTOptionsFrame" then
+			if UISpecialFrames[i] == "MRTOptionsFrame" then
 				tremove(UISpecialFrames, i)
 				break
 			end
 		end
 	else
-		VART.Addon.DisableHideESC = nil
-		tinsert(UISpecialFrames, "ARTOptionsFrame")
+		VMRT.Addon.DisableHideESC = nil
+		tinsert(UISpecialFrames, "MRTOptionsFrame")
 	end
 end)
 OptionsFrame.chkHideOnEsc:SetScript("OnShow", function(self,event) 
-	self:SetChecked(VART.Addon.DisableHideESC) 
+	self:SetChecked(VMRT.Addon.DisableHideESC) 
 end)
 
-OptionsFrame.authorRight = ELib:Text(OptionsFrame,"Authors: Iso & Jaf",12):Size(520,25):Point(190,-100):Color():Shadow():Top()
-
-if L.TranslateBy ~= "" then
-	OptionsFrame.translateLeft = ELib:Text(OptionsFrame,L.SetTranslate,12):Size(150,25):Point("LEFT",OptionsFrame,15,0):Point("TOP",OptionsFrame.thanksRight,"BOTTOM",0,-8):Shadow():Top()
-	OptionsFrame.translateRight = ELib:Text(OptionsFrame,L.TranslateBy,12):Size(520,25):Point("LEFT",OptionsFrame.thanksRight,"LEFT",0,0):Point("TOP",OptionsFrame.translateLeft,0,0):Color():Shadow():Top()
-end
 
 local VersionCheckReqSended = {}
 local function UpdateVersionCheck()
@@ -1318,6 +1536,7 @@ local function UpdateVersionCheck()
 	OptionsFrame.VersionCheck:Update()
 end
 
+OptionsFrame.VersionCheck = ELib:ScrollTableList(OptionsFrame,0,130):Point("TOPLEFT",OptionsFrame.Changelog,"BOTTOMLEFT",0,-3):Size(350,115):HideBorders():OnShow(UpdateVersionCheck,true)
 OptionsFrame.VersionUpdateButton = ELib:Button(OptionsFrame,UPDATE):Point("BOTTOMLEFT",OptionsFrame.VersionCheck,"BOTTOMRIGHT",10,3):Size(100,20):Tooltip(L.OptionsUpdateVerTooltip):OnClick(function()
 	ART.F.SendExMsg("needversion","")
 	C_Timer.After(2,UpdateVersionCheck)
@@ -1340,3 +1559,4 @@ local function CreateDataBrokerPlugin()
 	})
 end
 CreateDataBrokerPlugin()
+

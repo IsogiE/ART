@@ -1,17 +1,17 @@
-local GlobalAddonName, EART = ...
+local GlobalAddonName, ExRT = ...
 
-EART.F.FUNC_FILE_LOADED = true
+ExRT.F.FUNC_FILE_LOADED = true
 
 local UnitName, GetTime, GetCursorPosition, UnitIsUnit = UnitName, GetTime, GetCursorPosition, UnitIsUnit
 local select, floor, tonumber, tostring, string_sub, string_find, string_len, bit_band, type, unpack, pairs, format, strsplit = select, floor, tonumber, tostring, string.sub, string.find, string.len, bit.band, type, unpack, pairs, format, strsplit
 local string_gsub, string_match = string.gsub, string.match
 local RAID_CLASS_COLORS, COMBATLOG_OBJECT_TYPE_MASK, COMBATLOG_OBJECT_CONTROL_MASK, COMBATLOG_OBJECT_REACTION_MASK, COMBATLOG_OBJECT_AFFILIATION_MASK, COMBATLOG_OBJECT_SPECIAL_MASK = RAID_CLASS_COLORS, COMBATLOG_OBJECT_TYPE_MASK, COMBATLOG_OBJECT_CONTROL_MASK, COMBATLOG_OBJECT_REACTION_MASK, COMBATLOG_OBJECT_AFFILIATION_MASK, COMBATLOG_OBJECT_SPECIAL_MASK
-local UnitGroupRolesAssigned = UnitGroupRolesAssigned or EART.NULLfunc
+local UnitGroupRolesAssigned = UnitGroupRolesAssigned or ExRT.NULLfunc
 local GetRaidRosterInfo = GetRaidRosterInfo
 local GetItemInfo, GetItemInfoInstant  = C_Item and C_Item.GetItemInfo or GetItemInfo,  C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
 local GetSpecialization = GetSpecialization
 
-if not GetSpecialization and EART.isClassic then
+if not GetSpecialization and ExRT.isClassic then
 	GetSpecialization = function()
 		local n,m = 1,1
 		for spec=1,3 do
@@ -33,7 +33,7 @@ end
 
 do
 	local antiSpamArr = {}
-	function EART.F.AntiSpam(numantispam,addtime)
+	function ExRT.F.AntiSpam(numantispam,addtime)
 		local t = GetTime()
 		if not antiSpamArr[numantispam] or antiSpamArr[numantispam] < t then
 			antiSpamArr[numantispam] = t + addtime
@@ -42,7 +42,7 @@ do
 			return false
 		end
 	end
-	function EART.F.ResetAntiSpam(numantispam)
+	function ExRT.F.ResetAntiSpam(numantispam)
 		antiSpamArr[numantispam] = nil
 	end
 end
@@ -51,7 +51,7 @@ do
 	--Used GLOBALS: CUSTOM_CLASS_COLORS
 
 	local classColorArray = nil
-	function EART.F.classColor(class)
+	function ExRT.F.classColor(class)
 		classColorArray = type(CUSTOM_CLASS_COLORS)=="table" and CUSTOM_CLASS_COLORS[class] or RAID_CLASS_COLORS[class]
 		if classColorArray and classColorArray.colorStr then
 			return classColorArray.colorStr
@@ -60,7 +60,7 @@ do
 		end
 	end
 
-	function EART.F.classColorNum(class)
+	function ExRT.F.classColorNum(class)
 		classColorArray = type(CUSTOM_CLASS_COLORS)=="table" and CUSTOM_CLASS_COLORS[class] or RAID_CLASS_COLORS[class]
 		if classColorArray then
 			return classColorArray.r,classColorArray.g,classColorArray.b
@@ -69,21 +69,21 @@ do
 		end
 	end
 
-	function EART.F.classColorByGUID(guid)
+	function ExRT.F.classColorByGUID(guid)
 		local class,_ = ""
 		if guid and guid ~= "" and guid ~= "0000000000000000" then
 			_,class = GetPlayerInfoByGUID(guid)
 		end
-		return EART.F.classColor(class)
+		return ExRT.F.classColor(class)
 	end
 end
 
-function EART.F.clearTextTag(text,SpellLinksEnabled)
+function ExRT.F.clearTextTag(text,SpellLinksEnabled)
 	if text then
 		text = string_gsub(text,"|c........","")
 		text = string_gsub(text,"|r","")
 		text = string_gsub(text,"|T.-:0|t ","")
-		text = string_gsub(text,"|HEART:.-|h(.-)|h","%1")
+		text = string_gsub(text,"|HExRT:.-|h(.-)|h","%1")
 		if SpellLinksEnabled then
 			text = string_gsub(text,"|H(spell:.-)|h(.-)|h","|cff71d5ff|H%1|h[%2]|h|r")
 		else
@@ -93,7 +93,7 @@ function EART.F.clearTextTag(text,SpellLinksEnabled)
 	end
 end
 
-function EART.F.splitLongLine(text,maxLetters,SpellLinksEnabled)
+function ExRT.F.splitLongLine(text,maxLetters,SpellLinksEnabled)
 	maxLetters = maxLetters or 250
 	local result = {}
 	repeat
@@ -150,7 +150,7 @@ function EART.F.splitLongLine(text,maxLetters,SpellLinksEnabled)
 	return unpack(result)
 end
 
-function EART.F:SetScaleFix(scale)
+function ExRT.F:SetScaleFix(scale)
 	local l = self:GetLeft()
 	local t = self:GetTop()
 	local s = self:GetScale()
@@ -167,7 +167,7 @@ function EART.F:SetScaleFix(scale)
 	if f then f(self) end
 end
 
-function EART.F:SetScaleFixTR(scale)
+function ExRT.F:SetScaleFixTR(scale)
 	--local l = self:GetLeft() + self:GetWidth() * self:GetEffectiveScale()
 	local l = self:GetRight()
 	local t = self:GetTop()
@@ -185,7 +185,7 @@ function EART.F:SetScaleFixTR(scale)
 	if f then f(self) end
 end
 
-function EART.F:GetCursorPos()
+function ExRT.F:GetCursorPos()
 	local x_f,y_f = GetCursorPosition()
 	local s = self.GetEffectiveScale and self:GetEffectiveScale() or self:GetParent():GetEffectiveScale()
 	x_f, y_f = x_f/s, y_f/s
@@ -204,9 +204,9 @@ do
 			obj = obj:GetParent()
 		end
 	end
-	function EART.F:IsInFocus(x,y,childs)
+	function ExRT.F:IsInFocus(x,y,childs)
 		if not x then
-			x,y = EART.F.GetCursorPos(self)
+			x,y = ExRT.F.GetCursorPos(self)
 		end
 		local obj
 		if GetMouseFoci then
@@ -220,7 +220,7 @@ do
 	end
 end
 
-function EART.F:LockMove(isLocked,touchTexture,dontTouchMouse)
+function ExRT.F:LockMove(isLocked,touchTexture,dontTouchMouse)
 	if isLocked then
 		if touchTexture then touchTexture:SetColorTexture(0,0,0,0.3) end
 		self:SetMovable(true)
@@ -233,7 +233,7 @@ function EART.F:LockMove(isLocked,touchTexture,dontTouchMouse)
 end
 
 local MAX_RAID_GROUP = 5
-if EART.isClassic and not EART.isBC then
+if ExRT.isClassic and not ExRT.isBC then
 	MAX_RAID_GROUP = 8
 end
 local DIFF_TO_MAX_GROUP = {
@@ -259,7 +259,7 @@ local DIFF_TO_MAX_GROUP = {
 	[193] = 2,	--10ppl hc
 	[194] = 5,	--25ppl hc
 }
-function EART.F.GetRaidDiffMaxGroup()
+function ExRT.F.GetRaidDiffMaxGroup()
 	local _,instance_type,difficulty = GetInstanceInfo()
 	if (instance_type == "party" or instance_type == "scenario") and not IsInRaid() then
 		return 1
@@ -272,30 +272,30 @@ function EART.F.GetRaidDiffMaxGroup()
 	end
 end
 
-function EART.F.GetDifficultyForCooldownReset()
+function ExRT.F.GetDifficultyForCooldownReset()
 	local _,_,difficulty = GetInstanceInfo()
-	if difficulty == 3 or difficulty == 4 or difficulty == 5 or difficulty == 6 or difficulty == 7 or difficulty == 14 or difficulty == 15 or difficulty == 16 or difficulty == 17 or (EART.isLK and (difficulty == 175 or difficulty == 176 or difficulty == 193 or difficulty == 194)) then
+	if difficulty == 3 or difficulty == 4 or difficulty == 5 or difficulty == 6 or difficulty == 7 or difficulty == 14 or difficulty == 15 or difficulty == 16 or difficulty == 17 or (ExRT.isLK and (difficulty == 175 or difficulty == 176 or difficulty == 193 or difficulty == 194)) then
 		return true
 	end
 	return false
 end
 
-function EART.F.Round(i)
+function ExRT.F.Round(i)
 	return floor(i+0.5)
 end
 
-function EART.F.NumberInRange(i,mi,mx,incMi,incMx)
+function ExRT.F.NumberInRange(i,mi,mx,incMi,incMx)
 	if i and ((incMi and i >= mi) or (not incMi and i > mi)) and ((incMx and i <= mx) or (not incMx and i < mx)) then
 		return true
 	end
 end
 
-function EART.F.delUnitNameServer(unitName)
+function ExRT.F.delUnitNameServer(unitName)
 	unitName = strsplit("-",unitName)
 	return unitName
 end
 
-function EART.F.UnitCombatlogname(unit)
+function ExRT.F.UnitCombatlogname(unit)
 	local name,server = UnitName(unit or "?")
 	if name and server and server~="" then
 		name = name .. "-" .. server
@@ -314,7 +314,7 @@ do
 		Item = 8,		--NEW Item:976:0:4000000003A91C1A
 		Uniq = 9,		--NEW
 	}
-	function EART.F.GetUnitTypeByGUID(guid)
+	function ExRT.F.GetUnitTypeByGUID(guid)
 		if guid then
 			local _type = string_match(guid,"^([A-z]+)%-")
 			if _type then
@@ -324,14 +324,14 @@ do
 	end
 end
 
-function EART.F.UnitIsPlayerOrPet(guid)
-	local id = EART.F.GetUnitTypeByGUID(guid)
+function ExRT.F.UnitIsPlayerOrPet(guid)
+	local id = ExRT.F.GetUnitTypeByGUID(guid)
 	if id == 0 or id == 4 then
 		return true
 	end
 end
 
-function EART.F.GetUnitInfoByUnitFlag(unitFlag,infoType)
+function ExRT.F.GetUnitInfoByUnitFlag(unitFlag,infoType)
 	--> TYPE
 	if infoType == 1 then
 		return bit_band(unitFlag,COMBATLOG_OBJECT_TYPE_MASK)
@@ -359,36 +359,36 @@ function EART.F.GetUnitInfoByUnitFlag(unitFlag,infoType)
 	end
 end
 
-function EART.F.UnitIsFriendlyByUnitFlag(unitFlag)
-	if EART.F.GetUnitInfoByUnitFlag(unitFlag,2) == 256 then
+function ExRT.F.UnitIsFriendlyByUnitFlag(unitFlag)
+	if ExRT.F.GetUnitInfoByUnitFlag(unitFlag,2) == 256 then
 		return true
 	end
 end
 
-function EART.F.UnitIsFriendlyByUnitFlag2(unitFlag)
-	local reaction = EART.F.GetUnitInfoByUnitFlag(unitFlag or 0,3)
+function ExRT.F.UnitIsFriendlyByUnitFlag2(unitFlag)
+	local reaction = ExRT.F.GetUnitInfoByUnitFlag(unitFlag or 0,3)
 	if reaction == 16 then
 		return true
 	elseif reaction == 32 then
-		if EART.F.GetUnitInfoByUnitFlag(unitFlag,2) == 256 then
+		if ExRT.F.GetUnitInfoByUnitFlag(unitFlag,2) == 256 then
 			return true
 		end
 	end
 end
 
-function EART.F.dprint(...)
+function ExRT.F.dprint(...)
 	return nil
 end
-function EART.F.dtime(...)
+function ExRT.F.dtime(...)
 	return nil
 end
-if EART.isDev then	--debug or debug ultra
-	EART.F.dprint = function(...)
+if ExRT.isDev then	--debug or debug ultra
+	ExRT.F.dprint = function(...)
 		print(...)
 	end
 	local debugprofilestop = debugprofilestop
 	local lastTime = nil
-	EART.F.dtime = function(arg,...)
+	ExRT.F.dtime = function(arg,...)
 		if arg and lastTime then
 			arg[#arg+1] = {debugprofilestop() - lastTime,...}
 		else
@@ -398,7 +398,7 @@ if EART.isDev then	--debug or debug ultra
 end
 
 local GetSpellLink = C_Spell and C_Spell.GetSpellLink or GetSpellLink
-function EART.F.LinkSpell(SpellID,SpellLink)
+function ExRT.F.LinkSpell(SpellID,SpellLink)
 	if not SpellLink then
 		SpellLink = GetSpellLink(SpellID)
 	end
@@ -411,7 +411,7 @@ function EART.F.LinkSpell(SpellID,SpellLink)
 	end
 end
 
-function EART.F.LinkItem(itemID, itemLink)
+function ExRT.F.LinkItem(itemID, itemLink)
 	if not itemLink then
 		if not itemID then 
 			return 
@@ -432,7 +432,7 @@ function EART.F.LinkItem(itemID, itemLink)
 	end
 end
 
-function EART.F.shortNumber(num)
+function ExRT.F.shortNumber(num)
 	if num < 1000 then
 		return tostring(num)
 	elseif num < 1000000 then
@@ -444,7 +444,7 @@ function EART.F.shortNumber(num)
 	end
 end
 
-function EART.F.classIconInText(class,size)
+function ExRT.F.classIconInText(class,size)
 	if CLASS_ICON_TCOORDS[class] then
 		size = size or 0
 		if class == "EVOKER" then
@@ -455,23 +455,23 @@ function EART.F.classIconInText(class,size)
 	end
 end
 
-function EART.F.GUIDtoID(guid)
+function ExRT.F.GUIDtoID(guid)
 	local type,_,serverID,instanceID,zoneUID,id,spawnID = strsplit("-", guid or "")
 	return tonumber(id or 0)
 end
 
-function EART.F.table_copy(table1,table2)
+function ExRT.F.table_copy(table1,table2)
 	table.wipe(table2)
 	for key,val in pairs(table1) do
 		table2[key] = val
 	end
 end
 
-function EART.F.table_copy2(table1)
+function ExRT.F.table_copy2(table1)
 	local table2 = {}
 	for key,val in pairs(table1) do
 		if type(val) == 'table' then
-			table2[key] = EART.F.table_copy2(val)
+			table2[key] = ExRT.F.table_copy2(val)
 		else
 			table2[key] = val
 		end
@@ -479,19 +479,19 @@ function EART.F.table_copy2(table1)
 	return table2
 end
 
-function EART.F.table_wipe(arr)
+function ExRT.F.table_wipe(arr)
 	if not arr or type(arr) ~= "table" then
 		return
 	end
 	for key,val in pairs(arr) do
 		if type(val) == "table" then
-			EART.F.table_wipe(val)
+			ExRT.F.table_wipe(val)
 		end
 		arr[key] = nil
 	end
 end
 
-function EART.F.table_find(arr,subj,pos)
+function ExRT.F.table_find(arr,subj,pos)
 	if pos then
 		for j=1,#arr do
 			if arr[j][pos] == subj then
@@ -507,7 +507,7 @@ function EART.F.table_find(arr,subj,pos)
 	end
 end
 
-function EART.F.table_find2(arr,subj)
+function ExRT.F.table_find2(arr,subj)
 	for key,val in pairs(arr) do
 		if val == subj then
 			return key
@@ -515,7 +515,7 @@ function EART.F.table_find2(arr,subj)
 	end
 end
 
-function EART.F.table_find3(arr,subj,pos)
+function ExRT.F.table_find3(arr,subj,pos)
 	for j=1,#arr do
 		if arr[j][pos] == subj then
 			return arr[j]
@@ -523,7 +523,7 @@ function EART.F.table_find3(arr,subj,pos)
 	end
 end
 
-function EART.F.table_len(arr)
+function ExRT.F.table_len(arr)
 	local len = 0
 	for _ in pairs(arr) do
 		len = len + 1
@@ -531,19 +531,19 @@ function EART.F.table_len(arr)
 	return len
 end
 
-function EART.F.table_add(arr,add)
+function ExRT.F.table_add(arr,add)
 	for i=1,#add do
 		arr[#arr+1] = add[i]
 	end
 end
 
-function EART.F.table_add2(arr,add)
+function ExRT.F.table_add2(arr,add)
 	for key,val in pairs(add) do
 		arr[key] = val
 	end
 end
 
-function EART.F.table_keys(arr)
+function ExRT.F.table_keys(arr)
 	local r = {}
 	for key,val in pairs(arr) do
 		r[#r+1] = key
@@ -556,7 +556,7 @@ do
 		array[index1], array[index2] = array[index2], array[index1]
 	end
 	local math_random = math.random
-	function EART.F.table_shuffle(array)
+	function ExRT.F.table_shuffle(array)
 		local counter = #array
 		while counter > 1 do
 			local index = math_random(counter)
@@ -609,7 +609,7 @@ do
 		end
 		return c, t
 	end
-	function EART.F.table_compare(t1,t2,showDiff)
+	function ExRT.F.table_compare(t1,t2,showDiff)
 		printDiff = showDiff
 		if type(printDiff) == "table" then
 			printTable = printDiff
@@ -623,13 +623,13 @@ do
 	end
 end
 
-function EART.F.table_rewrite(t1,t2)
+function ExRT.F.table_rewrite(t1,t2)
 	local toRemove = {}
 	for k,v in pairs(t1) do
 		if not t2[k] then
 			toRemove[k] = true
 		elseif type(v) == "table" and type(t2[k]) == "table" then
-			EART.F.table_rewrite(v,t2[k])
+			ExRT.F.table_rewrite(v,t2[k])
 		else
 			t1[k] = t2[k]
 		end
@@ -644,7 +644,7 @@ function EART.F.table_rewrite(t1,t2)
 	end
 end
 
-function EART.F.table_random(t)
+function ExRT.F.table_random(t)
 	local keys_num = 0
 	for k,v in pairs(t) do
 		keys_num = keys_num + 1
@@ -661,7 +661,7 @@ function EART.F.table_random(t)
 end
 
 local sort_f = function(a,b) return a[1]<b[1] end
-function EART.F.table_to_string(t)
+function ExRT.F.table_to_string(t)
 	if type(t)~="table" then return end
 	local keys = {}
 	local res = {}
@@ -673,22 +673,22 @@ function EART.F.table_to_string(t)
 	sort(keys,sort_f)
 	for i=1,#keys do
 		local v = keys[i][2]
-		res[#res+1] = keys[i][1] .. "=" .. (type(v)=="table" and EART.F.table_to_string(v) or type(v)=="function" and "<f>" or tostring(v))
+		res[#res+1] = keys[i][1] .. "=" .. (type(v)=="table" and ExRT.F.table_to_string(v) or type(v)=="function" and "<f>" or tostring(v))
 	end
 	local str = "{"..table.concat(res,",").."}"
 	return str
 end
 
-function EART.F.tohex(num,size)
+function ExRT.F.tohex(num,size)
 	return format("%0"..(size or "1").."X",num)
 end
 
-function EART.F.UnitInGuild(unit)
-	local sunit = EART.F.delUnitNameServer(unit)
+function ExRT.F.UnitInGuild(unit)
+	local sunit = ExRT.F.delUnitNameServer(unit)
 	local gplayers = GetNumGuildMembers() or 0
 	for i=1,gplayers do
 		local name = GetGuildRosterInfo(i)
-		if name and EART.F.delUnitNameServer(name) == sunit then
+		if name and ExRT.F.delUnitNameServer(name) == sunit then
 			return true
 		end
 	end
@@ -698,7 +698,7 @@ function EART.F.UnitInGuild(unit)
 	return false
 end
 
-function EART.F.chatType(toSay)
+function ExRT.F.chatType(toSay)
 	local isInInstance = IsInGroup(LE_PARTY_CATEGORY_INSTANCE)
 	local isInParty = IsInGroup()
 	local isInRaid = IsInRaid()
@@ -713,7 +713,7 @@ function EART.F.chatType(toSay)
 	return chat_type, playerName
 end
 
-function EART.F.IsBonusOnItem(link,bonus)
+function ExRT.F.IsBonusOnItem(link,bonus)
 	if link then 
 		local _,itemID,enchant,gem1,gem2,gem3,gem4,suffixID,uniqueID,level,specializationID,upgradeType,instanceDifficultyID,numBonusIDs,restLink = strsplit(":",link,15)
 		if restLink then
@@ -730,7 +730,7 @@ function EART.F.IsBonusOnItem(link,bonus)
 	end
 end
 
-function EART.F.GetItemBonuses(link)
+function ExRT.F.GetItemBonuses(link)
 	if link then 
 		local _,itemID,enchant,gem1,gem2,gem3,gem4,suffixID,uniqueID,level,specializationID,upgradeType,instanceDifficultyID,numBonusIDs,restLink = strsplit(":",link,15)
 		numBonusIDs = tonumber(numBonusIDs or "?") or 0
@@ -746,12 +746,12 @@ function EART.F.GetItemBonuses(link)
 	end
 	return "",0
 end
---/dump GART.F.GetItemBonuses(select(2,GameTooltip:GetItem()))
+--/dump GMRT.F.GetItemBonuses(select(2,GameTooltip:GetItem()))
 
-function EART.F.IsPlayerRLorOfficer(unitName)
-	local shortName = EART.F.delUnitNameServer(unitName)
+function ExRT.F.IsPlayerRLorOfficer(unitName)
+	local shortName = ExRT.F.delUnitNameServer(unitName)
 	for i=1,GetNumGroupMembers() do
-		--if name and (name == unitName or EART.F.delUnitNameServer(name) == shortName) then
+		--if name and (name == unitName or ExRT.F.delUnitNameServer(name) == shortName) then
 		if UnitIsUnit(unitName,"raid"..i) or UnitIsUnit(shortName,"raid"..i) then
 			local name,rank = GetRaidRosterInfo(i)
 			if rank > 0 then
@@ -768,7 +768,7 @@ function EART.F.IsPlayerRLorOfficer(unitName)
 	-- 2: rl
 end
 
-function EART.F.GetPlayerParty(unitName)
+function ExRT.F.GetPlayerParty(unitName)
 	for i=1,GetNumGroupMembers() do
 		local name,_,subgroup = GetRaidRosterInfo(i)
 		if UnitIsUnit(name,unitName) then
@@ -778,7 +778,7 @@ function EART.F.GetPlayerParty(unitName)
 	return 0
 end
 
-function EART.F.GetOwnPartyNum()
+function ExRT.F.GetOwnPartyNum()
 	for i=1,GetNumGroupMembers() do
 		local name,_,subgroup = GetRaidRosterInfo(i)
 		if UnitIsUnit(name,'player') then
@@ -788,7 +788,7 @@ function EART.F.GetOwnPartyNum()
 	return 1
 end
 
-function EART.F.CreateAddonMsg(...)
+function ExRT.F.CreateAddonMsg(...)
 	local result = ""
 	for i=1,select('#',...) do
 		local a = select(i,...)
@@ -797,7 +797,7 @@ function EART.F.CreateAddonMsg(...)
 	return result
 end
 
-function EART.F.GetPlayerRole(checkNotInGroup)
+function ExRT.F.GetPlayerRole(checkNotInGroup)
 	local role = UnitGroupRolesAssigned('player')
 	if (not role or role == "NONE") and checkNotInGroup and GetSpecializationInfo then
 		role = select(5,GetSpecializationInfo(GetSpecialization() or 0))
@@ -826,7 +826,7 @@ function EART.F.GetPlayerRole(checkNotInGroup)
 	end
 end
 
-function EART.F.GetUnitRole(unit)
+function ExRT.F.GetUnitRole(unit)
 	local role = UnitGroupRolesAssigned(unit)
 	if role == "HEALER" then
 		local _,class = UnitClass(unit)
@@ -842,7 +842,7 @@ function EART.F.GetUnitRole(unit)
 		elseif class == "SHAMAN" then
 			isMelee = UnitPowerMax(unit) >= 150
 		elseif class == "HUNTER" then
-			isMelee = (EART.A.Inspect and UnitName(unit) and EART.A.Inspect.db.inspectDB[UnitName(unit)] and EART.A.Inspect.db.inspectDB[UnitName(unit)].spec) == 255
+			isMelee = (ExRT.A.Inspect and UnitName(unit) and ExRT.A.Inspect.db.inspectDB[UnitName(unit)] and ExRT.A.Inspect.db.inspectDB[UnitName(unit)].spec) == 255
 		end
 		if isMelee then
 			return role, "MDD"
@@ -851,8 +851,8 @@ function EART.F.GetUnitRole(unit)
 		end
 	end
 end
-if EART.isClassic and not EART.isWoD then
-	function EART.F.GetPlayerRole()
+if ExRT.isClassic and not ExRT.isWoD then
+	function ExRT.F.GetPlayerRole()
 		local role = UnitGroupRolesAssigned('player')
 		if role == "HEALER" then
 			local _,class = UnitClass('player')
@@ -878,7 +878,7 @@ if EART.isClassic and not EART.isWoD then
 		end
 	end
 	
-	function EART.F.GetUnitRole(unit)
+	function ExRT.F.GetUnitRole(unit)
 		local role = UnitGroupRolesAssigned(unit)
 		if role == "HEALER" then
 			local _,class = UnitClass(unit)
@@ -905,16 +905,16 @@ if EART.isClassic and not EART.isWoD then
 	end
 end
 
-function EART.F.TextureToText(textureName,widthInText,heightInText,textureWidth,textureHeight,leftTexCoord,rightTexCoord,topTexCoord,bottomTexCoord)
+function ExRT.F.TextureToText(textureName,widthInText,heightInText,textureWidth,textureHeight,leftTexCoord,rightTexCoord,topTexCoord,bottomTexCoord)
 	return "|T"..textureName..":"..(widthInText or 0)..":"..(heightInText or 0)..":0:0:"..textureWidth..":"..textureHeight..":"..
 		format("%d",leftTexCoord*textureWidth)..":"..format("%d",rightTexCoord*textureWidth)..":"..format("%d",topTexCoord*textureHeight)..":"..format("%d",bottomTexCoord*textureHeight).."|t"
 end
-function EART.F.GetRaidTargetText(icon,size)
+function ExRT.F.GetRaidTargetText(icon,size)
 	size = size or 0
-	return EART.F.TextureToText([[Interface\TargetingFrame\UI-RaidTargetingIcons]],size,size,256,256,((icon-1)%4)/4,((icon-1)%4+1)/4,floor((icon-1)/4)/4,(floor((icon-1)/4)+1)/4)
+	return ExRT.F.TextureToText([[Interface\TargetingFrame\UI-RaidTargetingIcons]],size,size,256,256,((icon-1)%4)/4,((icon-1)%4+1)/4,floor((icon-1)/4)/4,(floor((icon-1)/4)+1)/4)
 end
 
-function EART.F.IterateMediaData(mediaType)
+function ExRT.F.IterateMediaData(mediaType)
 	local list
 	if LibStub then
 		local loaded,media = pcall(LibStub,"LibSharedMedia-3.0")
@@ -926,11 +926,11 @@ function EART.F.IterateMediaData(mediaType)
 end
 
 --[[
-	for index, name, subgroup, class, guid, rank, level, online, isDead, combatRole in EART.F.IterateRoster do
+	for index, name, subgroup, class, guid, rank, level, online, isDead, combatRole in ExRT.F.IterateRoster do
 		<...>
 	end
 ]]
-function EART.F.IterateRoster(maxGroup,index)
+function ExRT.F.IterateRoster(maxGroup,index)
 	index = (index or 0) + 1
 	maxGroup = maxGroup or 8
 
@@ -940,7 +940,7 @@ function EART.F.IterateRoster(maxGroup,index)
 		end
 		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML, combatRole = GetRaidRosterInfo(index)
 		if subgroup > maxGroup then
-			return EART.F.IterateRoster(maxGroup,index)
+			return ExRT.F.IterateRoster(maxGroup,index)
 		end
 		local guid = UnitGUID(name or "raid"..index)
 		name = name or ""
@@ -985,7 +985,7 @@ function EART.F.IterateRoster(maxGroup,index)
 	end
 end
 
-function EART.F.vpairs(t)
+function ExRT.F.vpairs(t)
 	local prev
 	local function it()
 		local k,v = next(t,prev)
@@ -995,7 +995,7 @@ function EART.F.vpairs(t)
 	return it
 end
 
-function EART.F:SafeCall(func, ...)
+function ExRT.F:SafeCall(func, ...)
 	local res, arg1, arg2, arg3, arg4, arg5, arg6, arg7 = xpcall(func, geterrorhandler(), ...)
 	if res then
 		return arg1, arg2, arg3, arg4, arg5, arg6, arg7
@@ -1103,7 +1103,7 @@ do
 		end
 	end
 
-	function EART.F.utf8len(s)
+	function ExRT.F.utf8len(s)
 		local pos = 1
 		local bytes = strlen(s)
 		local len = 0
@@ -1118,7 +1118,7 @@ do
 
 	-- functions identically to string.sub except that i and j are UTF-8 characters
 	-- instead of bytes
-	function EART.F.utf8sub(s, i, j)
+	function ExRT.F.utf8sub(s, i, j)
 		-- argument defaults
 		j = j or -1
 
@@ -1127,7 +1127,7 @@ do
 		local len = 0
 
 		-- only set l if i or j is negative
-		local l = (i >= 0 and j >= 0) or EART.F.utf8len(s)
+		local l = (i >= 0 and j >= 0) or ExRT.F.utf8len(s)
 		local startChar = (i >= 0) and i or l + i + 1
 		local endChar   = (j >= 0) and j or l + j + 1
 
@@ -1158,7 +1158,7 @@ do
 	end
 end
 
-function EART.F.GetFirstTableInText(str)
+function ExRT.F.GetFirstTableInText(str)
 	local strlen = str:len()
 	local i = 1
 	local deep = 0
@@ -1231,8 +1231,8 @@ do
 	local activeName = ""
 	local UpdateLines = nil
 	local function CreateChatWindow()
-		chatWindow = ELib:Template("EARTDialogModernTemplate",UIParent)
-		_G["ARTToChatWindow"] = chatWindow
+		chatWindow = ELib:Template("ExRTDialogModernTemplate",UIParent)
+		_G["MRTToChatWindow"] = chatWindow
 		chatWindow:SetSize(400,300)
 		chatWindow:SetPoint("CENTER")
 		chatWindow:SetFrameStrata("DIALOG")
@@ -1248,26 +1248,26 @@ do
 			self:StopMovingOrSizing() 
 		end)
 
-		chatWindow.border = EART.lib:Shadow(chatWindow,20)
+		chatWindow.border = ExRT.lib:Shadow(chatWindow,20)
 
-		chatWindow.title:SetText(EART.L.ChatwindowName)
+		chatWindow.title:SetText(ExRT.L.ChatwindowName)
 
-		chatWindow.box = EART.lib:MultiEdit(chatWindow):Size(230,265):Point(10,-23):Font('x',11)
+		chatWindow.box = ExRT.lib:MultiEdit(chatWindow):Size(230,265):Point(10,-23):Font('x',11)
 
 		local chats = {
-			{"ME",EART.L.ChatwindowChatSelf},
-			{"SAY",EART.L.ChatwindowChatSay},
-			{"PARTY",EART.L.ChatwindowChatParty},
-			{"INSTANCE_CHAT",EART.L.ChatwindowChatInstance},
-			{"RAID",EART.L.ChatwindowChatRaid},
-			{"WHISPER",EART.L.ChatwindowChatWhisper},
-			{"TARGET",EART.L.ChatwindowChatWhisperTarget},
-			{"GUILD",EART.L.ChatwindowChatGuild},
-			{"OFFICER",EART.L.ChatwindowChatOfficer},
+			{"ME",ExRT.L.ChatwindowChatSelf},
+			{"SAY",ExRT.L.ChatwindowChatSay},
+			{"PARTY",ExRT.L.ChatwindowChatParty},
+			{"INSTANCE_CHAT",ExRT.L.ChatwindowChatInstance},
+			{"RAID",ExRT.L.ChatwindowChatRaid},
+			{"WHISPER",ExRT.L.ChatwindowChatWhisper},
+			{"TARGET",ExRT.L.ChatwindowChatWhisperTarget},
+			{"GUILD",ExRT.L.ChatwindowChatGuild},
+			{"OFFICER",ExRT.L.ChatwindowChatOfficer},
 		}
 
-		chatWindow.dropDown = EART.lib:DropDown(chatWindow,130,#chats):Size(130):Point(255,-60):SetText(EART.L.ChatwindowChatRaid)
-		chatWindow.dropDownText = EART.lib:Text(chatWindow,EART.L.ChatwindowChannel,10):Size(350,14):Point("BOTTOMLEFT",chatWindow.dropDown,"TOPLEFT",5,2):Color():Shadow()
+		chatWindow.dropDown = ExRT.lib:DropDown(chatWindow,130,#chats):Size(130):Point(255,-60):SetText(ExRT.L.ChatwindowChatRaid)
+		chatWindow.dropDownText = ExRT.lib:Text(chatWindow,ExRT.L.ChatwindowChannel,10):Size(350,14):Point("BOTTOMLEFT",chatWindow.dropDown,"TOPLEFT",5,2):Color():Shadow()
 		for i=1,#chats do
 			local chatData = chats[i]
 			chatWindow.dropDown.List[i] = {
@@ -1278,24 +1278,24 @@ do
 				arg2 = chatData[2],
 				func = function (this,arg1,arg2)
 					chatWindow.dropDown:SetText(arg2)
-					EART.lib:DropDownClose()
+					ExRT.lib:DropDownClose()
 					activeChat = arg1
 				end
 			}
 		end
 
-		chatWindow.target = EART.lib:Edit(chatWindow):Size(130,20):Point(255,-115):OnChange(function (self)
+		chatWindow.target = ExRT.lib:Edit(chatWindow):Size(130,20):Point(255,-115):OnChange(function (self)
 			activeName = self:GetText()
 		end)
-		chatWindow.targetText = EART.lib:Text(chatWindow,EART.L.ChatwindowNameEB,10):Size(350,14):Point("BOTTOMLEFT",chatWindow.target,"TOPLEFT",5,2):Bottom():Color():Shadow()
+		chatWindow.targetText = ExRT.lib:Text(chatWindow,ExRT.L.ChatwindowNameEB,10):Size(350,14):Point("BOTTOMLEFT",chatWindow.target,"TOPLEFT",5,2):Bottom():Color():Shadow()
 
-		chatWindow.button = EART.lib:Button(chatWindow,EART.L.ChatwindowSend):Size(130,22):Point(255,-150):OnClick(function (self)
+		chatWindow.button = ExRT.lib:Button(chatWindow,ExRT.L.ChatwindowSend):Size(130,22):Point(255,-150):OnClick(function (self)
 			local lines = {strsplit("\n", chatWindow.box.EditBox:GetText())}
 			local channel = activeChat
 			local whisper = activeName
 			if channel == "TARGET" then
 				channel = "WHISPER"
-				whisper = EART.F.UnitCombatlogname("target")
+				whisper = ExRT.F.UnitCombatlogname("target")
 				if not whisper then
 					return
 				end
@@ -1320,9 +1320,9 @@ do
 			chatWindow:Hide()
 		end)
 
-		chatWindow.helpText = EART.lib:Text(chatWindow,EART.L.ChatwindowHelp,10):Size(130,100):Point("TOP",chatWindow.button,"BOTTOM",0,-10):Top():Color():Shadow()
+		chatWindow.helpText = ExRT.lib:Text(chatWindow,ExRT.L.ChatwindowHelp,10):Size(130,100):Point("TOP",chatWindow.button,"BOTTOM",0,-10):Top():Color():Shadow()
 
-		chatWindow.chk1 = EART.lib:Check(chatWindow,"Option 1"):Point(255,-260):OnClick(function()
+		chatWindow.chk1 = ExRT.lib:Check(chatWindow,"Option 1"):Point(255,-260):OnClick(function()
 			UpdateLines()
 		end)
 	end
@@ -1340,10 +1340,10 @@ do
 			if thisLine ~= "" then
 				thisLine = thisLine:gsub("@1@(.-)@1#",option1)
 				if clearTags then
-					thisLine = EART.F.clearTextTag(thisLine)
+					thisLine = ExRT.F.clearTextTag(thisLine)
 				end
 				if strlen(thisLine) > 254 then
-					thisLine = strjoin("\n",EART.F.splitLongLine(thisLine,254))
+					thisLine = strjoin("\n",ExRT.F.splitLongLine(thisLine,254))
 				end
 				editData = editData .. thisLine
 				if i ~= linesCount then
@@ -1353,7 +1353,7 @@ do
 		end
 		chatWindow.box.EditBox:SetText(editData)
 	end
-	function EART.F:ToChatWindow(lines,clearTags,option1Name)
+	function ExRT.F:ToChatWindow(lines,clearTags,option1Name)
 		if not lines or type(lines)~="table" then
 			return
 		end
@@ -1380,12 +1380,12 @@ do
 	local alertFunc = nil
 	local alertArg1 = nil
 	local function CreateWindow()
-		alertWindow = EART.lib:Popup():Size(500,65)
+		alertWindow = ExRT.lib:Popup():Size(500,65)
 		alertWindow:SetFrameStrata("FULLSCREEN_DIALOG")
 
-		alertWindow.EditBox = EART.lib:Edit(alertWindow):Size(480,16):Point("TOP",0,-20)
+		alertWindow.EditBox = ExRT.lib:Edit(alertWindow):Size(480,16):Point("TOP",0,-20)
 
-		alertWindow.OK = EART.lib:Button(alertWindow,ACCEPT):Size(130,20):Point("TOP",0,-40):OnClick(function (self)
+		alertWindow.OK = ExRT.lib:Button(alertWindow,ACCEPT):Size(130,20):Point("TOP",0,-40):OnClick(function (self)
 			alertWindow:Hide()
 			local input = alertWindow.EditBox:GetText()
 			alertFunc(alertArg1,input)
@@ -1395,7 +1395,7 @@ do
 			self:GetParent().OK:Click("LeftButton")
 		end)
 	end
-	function EART.F.ShowInput(text,func,arg1,onlyNum,defText,funcOnEdit)
+	function ExRT.F.ShowInput(text,func,arg1,onlyNum,defText,funcOnEdit)
 		if not alertWindow then
 			CreateWindow()
 		end
@@ -1415,7 +1415,7 @@ do
 		alertWindow:Show()
 		alertWindow.EditBox:SetFocus()
 	end
-	function EART.F.ShowText(text)
+	function ExRT.F.ShowText(text)
 		if not alertWindow then
 			CreateWindow()
 		end
@@ -1426,7 +1426,7 @@ do
 		alertWindow.EditBox:SetText(text)
 		alertWindow:Show()
 		alertWindow.EditBox:SetFocus()
-		alertFunc = EART.NULLfunc
+		alertFunc = ExRT.NULLfunc
 	end
 end
 
@@ -1451,12 +1451,12 @@ do
 		return alertWindow.EditBox[ce]
 	end
 	local function CreateWindow()
-		alertWindow = EART.lib:Popup():Size(500,65)
+		alertWindow = ExRT.lib:Popup():Size(500,65)
 		alertWindow:SetFrameStrata("FULLSCREEN_DIALOG")
 
 		alertWindow.EditBox = {}
 
-		alertWindow.OK = EART.lib:Button(alertWindow,ACCEPT):Size(130,20):Point("BOTTOM",0,3):OnClick(function (self)
+		alertWindow.OK = ExRT.lib:Button(alertWindow,ACCEPT):Size(130,20):Point("BOTTOM",0,3):OnClick(function (self)
 			alertWindow:Hide()
 			local r = {}
 			for i=1,#alertWindow.EditBox do
@@ -1467,7 +1467,7 @@ do
 			alertFunc(r)
 		end)
 	end
-	function EART.F.ShowInput2(text,func,...)
+	function ExRT.F.ShowInput2(text,func,...)
 		if not alertWindow then
 			CreateWindow()
 		end
@@ -1499,7 +1499,7 @@ end
 
 ---------------> Chat links hook <---------------
 do
-	local chatLinkFormat = "|HART:%s:0|h|cffffff00[ART: %s]|r|h"
+	local chatLinkFormat = "|HMRT:%s:0|h|cffffff00[ART: %s]|r|h"
 	local funcTable = {}
 	local function createChatHook()
 		local SetHyperlink = ItemRefTooltip.SetHyperlink
@@ -1517,7 +1517,7 @@ do
 		end
 	end
 
-	function EART.F.CreateChatLink(funcName,func,stringName)
+	function ExRT.F.CreateChatLink(funcName,func,stringName)
 		if createChatHook then createChatHook() createChatHook = nil end
 		if not funcName or not stringName or type(func) ~= "function" then
 			return ""
@@ -1529,15 +1529,15 @@ end
 ---------------> Export Window <---------------
 do
 	local exportWindow
-	function EART.F:Export(stringData,hideTextInfo,windowName,onChangeFunc)
+	function ExRT.F:Export(stringData,hideTextInfo,windowName,onChangeFunc)
 		if not exportWindow then
-			exportWindow = ELib:Popup(EART.L.Export):Size(650,615)
+			exportWindow = ELib:Popup(ExRT.L.Export):Size(650,615)
 			exportWindow.Edit = ELib:MultiEdit(exportWindow):Point("TOP",0,-20):Size(640,575)
-			exportWindow.TextInfo = ELib:Text(exportWindow,EART.L.ExportInfo,11):Color():Point("BOTTOM",0,3):Size(640,15):Bottom():Left()
+			exportWindow.TextInfo = ELib:Text(exportWindow,ExRT.L.ExportInfo,11):Color():Point("BOTTOM",0,3):Size(640,15):Bottom():Left()
 			exportWindow:SetScript("OnHide",function(self)
 				self.Edit:SetText("")
 			end)
-			exportWindow.Next = EART.lib:Button(exportWindow,">>>"):Size(100,16):Point("BOTTOMRIGHT",0,0):OnClick(function (self)
+			exportWindow.Next = ExRT.lib:Button(exportWindow,">>>"):Size(100,16):Point("BOTTOMRIGHT",0,0):OnClick(function (self)
 				self.now = self.now + 1
 				self:SetText(">>> "..self.now.."/"..#exportWindow.hugeText)
 				exportWindow.Edit:SetText(exportWindow.hugeText[self.now])
@@ -1548,7 +1548,7 @@ do
 				end
 			end)
 		end
-		exportWindow.title:SetText(windowName or EART.L.Export)
+		exportWindow.title:SetText(windowName or ExRT.L.Export)
 		exportWindow.Edit.OnTextChanged = onChangeFunc
 		exportWindow:NewPoint("CENTER",UIParent,0,0)
 		exportWindow.TextInfo:SetShown(not hideTextInfo)
@@ -1577,10 +1577,10 @@ end
 do
 	local exportWindow
 	local pendingToShow
-	function EART.F:Export2(stringData)
+	function ExRT.F:Export2(stringData)
 		if not exportWindow then
-			exportWindow = EART.lib:Popup("Export"):Size(650,50)
-			exportWindow.Edit = EART.lib:Edit(exportWindow):Point("TOP",0,-20):Size(640,25)
+			exportWindow = ExRT.lib:Popup("Export"):Size(650,50)
+			exportWindow.Edit = ExRT.lib:Edit(exportWindow):Point("TOP",0,-20):Size(640,25)
 			exportWindow:SetScript("OnHide",function(self)
 				self.Edit:SetText("")
 				self.onEnterFunc = nil
@@ -1637,7 +1637,7 @@ do
 		end
 
 		if type(stringData) == "table" then
-			stringData = table.concat(EART.F.TableToText(stringData))
+			stringData = table.concat(ExRT.F.TableToText(stringData))
 		elseif type(stringData) ~= "string" then
 			stringData = tostring(stringData)
 		end
@@ -1650,9 +1650,9 @@ end
 ---------------> Profiling Window <---------------
 do
 	local profilingWindow
-	function EART.F:ProfilingWindow()
+	function ExRT.F:ProfilingWindow()
 		if not profilingWindow then
-			profilingWindow = EART.lib:Popup("Profiling"):Size(700,300)
+			profilingWindow = ExRT.lib:Popup("Profiling"):Size(700,300)
 			local self = profilingWindow
 
 			profilingWindow.decorationLine = ELib:DecorationLine(self,true,"BACKGROUND",-5):Point("TOPLEFT",self,0,-15):Point("BOTTOMRIGHT",self,"TOPRIGHT",0,-35)
@@ -1674,18 +1674,18 @@ do
 				end
 				t = t % 0.5
 
-				profilingWindow.nextBoss:SetEnabled(not EART.F:IsProfilingBoss())
+				profilingWindow.nextBoss:SetEnabled(not ExRT.F:IsProfilingBoss())
 
-				if not EART.Profiling.Start then
+				if not ExRT.Profiling.Start then
 					return
 				end
 
 				local r,total = {},{"Total",0,"","","",0}
-				local now = (EART.Profiling.End or debugprofilestop()) - EART.Profiling.Start
-				for event in pairs(EART.Profiling.T) do
-					local t = EART.Profiling.T[event]
-					local c = EART.Profiling.C[event]
-					local m = EART.Profiling.M[event]
+				local now = (ExRT.Profiling.End or debugprofilestop()) - ExRT.Profiling.Start
+				for event in pairs(ExRT.Profiling.T) do
+					local t = ExRT.Profiling.T[event]
+					local c = ExRT.Profiling.C[event]
+					local m = ExRT.Profiling.M[event]
 			
 					r[#r+1] = {event,format("%.1f",t),c,format("%.1f",m),format("%.1f",t/c),format("%.1f",t/now*1000),sort=t}
 
@@ -1696,25 +1696,25 @@ do
 				total[2] = format("%.1f",total[2])
 				tinsert(r,1,total)
 
-				if EART.F:IsProfilingBoss() and not EART.Profiling.BossStarted then
+				if ExRT.F:IsProfilingBoss() and not ExRT.Profiling.BossStarted then
 					wipe(r)
 				end
 		
 				profilingWindow.list.L = r
 				profilingWindow.list:Update()
 
-				profilingWindow.startBut:SetText(EART.Profiling.Enabled and "Stop profiling" or "Start profiling")
+				profilingWindow.startBut:SetText(ExRT.Profiling.Enabled and "Stop profiling" or "Start profiling")
 			end)
 
 			profilingWindow.startBut = ELib:Button(profilingWindow,"Start profiling"):Size(200,20):Point("BOTTOMLEFT",2,2):OnClick(function()
-				EART.F:StartStopProfiling()
+				ExRT.F:StartStopProfiling()
 				t = 0.5
 			end)
 			profilingWindow.exportBut = ELib:Button(profilingWindow,"Export to string"):Size(200,20):Point("LEFT",profilingWindow.startBut,"RIGHT",2,0):OnClick(function()
-				EART.F:GetProfiling()
+				ExRT.F:GetProfiling()
 			end)
 			profilingWindow.nextBoss = ELib:Button(profilingWindow,"Next boss encounter"):Size(200,20):Point("LEFT",profilingWindow.exportBut,"RIGHT",2,0):OnClick(function()
-				EART.F:StartProfilingBoss()
+				ExRT.F:StartProfilingBoss()
 			end)
 		end
 
@@ -1767,7 +1767,7 @@ do
 		return it
 	end
 	
-	function EART.F.TableToText(t,e,b)
+	function ExRT.F.TableToText(t,e,b)
 		b = b or {}
 		b[t] = true
 		e = e or {"{"}
@@ -1812,7 +1812,7 @@ do
 				end
 				e[#e+1] = newline
 				if tableToExplore then
-					EART.F.TableToText(tableToExplore,e,b)
+					ExRT.F.TableToText(tableToExplore,e,b)
 					e[#e] = e[#e] .. ","
 				end
 			end
@@ -1823,7 +1823,7 @@ do
 	end
 
 	local string_byte = string.byte
-	function EART.F.TextToTable(str,map,offset)
+	function ExRT.F.TextToTable(str,map,offset)
 		if not map and string_byte(str, 1) == 123 then
 			str = str:sub(2,-2)	--Expect valid table here
 		end
@@ -1927,7 +1927,7 @@ do
 				while k <= e do
 					if map[k+offset] then
 						if map[k+0.5+offset] == 1 then
-							value = EART.F.TextToTable( str:sub(k+1,map[k+offset]-offset-1) ,map,k+offset)
+							value = ExRT.F.TextToTable( str:sub(k+1,map[k+offset]-offset-1) ,map,k+offset)
 						elseif map[k+0.5+offset] == 2 then
 							value = str:sub(k + 1,map[k+offset]-offset-1):gsub("\\\"","\""):gsub("\\\\","\\")
 						elseif map[k+0.5+offset] == 3 then
@@ -1989,7 +1989,7 @@ do
 		return res
 	end
 
-	function EART.F.CreateImportExportWindows()
+	function ExRT.F.CreateImportExportWindows()
 		local function ImportOnUpdate(self, elapsed)
 			self.tmr = self.tmr + elapsed
 			if self.tmr >= 0.1 then
@@ -2007,7 +2007,7 @@ do
 			end
 		end
 		
-		local importWindow = ELib:Popup(EART.L.Import.." "..EART.L.ImportHelp):Size(650,100)
+		local importWindow = ELib:Popup(ExRT.L.Import.." "..ExRT.L.ImportHelp):Size(650,100)
 		importWindow.Edit = ELib:MultiEdit(importWindow):Point("TOP",0,-20):Size(640,75)
 		importWindow:SetScript("OnHide",function(self)
 			self.Edit:SetText("")	
@@ -2027,7 +2027,7 @@ do
 		importWindow.Edit.EditBox.parent = importWindow
 		
 		
-		local exportWindow = ELib:Popup(EART.L.Export):Size(650,50)
+		local exportWindow = ELib:Popup(ExRT.L.Export):Size(650,50)
 		exportWindow.Edit = ELib:Edit(exportWindow):Point("TOP",0,-20):Size(640,25)
 		exportWindow:SetScript("OnHide",function(self)
 			self.Edit:SetText("")	
@@ -2056,7 +2056,7 @@ end
 
 -------------------> Data <--------------------
 
-EART.GDB.ClassSpecializationIcons = {
+ExRT.GDB.ClassSpecializationIcons = {
 	[62] = "Interface\\Icons\\Spell_Holy_MagicalSentry",
 	[63] = "Interface\\Icons\\Spell_Fire_FireBolt02",
 	[64] = "Interface\\Icons\\Spell_Frost_FrostBolt02",
@@ -2098,7 +2098,7 @@ EART.GDB.ClassSpecializationIcons = {
 	[1473] = "Interface\\Icons\\classicon_evoker_augmentation",
 }
 
-EART.GDB.ClassList = {
+ExRT.GDB.ClassList = {
 	"WARRIOR",
 	"PALADIN",
 	"HUNTER",
@@ -2114,7 +2114,7 @@ EART.GDB.ClassList = {
 	"EVOKER",
 }
 
-EART.GDB.ClassSpecializationList = {
+ExRT.GDB.ClassSpecializationList = {
 	["WARRIOR"] = {71, 72, 73},
 	["PALADIN"] = {65, 66, 70},
 	["HUNTER"] = {253, 254, 255},
@@ -2130,7 +2130,7 @@ EART.GDB.ClassSpecializationList = {
 	["EVOKER"] = {1467, 1468, 1473},
 }
 
-EART.GDB.ClassArmorType = {
+ExRT.GDB.ClassArmorType = {
 	WARRIOR="PLATE",
 	PALADIN="PLATE",
 	HUNTER="MAIL",
@@ -2146,7 +2146,7 @@ EART.GDB.ClassArmorType = {
 	EVOKER="MAIL",
 }
 
-EART.GDB.ClassSpecializationRole = {
+ExRT.GDB.ClassSpecializationRole = {
 	[62] = 'RANGE',
 	[63] = 'RANGE',
 	[64] = 'RANGE',
@@ -2188,7 +2188,7 @@ EART.GDB.ClassSpecializationRole = {
 	[1473] = 'RANGE',
 }
 
-EART.GDB.ClassID = {
+ExRT.GDB.ClassID = {
 	WARRIOR=1,
 	PALADIN=2,
 	HUNTER=3,
@@ -2204,8 +2204,8 @@ EART.GDB.ClassID = {
 	EVOKER=13,
 }
 
-if EART.isCata then
-	EART.GDB.ClassSpecializationList = {
+if ExRT.isCata then
+	ExRT.GDB.ClassSpecializationList = {
 		WARRIOR = {746,815,845},	--Arms,Fury,Protection
 		PALADIN = {831,839,855},	--Holy,Protection,Retribution
 		HUNTER = {811,807,809},	--Beast Mastery,Marksmanship,Survival
@@ -2218,7 +2218,7 @@ if EART.isCata then
 		DRUID = {752,750,748},	--Balance,Feral Combat,Restoration
 	}
 	 
-	EART.GDB.ClassSpecializationIcons = {
+	ExRT.GDB.ClassSpecializationIcons = {
 		[181] = 132090,
 		[182] = 132292,
 		[183] = 132320,
@@ -2251,7 +2251,7 @@ if EART.isCata then
 		[871] = 136145,
 	}
 	 
-	EART.GDB.ClassSpecializationRole = {
+	ExRT.GDB.ClassSpecializationRole = {
 		[181] = "MELEE",
 		[182] = "MELEE",
 		[183] = "MELEE",
@@ -2286,7 +2286,7 @@ if EART.isCata then
 end
 
 
-if EART.isClassic then
+if ExRT.isClassic then
 	--GetClassInfo
 	local classLocalizateEngine = {}
 	if LocalizedClassList then
@@ -2296,8 +2296,8 @@ if EART.isClassic then
 		FillLocalizedClassList(classLocalizateEngine)
 	end
 
-	EART.Classic.GetClassInfo = function(id) 
-		return classLocalizateEngine[ EART.GDB.ClassList[id] ] or "unk" 
+	ExRT.Classic.GetClassInfo = function(id) 
+		return classLocalizateEngine[ ExRT.GDB.ClassList[id] ] or "unk" 
 	end
 
 	--GetSpecializationInfoByID
@@ -2349,13 +2349,13 @@ if EART.isClassic then
 		[1473] = {name="Augmentation",class=13,role="DAMAGER",desc="Imbues allies with the might of the Black dragons, and bends time & fate in their favor with Bronze magic. Preferred Weapon: Staff, Sword, Dagger, Mace",icon=5198700},
 	}
 
-	EART.Classic.GetSpecializationInfoByID = function(id) 
-		local data = specializationData[id] or EART.NULL
-		return id, data.name, data.desc, data.icon, data.role, EART.GDB.ClassList[data.class]
+	ExRT.Classic.GetSpecializationInfoByID = function(id) 
+		local data = specializationData[id] or ExRT.NULL
+		return id, data.name, data.desc, data.icon, data.role, ExRT.GDB.ClassList[data.class]
 	end
 end
 
-EART.GDB.JournalInstance = {
+ExRT.GDB.JournalInstance = {
 {0,64,238,63,240,234,227,239,231,237,233,241,229,228,236,232,226,230,311,316,246,0,741,742,743,744},	--Classic
 {1,255,259,256,248,261,262,260,254,257,258,253,252,250,247,251,249,0,745,750,747,748,749,751,746,752},	--Burning Crusade
 {2,285,286,281,282,279,277,273,272,275,274,283,271,280,284,278,276,0,760,754,759,755,756,753,758,757,761},	--Wrath of the Lich King
@@ -2370,9 +2370,9 @@ EART.GDB.JournalInstance = {
 {-1,1270,1271,1274,1269,1182,1184,1023,71,n=EXPANSION_NAME10,s=1},	--Current Season
 {"11.0",10,1268,1267,1210,1269,1271,1272,1270,1274,0,1273,1278},	--The War Within
 }
---/run local s="" for i=1,100 do local id=EJ_GetInstanceByIndex(i,false) if not id then break end s=s..id.."," end GEART.F:Export2(s)
+--/run local s="" for i=1,100 do local id=EJ_GetInstanceByIndex(i,false) if not id then break end s=s..id.."," end GExRT.F:Export2(s)
 
-EART.GDB.MapIDToJournalInstance = {
+ExRT.GDB.MapIDToJournalInstance = {
 [2774]=1278,[2690]=1293,[2690]=1293,[2689]=1284,[2688]=1290,[2687]=1283,[2686]=1285,[2685]=1289,[2684]=1288,[2683]=1282,[2682]=1291,[2681]=1281,[2680]=1287,[2679]=1280,[2669]=1274,[2664]=1279,[2662]=1270,
 [2661]=1272,[2660]=1271,[2657]=1273,[2652]=1269,[2651]=1210,[2649]=1267,[2648]=1268,[2579]=1209,[2574]=1205,[2569]=1208,[2559]=1192,[2549]=1207,[2527]=1204,[2526]=1201,[2522]=1200,[2521]=1202,[2520]=1196,
 [2519]=1199,[2516]=1198,[2515]=1203,[2481]=1195,[2451]=1197,[2450]=1193,[2441]=1194,[2296]=1190,[2293]=1187,[2291]=1188,[2290]=1184,[2289]=1183,[2287]=1185,[2286]=1182,[2285]=1186,[2284]=1189,[2217]=1180,
@@ -2386,7 +2386,7 @@ EART.GDB.MapIDToJournalInstance = {
 [229]=229,[209]=241,[129]=233,[109]=237,[90]=231,[70]=239,[48]=227,[47]=234,[43]=240,[36]=63,[34]=238,[33]=64,
 }
 
-EART.GDB.EncountersList = {
+ExRT.GDB.EncountersList = {
 	{350,652,653,654,655,656,657,658,659,660,661,662},
 	{129,519,520,2009,522,521,2010,2011,524,523,525,526,2012,527},
 	{130,2002,2003,2004,2005},
@@ -2588,7 +2588,7 @@ EART.GDB.EncountersList = {
 	{"11.0",2292,2902,2917,2898,2918,2919,2920,2921,2922},	--Nerub-ar Palace:Raid
 }
 
-function EART.F.EJ_AutoScan()
+function ExRT.F.EJ_AutoScan()
 	local TIER_MIN = 11
 
 	local NEW_DATA = {
@@ -2601,8 +2601,8 @@ function EART.F.EJ_AutoScan()
 
 	local encounterMap = {}
 	local dungeonPosInsert = 1
-	for i=1,#EART.GDB.EncountersList do
-		local dung = EART.GDB.EncountersList[i]
+	for i=1,#ExRT.GDB.EncountersList do
+		local dung = ExRT.GDB.EncountersList[i]
 		if dung[1] == 232 then
 			dungeonPosInsert = i
 		end
@@ -2611,8 +2611,8 @@ function EART.F.EJ_AutoScan()
 		end
 	end
 	local instanceMap = {}
-	for i=1,#EART.GDB.JournalInstance do
-		local tier = EART.GDB.JournalInstance[i]
+	for i=1,#ExRT.GDB.JournalInstance do
+		local tier = ExRT.GDB.JournalInstance[i]
 		for j=2,#tier do
 			instanceMap[ tier[j] ] = true
 		end
@@ -2646,7 +2646,7 @@ function EART.F.EJ_AutoScan()
 						isNewInstance = false
 					end
 
-					if dungeonEncounterID and not EART.GDB.encounterIDtoEJ[dungeonEncounterID] then
+					if dungeonEncounterID and not ExRT.GDB.encounterIDtoEJ[dungeonEncounterID] then
 						NEW_DATA.encounterIDtoEJ[dungeonEncounterID] = journalEncounterID
 					end
 	
@@ -2667,7 +2667,7 @@ function EART.F.EJ_AutoScan()
 					--print('EncountersList','added',iname,encounterIndex-1)
 				end
 
-				if mapID and not EART.GDB.MapIDToJournalInstance[mapID] then
+				if mapID and not ExRT.GDB.MapIDToJournalInstance[mapID] then
 					NEW_DATA.MapIDToJournalInstance[mapID] = instanceID
 
 					--print('MapIDToJournalInstance','added',iname)
@@ -2686,22 +2686,22 @@ function EART.F.EJ_AutoScan()
 		end
 	end
 
-	VART.Addon.EJ_CHECK_VER = EART.clientUIinterface
-	VART.Addon.EJ_DATA = NEW_DATA
-	VART.Addon.EJ_CHECK_VER_PTR = EART.clientBuildVersion
+	VMRT.Addon.EJ_CHECK_VER = ExRT.clientUIinterface
+	VMRT.Addon.EJ_DATA = NEW_DATA
+	VMRT.Addon.EJ_CHECK_VER_PTR = ExRT.clientBuildVersion
 
-	EART.F.EJ_LoadData()
+	ExRT.F.EJ_LoadData()
 end
-function EART.F.EJ_LoadData()
-	if not VART.Addon.EJ_DATA then
+function ExRT.F.EJ_LoadData()
+	if not VMRT.Addon.EJ_DATA then
 		return
 	end
-	local NEW_DATA = VART.Addon.EJ_DATA
+	local NEW_DATA = VMRT.Addon.EJ_DATA
 
 	local encounterMap = {}
 	local dungeonPosInsert = 1
-	for i=1,#EART.GDB.EncountersList do
-		local dung = EART.GDB.EncountersList[i]
+	for i=1,#ExRT.GDB.EncountersList do
+		local dung = ExRT.GDB.EncountersList[i]
 		if dung[1] == 232 then
 			dungeonPosInsert = i
 		end
@@ -2713,29 +2713,29 @@ function EART.F.EJ_LoadData()
 	for i=1,#NEW_DATA.EncountersList_raid do
 		local new_dung = NEW_DATA.EncountersList_raid[i]
 		if new_dung[2] and not encounterMap[ new_dung[2] ] then
-			tinsert(EART.GDB.EncountersList, new_dung)
+			tinsert(ExRT.GDB.EncountersList, new_dung)
 		end
 	end
 	for i=1,#NEW_DATA.EncountersList_dung do
 		local new_dung = NEW_DATA.EncountersList_dung[i]
 		if new_dung[2] and not encounterMap[ new_dung[2] ] then
-			tinsert(EART.GDB.EncountersList, dungeonPosInsert, new_dung)
+			tinsert(ExRT.GDB.EncountersList, dungeonPosInsert, new_dung)
 			dungeonPosInsert = dungeonPosInsert + 1
 		end
 	end
 
 	for k,v in pairs(NEW_DATA.MapIDToJournalInstance) do
-		if not EART.GDB.MapIDToJournalInstance[k] then
-			EART.GDB.MapIDToJournalInstance[k] = v
+		if not ExRT.GDB.MapIDToJournalInstance[k] then
+			ExRT.GDB.MapIDToJournalInstance[k] = v
 		end
 	end
 	for k,v in pairs(NEW_DATA.encounterIDtoEJ) do
-		if not EART.GDB.encounterIDtoEJ[k] then
-			EART.GDB.encounterIDtoEJ[k] = v
+		if not ExRT.GDB.encounterIDtoEJ[k] then
+			ExRT.GDB.encounterIDtoEJ[k] = v
 		end
 	end
 	if #NEW_DATA.JournalInstance > 1 then
-		tinsert(EART.GDB.JournalInstance,NEW_DATA.JournalInstance)
+		tinsert(ExRT.GDB.JournalInstance,NEW_DATA.JournalInstance)
 	end
 end
 
@@ -2761,11 +2761,11 @@ do
 		return r
 	end
 	local ver_now = StringVerToNumber(GetBuildInfo())
-	for i=#EART.GDB.EncountersList,1,-1 do
-		local t = EART.GDB.EncountersList[i]
+	for i=#ExRT.GDB.EncountersList,1,-1 do
+		local t = ExRT.GDB.EncountersList[i]
 		if type(t[1]) == "string" then
 			if StringVerToNumber(t[1]) > ver_now then
-				tremove(EART.GDB.EncountersList, i)
+				tremove(ExRT.GDB.EncountersList, i)
 			else
 				tremove(t, 1)
 			end
@@ -2774,11 +2774,11 @@ do
 			break
 		end
 	end
-	for i=#EART.GDB.JournalInstance,1,-1 do
-		local t = EART.GDB.JournalInstance[i]
+	for i=#ExRT.GDB.JournalInstance,1,-1 do
+		local t = ExRT.GDB.JournalInstance[i]
 		if type(t[1]) == "string" then
 			if StringVerToNumber(t[1]) > ver_now then
-				tremove(EART.GDB.JournalInstance, i)
+				tremove(ExRT.GDB.JournalInstance, i)
 			else
 				tremove(t, 1)
 			end
@@ -2795,11 +2795,11 @@ do
 	end
 end
 
-function EART.F.GetEncountersList(onlyRaid,onlyActual,reverse,onlyDung)
+function ExRT.F.GetEncountersList(onlyRaid,onlyActual,reverse,onlyDung)
 	local new = {}
 
 	local isActual,isRaid
-	for _,v in ipairs(EART.GDB.EncountersList) do
+	for _,v in ipairs(ExRT.GDB.EncountersList) do
 		if v[1] == 232 then
 			isRaid = true
 			isActual = false

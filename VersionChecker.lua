@@ -5,7 +5,7 @@ local ELib, L = ART.lib, ART.L
 
 local AceComm = LibStub("AceComm-3.0")
 
-local VART = nil
+local VMRT = nil
 local versionCheckTimer = nil 
 
 -- Retrieve the version from the .toc
@@ -13,15 +13,15 @@ local version = C_AddOns.GetAddOnMetadata(VersionCheckerAddonName, "Version")
 
 local function OnAddonLoaded(addonName)
     if addonName == VersionCheckerAddonName then
-        VART = _G.VART
+        VMRT = _G.VMRT
 
-        VART.VersionCheck = VART.VersionCheck or {}
-        VART.VersionCheck.responses = {}
+        VMRT.VersionCheck = VMRT.VersionCheck or {}
+        VMRT.VersionCheck.responses = {}
 
         ART_VersionCheckDB = ART_VersionCheckDB or {}
         ART_VersionCheckDB.version = version
 
-        VART.VersionCheck.version = ART_VersionCheckDB.version
+        VMRT.VersionCheck.version = ART_VersionCheckDB.version
     end
 end
 
@@ -41,12 +41,12 @@ local function compareVersions(v1, v2)
 end
 
 function module:SendVersionCheck()
-    if not VART.VersionCheck.version then
+    if not VMRT.VersionCheck.version then
         return
     end
 
-    VART.VersionCheck.responses = {}
-    local message = "VERSION_CHECK:" .. VART.VersionCheck.version
+    VMRT.VersionCheck.responses = {}
+    local message = "VERSION_CHECK:" .. VMRT.VersionCheck.version
 
     -- Usually will use raid, but party is easier for debugging 
     local channel = IsInRaid() and "RAID" or "PARTY"
@@ -57,15 +57,15 @@ function module:SendVersionCheck()
 end
 
 function module:SendVersionResponse(target, senderVersion)
-    if not VART.VersionCheck.version then
+    if not VMRT.VersionCheck.version then
         return
     end
 
-    local message = "VERSION_RESPONSE:" .. VART.VersionCheck.version
+    local message = "VERSION_RESPONSE:" .. VMRT.VersionCheck.version
     AceComm:SendCommMessage("ADVANCEVERSION", message, "WHISPER", target)
 
     -- checking for oudated versions and remind users to update if outdated
-    if compareVersions(VART.VersionCheck.version, senderVersion) < 0 then
+    if compareVersions(VMRT.VersionCheck.version, senderVersion) < 0 then
         StaticPopupDialogs["VERSION_CHECK_UPDATE"] = {
             text = "You are using an outdated version of the addon. Please update to the latest version.",
             button1 = "OK",
@@ -82,10 +82,10 @@ function module:OnCommReceived(prefix, message, distribution, sender)
         local command, version = strsplit(":", message)
         local playerName = Ambiguate(sender, "mail")  
         if command == "VERSION_CHECK" then
-            VART.VersionCheck.responses[playerName] = version
+            VMRT.VersionCheck.responses[playerName] = version
             module:SendVersionResponse(playerName, version) 
         elseif command == "VERSION_RESPONSE" then
-            VART.VersionCheck.responses[playerName] = version
+            VMRT.VersionCheck.responses[playerName] = version
             module:ShowResults()
         end
     end
@@ -100,8 +100,8 @@ function module:CheckForNonResponders()
         local playerName = GetUnitName(unit, true)
         if playerName then
             playerName = Ambiguate(playerName, "mail") 
-            if not VART.VersionCheck.responses[playerName] then
-                VART.VersionCheck.responses[playerName] = "Addon not installed"
+            if not VMRT.VersionCheck.responses[playerName] then
+                VMRT.VersionCheck.responses[playerName] = "Addon not installed"
             end
         end
     end
@@ -110,15 +110,15 @@ function module:CheckForNonResponders()
 end
 
 function module:ShowResults()
-    local highestVersion = VART.VersionCheck.version
-    for _, version in pairs(VART.VersionCheck.responses) do
+    local highestVersion = VMRT.VersionCheck.version
+    for _, version in pairs(VMRT.VersionCheck.responses) do
         if compareVersions(version, highestVersion) > 0 then
             highestVersion = version
         end
     end
 
     local result = ""
-    for player, version in pairs(VART.VersionCheck.responses) do
+    for player, version in pairs(VMRT.VersionCheck.responses) do
         local color
         if version == "Addon not installed" then
             color = "|cff808080" 
@@ -161,7 +161,7 @@ function module.options:Load()
     self.resultFrame.text = ELib:Text(self.resultFrame, "", 12):Point("TOPLEFT", 5, -5):Point("TOPRIGHT", -5, -5)
 
     self.resultFrame:SetScript("OnShow", function()
-        VART.VersionCheck.responses = {}
+        VMRT.VersionCheck.responses = {}
         self.resultFrame.text:SetText("") 
     end)
 

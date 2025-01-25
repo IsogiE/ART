@@ -1,9 +1,9 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, ExRT = ...
 
-local ELib,L = ART.lib,ART.L
-local module = ART:New("VisNote",L.VisualNote)
+local ELib,L = ExRT.lib,ExRT.L
+local module = ExRT:New("VisNote",L.VisualNote)
 
-local VART = nil
+local VMRT = nil
 
 local wipe, pairs, type, max, min, unpack, abs, select, sqrt, tremove, string, floor, math, PI = wipe, pairs, type, max, min, unpack, abs, select, sqrt, tremove, string, floor, math, PI
 
@@ -77,7 +77,7 @@ function module.options:Load()
 	local curr_data = {}
 	local curr_icon = 1
 	local curr_text = ""
-	local curr_imgpath = ART.isClassic and "interface/icons/ability_hunter_snipershot" or "interface/icons/achievement_boss_archaedas"
+	local curr_imgpath = ExRT.isClassic and "interface/icons/ability_hunter_snipershot" or "interface/icons/achievement_boss_archaedas"
 	local curr_object = 1
 	local curr_trans = 100
 
@@ -197,7 +197,7 @@ function module.options:Load()
 		{"Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES",0.7421875,0.98828125,0.5,0.75},
 		"interface/icons/classicon_evoker",
 	}
-	if ART.isClassic then
+	if ExRT.isClassic then
 		tremove(icons_list, #icons_list)
 	end
 
@@ -695,8 +695,8 @@ function module.options:Load()
 	self.textAddData.Button:SetScript("OnClick",function(self)
 		self.List = {}
 
-		for _, name, _, class in ART.F.IterateRoster do
-			name = ART.F.delUnitNameServer(name)
+		for _, name, _, class in ExRT.F.IterateRoster do
+			name = ExRT.F.delUnitNameServer(name)
 			local colorTable = colors[ classToColor[class] ]
 			self.List[#self.List + 1] = {
 				text = name,
@@ -1118,38 +1118,32 @@ function module.options:Load()
 		{L.S_ZoneT32..": "..L.bossName[2918],{2292,0.38,0.60,2}},
 		{L.S_ZoneT32..": "..L.bossName[2919],{2294,0.55,0.75,4}},
 
-		--261-263
+		--261-270
 		{L.S_ZoneT32..": "..L.bossName[2920],{2294,0.25,0.47,4}},
 		{L.S_ZoneT32..": "..L.bossName[2921],{2294,0.42,0.49,4}},
 		{L.S_ZoneT32..": "..L.bossName[2922],{2295,0.48,0.54,2}},
-		
-		--264-274
-		{"Ulgrax",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Ulgrax_Default"}},
-		{"Bloodbound",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Bloodbound_Default"}},
-		{"Sikran",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Sikran_Default"}},
-		{"Rasha'nan",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Rashanan_Default"}},
-		{"Broodtwister",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Broodtwister_Default"}},
-		{"Nexus-Princess",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Default"}},
-		{"Silken Court",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Silkencourt_Default"}},
-		{"Queen Ansurek - P1",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Queen_Default_1"}},
-		{"Queen Ansurek - P2.1",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Queen_Default_2"}},
-		{"Queen Ansurek - P2.2",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Queen_Default_3"}},
-		{"Queen Ansurek - P3",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Queen_Default_4"}},
-		
-		--275+
-		{"Broodtwister",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Broodtwister_Custom"}},
-		{"Nexus-Princess - 1",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_1"}},
-		{"Nexus-Princess - 2",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_2"}},
-		{"Nexus-Princess - 3",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_3"}},
-		{"Nexus-Princess - 4",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_4"}},
-		{"Nexus-Princess - 5",{"Interface/AddOns/"..GlobalAddonName.."/raidplans/Nexus-Princess_Custom_5"}},
 
 	}
 	local mapsSorted = {
-		{"Nerub-Ar - Default", 264,265,266,267,268,269,270,271,272,273,274},
-		{"Nerub-Ar - Custom", 275,276,277,278,279,280},
+		1,
+		{L.NoteColor,10,94,95,96,97,98,99},
+		{L.S_ZoneT32,263,262,261,260,259,258,257,256},
+		{L.S_ZoneT31,231,230,229,228,227,226,225,224},
+		{L.S_ZoneT30,209,208,207,206,205,204,203,202,201},
+		{L.S_ZoneT29VotI,185,184,183,182,181,180,179,178},
+		{L.S_ZoneT28SFO,151,150,149,148,147,146,145,144,143,142,141},
+		{L.S_ZoneT27SoD,114,115,116,124,125,123,122,121,120,119,118,117},
+		{L.S_ZoneT26CastleNathria.." Ingame",100,93,91,92,90,89,88},
+		{L.S_ZoneT26CastleNathria,77,78,79,80,81,82,83,84,85,86,87},
+		{BATTLEFIELDS,101,102,103,104,105,106,107,108,109,110,111,112,113},
+		{L.S_ZoneT25Nyalotha,45,46,47,48,49,50,51,52,53,54,55,56},
+		{L.S_ZoneT24Eternal,40,39,38,37,36,35,34,33},
+		{L.S_ZoneT23Storms,32,31},
+		{L.S_ZoneT23Siege,30,29,28,27,26,25,24,23,22,21,20},
+		{L.S_ZoneT22Uldir,9,8,11,7,6,5,4,2,3},
+		{DUNGEONS..": "..EXPANSION_NAME7,41,42,43,44,12,13,14,15,16,17,18,19},
 	}
-	if ART.isCata then
+	if ExRT.isCata then
 		mapsSorted = {
 			1,
 			{L.NoteColor,10,94,95,96,97,98,99},
@@ -1183,7 +1177,7 @@ function module.options:Load()
 			{"Temple of Ahn'Qiraj",68,69,70},
 			{"Zul'gurub",66},
 		}
-	elseif ART.isLK then
+	elseif ExRT.isLK then
 		mapsSorted = {
 			1,
 			{L.NoteColor,10,94,95,96,97,98,99},
@@ -1211,7 +1205,7 @@ function module.options:Load()
 			{"Temple of Ahn'Qiraj",68,69,70},
 			{"Zul'gurub",66},
 		}
-	elseif ART.isBC then
+	elseif ExRT.isBC then
 		mapsSorted = {
 			1,
 			{L.NoteColor,10,94,95,96,97,98,99},
@@ -1229,7 +1223,7 @@ function module.options:Load()
 			{"Temple of Ahn'Qiraj",68,69,70},
 			{"Zul'gurub",66},
 		}
-	elseif ART.isClassic then
+	elseif ExRT.isClassic then
 		mapsSorted = {
 			1,
 			{L.NoteColor,10,94,95,96,97,98,99},
@@ -2281,7 +2275,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		ProcessDot(prevX or x,prevY or y,x,y,1)
 		prevX,prevY = x,y
 	end
@@ -2291,7 +2285,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		if not prevX then
 			prevX,prevY = x,y
 		end
@@ -2303,7 +2297,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		if not prevX then
 			prevX,prevY = x,y
 		end
@@ -2315,7 +2309,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		if not prevX then
 			prevX,prevY = x,y
 		end
@@ -2327,7 +2321,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		if not prevX then
 			prevX,prevY = x,y
 		end
@@ -2339,7 +2333,7 @@ function module.options:Load()
 			self:SetScript("OnUpdate",CheckAlpha)
 			return
 		end
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		if not prevX then
 			prevX,prevY = x,y
 		end
@@ -2431,7 +2425,7 @@ function module.options:Load()
 	local alphaTabPos = nil
 	local alphaTabNow = nil
 	function CheckAlpha(self,elapsed)
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		UpdateGroupsUnderCursor(x,y)
 		if (alphaTabNow and not groupsUnderCursor[alphaTabNow]) or tool_selected ~= 7 then
 			alphaTabNow = nil
@@ -2592,7 +2586,7 @@ function module.options:Load()
 	end
 
 	local function ClearSomething(self)
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		UpdateGroupsUnderCursor(x,y)
 
 		local groups_to_remove = {}
@@ -2687,7 +2681,7 @@ function module.options:Load()
 	end
 
 	local function LockUnlockSomething(self)
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 		UpdateGroupsUnderCursor(x,y)
 
 		if alphaTabNow then
@@ -2749,7 +2743,7 @@ function module.options:Load()
 	self.main.C:SetScript("OnUpdate",CheckAlpha)
 
 	self.main:SetScript("OnMouseWheel",function(self,delta)
-		local x,y = ART.F.GetCursorPos(self)
+		local x,y = ExRT.F.GetCursorPos(self)
 
 		local oldScale = self.C:GetScale()
 		local newScale = oldScale + delta * 0.25
@@ -2809,9 +2803,9 @@ function module.options:Load()
 
 		local uid = curr_data[1]
 		if uid then
-			VART.VisNote.sync_data[uid] = VART.VisNote.sync_data[uid] or {}
-			local syncData = VART.VisNote.sync_data[uid]
-			syncData.sender = ART.SDB.charKey
+			VMRT.VisNote.sync_data[uid] = VMRT.VisNote.sync_data[uid] or {}
+			local syncData = VMRT.VisNote.sync_data[uid]
+			syncData.sender = ExRT.SDB.charKey
 			syncData.time = time()
 
 			module.options.lastUpdate:SetText( L.NoteLastUpdate..": "..syncData.sender.." ("..date("%H:%M:%S %d.%m.%Y",syncData.time)..")" )
@@ -3014,7 +3008,7 @@ function module.options:Load()
 		--Hard to get to disconnect limit
 		for i=1,parts do
 			local msg = encoded:sub( (i-1)*252+1 , i*252 )
-			ART.F.SendExMsg("VN",msg)
+			ExRT.F.SendExMsg("VN",msg)
 		end
 	end
 	function self:SaveData()
@@ -3167,7 +3161,7 @@ function module.options:Load()
 		end
 
 		module.options.NoteName:SetText(data.name or "")
-		local syncData = VART.VisNote.sync_data[data[1] or ""]
+		local syncData = VMRT.VisNote.sync_data[data[1] or ""]
 		if syncData then
 			module.options.lastUpdate:SetText( L.NoteLastUpdate..": "..syncData.sender.." ("..date("%H:%M:%S %d.%m.%Y",syncData.time)..")" )
 		else
@@ -3183,8 +3177,8 @@ function module.options:Load()
 		local uid = serverID..playerUID..t
 		local foundUID = false
 		while true do
-			for i=1,#VART.VisNote.data do
-				if VART.VisNote.data[i][1] == uid then
+			for i=1,#VMRT.VisNote.data do
+				if VMRT.VisNote.data[i][1] == uid then
 					foundUID = true
 					break
 				end
@@ -3201,7 +3195,7 @@ function module.options:Load()
 	end
 	function self:LoadNewest()
 		local newest,nT = nil
-		for uid,data in pairs(VART.VisNote.sync_data) do
+		for uid,data in pairs(VMRT.VisNote.sync_data) do
 			if not newest or nT < data.time then
 				newest = uid
 				nT = data.time
@@ -3209,19 +3203,19 @@ function module.options:Load()
 		end
 		local toLoad = nil
 		if newest then
-			for i=1,#VART.VisNote.data do
-				if VART.VisNote.data[i][1] == newest then
-					toLoad = VART.VisNote.data[i]
+			for i=1,#VMRT.VisNote.data do
+				if VMRT.VisNote.data[i][1] == newest then
+					toLoad = VMRT.VisNote.data[i]
 					break
 				end
 			end
 		end
 		if not toLoad then
-			if #VART.VisNote.data > 0 then
-				toLoad = VART.VisNote.data[#VART.VisNote.data]
+			if #VMRT.VisNote.data > 0 then
+				toLoad = VMRT.VisNote.data[#VMRT.VisNote.data]
 			else
-				VART.VisNote.data[1] = self:CreateNew()
-				toLoad = VART.VisNote.data[1]
+				VMRT.VisNote.data[1] = self:CreateNew()
+				toLoad = VMRT.VisNote.data[1]
 			end
 		end
 		self:LoadData(toLoad)
@@ -3263,20 +3257,20 @@ function module.options:Load()
 				func = function ()
 					ELib.ScrollDropDown.Close()
 					local new = module.options:CreateNew()
-					VART.VisNote.data[#VART.VisNote.data + 1] = new
+					VMRT.VisNote.data[#VMRT.VisNote.data + 1] = new
 					module.options:LoadData(new)
 				end,
 			}
 		}
-		for i=#VART.VisNote.data,1,-1 do
-			local noteName = VART.VisNote.data[i].name
+		for i=#VMRT.VisNote.data,1,-1 do
+			local noteName = VMRT.VisNote.data[i].name
 			if not noteName or #noteName == 0 then
 				noteName = L.messageTab1.." "..i
 			end
 			self.List[#self.List + 1] = {
 				text = noteName,
 				justifyH = "CENTER",
-				arg1 = VART.VisNote.data[i],
+				arg1 = VMRT.VisNote.data[i],
 				func = SelectNote_SetValue,
 			}
 		end
@@ -3289,37 +3283,37 @@ function module.options:Load()
 	self.NoteName:SetMaxBytes(50)
 
 	self.removeButton = ELib:Button(self,L.cd2RemoveButton):Size(90,20):Point("TOPLEFT",615,-5):OnClick(function(self)
-		StaticPopupDialogs["ART_VISNOTE_REMOVE"] = {
+		StaticPopupDialogs["EXRT_VISNOTE_REMOVE"] = {
 			text = L.cd2RemoveButton,
 			button1 = L.YesText,
 			button2 = L.NoText,
 			OnAccept = function()
-				for i=#VART.VisNote.data,1,-1 do
-					if VART.VisNote.data[i] == curr_data then
-						tremove(VART.VisNote.data,i)
+				for i=#VMRT.VisNote.data,1,-1 do
+					if VMRT.VisNote.data[i] == curr_data then
+						tremove(VMRT.VisNote.data,i)
 					end
 				end
-				if #VART.VisNote.data == 0 then
+				if #VMRT.VisNote.data == 0 then
 					local new = module.options:CreateNew()
-					VART.VisNote.data[#VART.VisNote.data + 1] = new
+					VMRT.VisNote.data[#VMRT.VisNote.data + 1] = new
 				end
-				module.options:LoadData(VART.VisNote.data[#VART.VisNote.data])
+				module.options:LoadData(VMRT.VisNote.data[#VMRT.VisNote.data])
 			end,
 			timeout = 0,
 			whileDead = true,
 			hideOnEscape = true,
 			preferredIndex = 3,
 		}
-		StaticPopup_Show("ART_VISNOTE_REMOVE")
+		StaticPopup_Show("EXRT_VISNOTE_REMOVE")
 	end)
 
 	self.lastUpdate = ELib:Text(self,"",8):Point("BOTTOMLEFT",self,"BOTTOMLEFT",5,2):Color()
 
-	self.chkHidePopup = ELib:Check(self,L.VisualNoteDisablePopup,VART.VisNote.DisablePopup):Point("BOTTOMRIGHT",self,"BOTTOMRIGHT",-10,5):Scale(.8):Size(10,10):Left():OnClick(function(self) 
+	self.chkHidePopup = ELib:Check(self,L.VisualNoteDisablePopup,VMRT.VisNote.DisablePopup):Point("BOTTOMRIGHT",self,"BOTTOMRIGHT",-10,5):Scale(.8):Size(10,10):Left():OnClick(function(self) 
 		if self:GetChecked() then
-			VART.VisNote.DisablePopup = true
+			VMRT.VisNote.DisablePopup = true
 		else
-			VART.VisNote.DisablePopup = nil
+			VMRT.VisNote.DisablePopup = nil
 		end
 	end) 
 
@@ -3334,11 +3328,10 @@ function module.options:Load()
 			new[i] = curr_data[i]
 		end
 		new.name = (curr_data.name or "").." *"
-		VART.VisNote.data[#VART.VisNote.data + 1] = new
+		VMRT.VisNote.data[#VMRT.VisNote.data + 1] = new
 		self:LoadData(new)
 	end)
 
-	--Mini Note Popup code
 	local SCALE = 1 / 4
 
 	local frame = ELib:Popup(L.message):Size(790*SCALE+6,535*SCALE+15+3):Point("LEFT",UIParent,"LEFT",100,0)
@@ -3384,9 +3377,9 @@ function module.options:Load()
 			self.lock = false
 		end
 		local rate = width / frame.defWidth
-		VART.VisNote.PopupSizeRate = rate
-		VART.VisNote.PopupWidth = width
-		VART.VisNote.PopupHeight = height
+		VMRT.VisNote.PopupSizeRate = rate
+		VMRT.VisNote.PopupWidth = width
+		VMRT.VisNote.PopupHeight = height
 		module.options.main:SetScale(SCALE * rate)
 	end)
 	frame:SetScript("OnDragStart", function(self)
@@ -3396,17 +3389,17 @@ function module.options:Load()
 	end)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
-		VART.VisNote.PopupLeft = self:GetLeft()
-		VART.VisNote.PopupTop = self:GetTop()
+		VMRT.VisNote.PopupLeft = self:GetLeft()
+		VMRT.VisNote.PopupTop = self:GetTop()
 	end)
 
 
 	function module.ShowPopup()
 		frame:Show()
-		if VART.VisNote.PopupWidth and VART.VisNote.PopupHeight then
-			frame:SetSize(VART.VisNote.PopupWidth, VART.VisNote.PopupHeight)
+		if VMRT.VisNote.PopupWidth and VMRT.VisNote.PopupHeight then
+			frame:SetSize(VMRT.VisNote.PopupWidth, VMRT.VisNote.PopupHeight)
 		end
-		self.main:SetScale(SCALE*(VART.VisNote.PopupSizeRate or 1))
+		self.main:SetScale(SCALE*(VMRT.VisNote.PopupSizeRate or 1))
 		self.main:SetParent(frame)
 		self.main:ClearAllPoints()
 		self.main:SetPoint("CENTER",0,-9)
@@ -3414,9 +3407,9 @@ function module.options:Load()
 
 		self.main.C:SetScript("OnUpdate",nil)
 
-		if VART.VisNote.PopupLeft and VART.VisNote.PopupTop then 
+		if VMRT.VisNote.PopupLeft and VMRT.VisNote.PopupTop then 
 			frame:ClearAllPoints()
-			frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VART.VisNote.PopupLeft,VART.VisNote.PopupTop)
+			frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VMRT.VisNote.PopupLeft,VMRT.VisNote.PopupTop)
 		end
 
 		self.showPopup:Hide()
@@ -3424,17 +3417,17 @@ function module.options:Load()
 
 	self.showPopup = ELib:Button(self,""):Size(20,20):Point("TOPLEFT",self.main,0,0):Tooltip(L.VisualNotePopupButTooltip.."\n"..L.VisualNotePopupButTooltip2):OnClick(function()
 		if IsShiftKeyDown() then
-			VART.VisNote.PopupWidth = nil
-			VART.VisNote.PopupHeight = nil
-			VART.VisNote.PopupSizeRate = nil
-			VART.VisNote.PopupLeft = nil
-			VART.VisNote.PopupTop = nil
+			VMRT.VisNote.PopupWidth = nil
+			VMRT.VisNote.PopupHeight = nil
+			VMRT.VisNote.PopupSizeRate = nil
+			VMRT.VisNote.PopupLeft = nil
+			VMRT.VisNote.PopupTop = nil
 			frame:Size(790*SCALE+6,535*SCALE+15+3):NewPoint("LEFT",UIParent,"LEFT",100,0)
 		end
 		module.db.PopupIsOn = true
 		module:ShowPopup()
 
-		ART.Options.Frame:Hide()
+		ExRT.Options.Frame:Hide()
 	end)
 	self.showPopup:SetFrameStrata("DIALOG")
 
@@ -3473,10 +3466,10 @@ function module.options:Load()
 end
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
-	VART.VisNote = VART.VisNote or {}
-	VART.VisNote.data = VART.VisNote.data or {}
-	VART.VisNote.sync_data = VART.VisNote.sync_data or {}
+	VMRT = _G.VMRT
+	VMRT.VisNote = VMRT.VisNote or {}
+	VMRT.VisNote.data = VMRT.VisNote.data or {}
+	VMRT.VisNote.sync_data = VMRT.VisNote.sync_data or {}
 
 	module:RegisterAddonMessage()
 end
@@ -3500,26 +3493,26 @@ function module:UnpackString(str,sender)
 			str = str:sub(2+c-1)
 
 			local found = nil
-			for i=1,#VART.VisNote.data do
-				if VART.VisNote.data[i][1] == module.db.await[1] then
-					if VART.VisNote.data[i].disableUpdate then
+			for i=1,#VMRT.VisNote.data do
+				if VMRT.VisNote.data[i][1] == module.db.await[1] then
+					if VMRT.VisNote.data[i].disableUpdate then
 						module.db.await = nil
 						return
 					end
-					VART.VisNote.data[i] = module.db.await
+					VMRT.VisNote.data[i] = module.db.await
 					found = true
 					break
 				end
 			end
 			if not found then
-				VART.VisNote.data[#VART.VisNote.data + 1] = module.db.await
+				VMRT.VisNote.data[#VMRT.VisNote.data + 1] = module.db.await
 			end
 			module.popup:Popup(sender)
 			local uid = module.db.await[1]
 			if uid then
-				VART.VisNote.sync_data[uid] = VART.VisNote.sync_data[uid] or {}
-				VART.VisNote.sync_data[uid].sender = sender
-				VART.VisNote.sync_data[uid].time = time()
+				VMRT.VisNote.sync_data[uid] = VMRT.VisNote.sync_data[uid] or {}
+				VMRT.VisNote.sync_data[uid].sender = sender
+				VMRT.VisNote.sync_data[uid].time = time()
 			end
 		end
 	end
@@ -3735,9 +3728,9 @@ function module:addonMessage(sender, prefix, ...)
 		if difficulty == 7 or difficulty == 17 then
 			return
 		end
-		if (IsInRaid() and not ART.F.IsPlayerRLorOfficer(sender))
-			or sender == ART.SDB.charKey 
-			or sender == ART.SDB.charName 
+		if (IsInRaid() and not ExRT.F.IsPlayerRLorOfficer(sender))
+			or sender == ExRT.SDB.charKey 
+			or sender == ExRT.SDB.charName 
 		then
 			return
 		end
@@ -3760,6 +3753,7 @@ do
 	local frame = CreateFrame("Frame",nil,UIParent,BackdropTemplateMixin and "BackdropTemplate")
 	module.popup = frame
 
+	frame:Hide()
 	frame:SetBackdrop({bgFile="Interface\\Addons\\"..GlobalAddonName.."\\media\\White"})
 	frame:SetBackdropColor(0.05,0.05,0.07,0.98)
 	frame:SetSize(250,65)
@@ -3767,7 +3761,7 @@ do
 	frame:SetFrameStrata("DIALOG")
 	frame:SetClampedToScreen(true)
 
-	frame.border = ART.lib:Shadow(frame,20)
+	frame.border = ExRT.lib:Shadow(frame,20)
 
 	frame.label = frame:CreateFontString(nil,"OVERLAY","GameFontWhiteSmall")
 	frame.label:SetFont(frame.label:GetFont(),10,"")
@@ -3784,7 +3778,7 @@ do
 	frame.b1 = ELib:Button(frame,L.minimapmenuclose):Point("BOTTOMLEFT",5,5):Size(100,20):OnClick(function() frame:Hide() end)
 	frame.b3 = ELib:Button(frame,L.VisualNoteOpen):Point("BOTTOMRIGHT",-5,5):Size(100,20):OnClick(function() 
 		frame:Hide() 
-		ART.Options:Open(module.options) 
+		ExRT.Options:Open(module.options) 
 		if module.options.LoadData and module.db.await then
 			module.options:LoadData(module.db.await) 
 		end
@@ -3808,12 +3802,11 @@ do
 		if module.options.main and module.options.main.C:IsVisible() then
 			return
 		end
-		if VART and VART.VisNote and VART.VisNote.DisablePopup then
+		if VMRT and VMRT.VisNote and VMRT.VisNote.DisablePopup then
 			return
 		end
 		frame.player:SetText(player)
 		frame:Show()
 	end
 
-	frame:Hide()
 end

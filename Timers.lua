@@ -1,11 +1,11 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, ExRT = ...
 
-local math_ceil, IsEncounterInProgress, abs, UnitHealth, UnitHealthMax, GetTime, format, tableCopy = math.ceil, IsEncounterInProgress, abs, UnitHealth, UnitHealthMax, GetTime, format, ART.F.table_copy2
+local math_ceil, IsEncounterInProgress, abs, UnitHealth, UnitHealthMax, GetTime, format, tableCopy = math.ceil, IsEncounterInProgress, abs, UnitHealth, UnitHealthMax, GetTime, format, ExRT.F.table_copy2
 local SendAddonMessage = C_ChatInfo.SendAddonMessage
-local VART = nil
+local VMRT = nil
 
-local module = ART:New("Timers",ART.L.timers)
-local ELib,L = ART.lib,ART.L
+local module = ExRT:New("Timers",ExRT.L.timers)
+local ELib,L = ExRT.lib,ExRT.L
 
 module.db.lasttimertopull = 0
 module.db.timertopull = 0
@@ -13,7 +13,7 @@ module.db.firstmsg = false
 
 local timeToKillEnabled = nil
 
-module.db.classNames = ART.GDB.ClassList
+module.db.classNames = ExRT.GDB.ClassList
 local defaultSpecTimers = {
 	[62] = 10,    -- Mage: Arcane
 	[63] = 10,    -- Mage: Fire
@@ -56,12 +56,12 @@ local defaultSpecTimers = {
 	[1473] = 10,
 }
 
-module.db.specIcons = ART.GDB.ClassSpecializationIcons
-module.db.specByClass = ART.GDB.ClassSpecializationList
+module.db.specIcons = ExRT.GDB.ClassSpecializationIcons
+module.db.specByClass = ExRT.GDB.ClassSpecializationList
 module.db.localizatedClassNames = L.classLocalizate
 
 local function ToRaid(msg)
-	if VART.Timers.DisableRW then
+	if VMRT.Timers.DisableRW then
 		return
 	end
 	if IsInRaid() then
@@ -77,7 +77,7 @@ end
 local dbmPrefix = "D5"
 
 local function CreateTimers(ctime,cname)
-	local chat_type,playerName = ART.F.chatType()
+	local chat_type,playerName = ExRT.F.chatType()
 
 	local name = UnitName("player")
 	local realm = GetRealmName()
@@ -95,7 +95,7 @@ local function CreateTimers(ctime,cname)
 		SendAddonMessage("BigWigs", "P^Pull^"..ctime, chat_type,playerName)
 		local _,_,_,_,_,_,_,mapID = GetInstanceInfo()
 		SendAddonMessage(dbmPrefix, ("%s1\tPT\t%d\t%d"):format(dbmPlayerPrefix, ctime,mapID or 0), chat_type,playerName)
-		if not ART.isClassic and VART.Timers.BlizzTimer then --currently is bugged, wait to fix
+		if not ExRT.isClassic and VMRT.Timers.BlizzTimer then --currently is bugged, wait to fix
 			C_PartyInfo.DoCountdown(ctime)
 		end
 	elseif cname == L.timerafk then
@@ -115,7 +115,7 @@ local function CreateTimers(ctime,cname)
 		end
 		SendAddonMessage("BigWigs", "P^CBar^"..ctime.." "..cname, chat_type,playerName)
 		SendAddonMessage(dbmPrefix, ("%s1\tU\t%d\t%s"):format(dbmPlayerPrefix, ctime, cname), chat_type,playerName)
-		if not ART.isClassic and VART.Timers.BlizzTimer then
+		if not ExRT.isClassic and VMRT.Timers.BlizzTimer then
 			C_PartyInfo.DoCountdown(0)
 		end
 		if DBM then
@@ -139,18 +139,18 @@ function module:timer(elapsed)
 			ToRaid(">>> "..L.timerattack.." <<<")
 		end
 	end
-	if VART.Timers.enabled then
+	if VMRT.Timers.enabled then
 		if not module.frame.encounter and IsEncounterInProgress() then
 			module.frame.encounter = true
 			module.frame.total = 0
 			
-			if VART.Timers.OnlyInCombat then
+			if VMRT.Timers.OnlyInCombat then
 				module.frame:Show()
 			end
 		elseif module.frame.encounter and not IsEncounterInProgress() then
 			module.frame.encounter = nil
 			
-			if VART.Timers.OnlyInCombat and not module.frame.inCombat then
+			if VMRT.Timers.OnlyInCombat and not module.frame.inCombat then
 				module.frame:Hide()
 			end
 		end
@@ -161,9 +161,9 @@ local function GetDynamicPullTime()
 	local time_needed = 10
 	local n = GetNumGroupMembers() or 0
 	if n == 0 then
-		local spec = ART.A.Inspect.db.inspectDB[ ART.SDB.charName ] and ART.A.Inspect.db.inspectDB[ ART.SDB.charName ].spec
+		local spec = ExRT.A.Inspect.db.inspectDB[ ExRT.SDB.charName ] and ExRT.A.Inspect.db.inspectDB[ ExRT.SDB.charName ].spec
 		if spec then
-			local currTime = VART.Timers.specTimes[spec] or defaultSpecTimers[spec] or 10
+			local currTime = VMRT.Timers.specTimes[spec] or defaultSpecTimers[spec] or 10
 			if currTime > time_needed then
 				time_needed = currTime
 			end
@@ -172,9 +172,9 @@ local function GetDynamicPullTime()
 	for i=1,n do
 		local name,_, subgroup, _, _, _, _, online = GetRaidRosterInfo(i)
 		if subgroup <= 6 and online then
-			local spec = ART.A.Inspect.db.inspectDB[name] and ART.A.Inspect.db.inspectDB[name].spec
+			local spec = ExRT.A.Inspect.db.inspectDB[name] and ExRT.A.Inspect.db.inspectDB[name].spec
 			if spec then
-				local currTime = VART.Timers.specTimes[spec] or defaultSpecTimers[spec] or 10
+				local currTime = VMRT.Timers.specTimes[spec] or defaultSpecTimers[spec] or 10
 				if currTime > time_needed then
 					time_needed = currTime
 				end
@@ -184,14 +184,14 @@ local function GetDynamicPullTime()
 	return time_needed
 end
 
-function ART.F:DoPull(inum,ignoreDRT)
+function ExRT.F:DoPull(inum,ignoreDRT)
 	if module.db.timertopull > 0 then
 		module.db.timertopull = 0
 		ToRaid(">>> "..L.timerattackcancel.." <<<")
 		CreateTimers(0,L.timerattack)
 	else
 		inum = tonumber(inum) or 10
-		if VART.Timers.useDPT and not ignoreDRT then
+		if VMRT.Timers.useDPT and not ignoreDRT then
 			inum = GetDynamicPullTime()
 		end
 		module.db.firstmsg = true
@@ -203,17 +203,17 @@ end
 
 function module:slash(arg,msgDeformatted)
 	if arg == "pull" then
-		ART.F:DoPull(10)
+		ExRT.F:DoPull(10)
 	elseif arg:find("^pull ") then
 		local sec = arg:match("%d+")
 		sec = tonumber(sec or "?")
 		if not sec then
 			if module.db.timertopull > 0 then
-				ART.F:DoPull()
+				ExRT.F:DoPull()
 			end
 			return
 		end
-		ART.F:DoPull(sec,true)
+		ExRT.F:DoPull(sec,true)
 	elseif arg:find("^afk ") then
 		local min = arg:match("[%d%.]+")
 		if min then
@@ -236,13 +236,13 @@ function module:slash(arg,msgDeformatted)
 			return
 		end
 		CreateTimers(timerTime,timerName)
-	elseif VART.Timers.enabled and arg:find("^mytimer ") then
+	elseif VMRT.Timers.enabled and arg:find("^mytimer ") then
 		local id = arg:match("%d+")
 		if id then
 			module.frame.total = -tonumber(id)
 		end
 	elseif arg == "dpt" then
-		local parentModule = ART.A.Inspect
+		local parentModule = ExRT.A.Inspect
 		if not parentModule then
 			return
 		end
@@ -258,7 +258,7 @@ function module:slash(arg,msgDeformatted)
 			CreateTimers(time_needed,L.timerattack)
 		end
 	elseif arg:find("^cleutimer ") then
-		--/art cleutimer UNIT_DIED 177286 240 sound
+		--/rt cleutimer UNIT_DIED 177286 240 sound
 		local u_event,filter,time = msgDeformatted:match("^cleutimer ([^ ]+) (%d+) (%d+)")
 		if time then
 			filter = tonumber(filter)
@@ -266,7 +266,7 @@ function module:slash(arg,msgDeformatted)
 			local sound = arg:find("sound") and true or false
 			if u_event == "UNIT_DIED" then
 				function module.main.COMBAT_LOG_EVENT_UNFILTERED(_,event,_,sourceGUID,sourceName,sourceFlags,_,destGUID,destName,destFlags,_,spellID)
-					if u_event == event and ART.F.GUIDtoID(destGUID) == filter then
+					if u_event == event and ExRT.F.GUIDtoID(destGUID) == filter then
 						module.frame.total = -time
 						if sound then
 							C_Timer.After(time,function()
@@ -293,12 +293,12 @@ function module:slash(arg,msgDeformatted)
 			print('wrong syntax')
 		end
 	elseif arg == "help" then
-		print("|cff00ff00/art pull|r - run pull timer with 10 seconds")
-		print("|cff00ff00/art pull X|r - run pull timer with X seconds")
-		print("|cff00ff00/art afk X|r - run afk timer with X minutes")
-		print("|cff00ff00/art timer TIMERNAME X|r - run custom timer with name TIMERNAME and X seconds")
-		print("|cff00ff00/art mytimer X|r - set countdown for timer frame with X seconds")
-		print("|cff00ff00/art dpt|r - run dynamic pull timer")
+		print("|cff00ff00/rt pull|r - run pull timer with 10 seconds")
+		print("|cff00ff00/rt pull X|r - run pull timer with X seconds")
+		print("|cff00ff00/rt afk X|r - run afk timer with X minutes")
+		print("|cff00ff00/rt timer TIMERNAME X|r - run custom timer with name TIMERNAME and X seconds")
+		print("|cff00ff00/rt mytimer X|r - set countdown for timer frame with X seconds")
+		print("|cff00ff00/rt dpt|r - run dynamic pull timer")
 	end
 end
 
@@ -306,20 +306,20 @@ function module.options:Load()
 	self:CreateTilte()
 
 	local GetSpecializationInfoByID = GetSpecializationInfoByID
-	if ART.isClassic then
-		GetSpecializationInfoByID = GetSpecializationInfoForSpecID or ART.Classic.GetSpecializationInfoByID
+	if ExRT.isClassic then
+		GetSpecializationInfoByID = GetSpecializationInfoForSpecID or ExRT.Classic.GetSpecializationInfoByID
 	end
 
 	self.shtml1 = ELib:Text(self,L.timerstxt1,12):Size(650,200):Point(15,-20):Top()
 	self.shtml2 = ELib:Text(self,L.timerstxt2,12):Size(550,200):Point(115,-20):Top():Color()
 	
-	self.chkDisableRW = ELib:Check(self,L.TimerDisableRWmessage,VART.Timers.DisableRW):Point(15,-150):OnClick(function(self) 
-		VART.Timers.DisableRW = self:GetChecked()
+	self.chkDisableRW = ELib:Check(self,L.TimerDisableRWmessage,VMRT.Timers.DisableRW):Point(15,-150):OnClick(function(self) 
+		VMRT.Timers.DisableRW = self:GetChecked()
 	end)
 
-	self.chkDisableRW = ELib:Check(self,L.TimerEnableBlizz,VART.Timers.BlizzTimer):Tooltip(L.TimerEnableBlizzTooltip):Point(15,-175):OnClick(function(self) 
-		VART.Timers.BlizzTimer = self:GetChecked()
-	end):Shown(not ART.isClassic)
+	self.chkDisableRW = ELib:Check(self,L.TimerEnableBlizz,VMRT.Timers.BlizzTimer):Tooltip(L.TimerEnableBlizzTooltip):Point(15,-175):OnClick(function(self) 
+		VMRT.Timers.BlizzTimer = self:GetChecked()
+	end):Shown(not ExRT.isClassic)
 	
 	self.TabTimerFrame = ELib:OneTab(self):Size(678,155):Point("TOP",0,-205)
 	ELib:Border(self.TabTimerFrame,0)
@@ -327,16 +327,16 @@ function module.options:Load()
 	ELib:DecorationLine(self):Point("BOTTOM",self.TabTimerFrame,"TOP",0,0):Point("LEFT",self):Point("RIGHT",self):Size(0,1)
 	ELib:DecorationLine(self):Point("TOP",self.TabTimerFrame,"BOTTOM",0,0):Point("LEFT",self):Point("RIGHT",self):Size(0,1)
 	
-	self.chkEnable = ELib:Check(self.TabTimerFrame,L.timerTimerFrame,VART.Timers.enabled):Point(5,-5):AddColorState():OnClick(function(self) 
+	self.chkEnable = ELib:Check(self.TabTimerFrame,L.timerTimerFrame,VMRT.Timers.enabled):Point(5,-5):AddColorState():OnClick(function(self) 
 		if self:GetChecked() then
-			VART.Timers.enabled = true
+			VMRT.Timers.enabled = true
 			module.frame:Show()
 			module.frame:SetScript("OnUpdate", module.frame.OnUpdateFunc)
 			module:RegisterEvents('PLAYER_REGEN_DISABLED','PLAYER_REGEN_ENABLED')
 			module.options.chkTimeToKill:SetEnabled(true)
 		else
-			VART.Timers.enabled = nil
-			VART.Timers.timeToKill = nil
+			VMRT.Timers.enabled = nil
+			VMRT.Timers.timeToKill = nil
 			module.frame:Hide() 
 			module.frame:SetScript("OnUpdate", nil)
 			module:UnregisterEvents('PLAYER_REGEN_DISABLED','PLAYER_REGEN_ENABLED')
@@ -345,53 +345,53 @@ function module.options:Load()
 		end
 	end)
 	
-	self.chkOnlyInCombat = ELib:Check(self.TabTimerFrame,L.TimerOnlyInCombat,VART.Timers.OnlyInCombat):Point(5,-30):OnClick(function(self) 
+	self.chkOnlyInCombat = ELib:Check(self.TabTimerFrame,L.TimerOnlyInCombat,VMRT.Timers.OnlyInCombat):Point(5,-30):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.Timers.OnlyInCombat = true
+			VMRT.Timers.OnlyInCombat = true
 			if not (module.frame.inCombat or module.frame.encounter) then
 				module.frame:Hide()
 			end
 		else
-			VART.Timers.OnlyInCombat = nil
-			if VART.Timers.enabled then
+			VMRT.Timers.OnlyInCombat = nil
+			if VMRT.Timers.enabled then
 				module.frame:Show()
 			end
 		end
 	end)
 	
-	self.chkFixate = ELib:Check(self.TabTimerFrame,L.cd2fix,VART.Timers.Lock):Point(339,-5):OnClick(function(self) 
+	self.chkFixate = ELib:Check(self.TabTimerFrame,L.cd2fix,VMRT.Timers.Lock):Point(339,-5):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.Timers.Lock = true
+			VMRT.Timers.Lock = true
 			module.frame:SetMovable(false)
 			module.frame:EnableMouse(false)
 		else
-			VART.Timers.Lock = nil
+			VMRT.Timers.Lock = nil
 			module.frame:SetMovable(true)
 			module.frame:EnableMouse(true)
 		end
 	end)
 	
-	self.chkTimeToKill = ELib:Check(self.TabTimerFrame,L.TimerTimeToKill,VART.Timers.timeToKill):Point(339,-30):Tooltip(L.TimerTimeToKillHelp):OnClick(function(self) 
+	self.chkTimeToKill = ELib:Check(self.TabTimerFrame,L.TimerTimeToKill,VMRT.Timers.timeToKill):Point(339,-30):Tooltip(L.TimerTimeToKillHelp):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.Timers.timeToKill = true
+			VMRT.Timers.timeToKill = true
 			timeToKillEnabled = true
 		else
-			VART.Timers.timeToKill = nil
+			VMRT.Timers.timeToKill = nil
 			timeToKillEnabled = nil
 			module.frame.killTime:SetText("")
 		end
 	end)
 	
-	self.sliderTimeToKill = ELib:Slider(self.TabTimerFrame,L.TimerTimeToKillTime):Size(100):Point("LEFT",self.chkTimeToKill,"LEFT",180,2):Range(5,40):SetTo(VART.Timers.timeToKillAnalyze):OnChange(function(self,event) 
+	self.sliderTimeToKill = ELib:Slider(self.TabTimerFrame,L.TimerTimeToKillTime):Size(100):Point("LEFT",self.chkTimeToKill,"LEFT",180,2):Range(5,40):SetTo(VMRT.Timers.timeToKillAnalyze):OnChange(function(self,event) 
 		event = event - event%1
-		VART.Timers.timeToKillAnalyze = event
+		VMRT.Timers.timeToKillAnalyze = event
 		self.tooltipText = event
 		self:tooltipReload(self)
 	end)
 	
 	self.ButtonToCenter = ELib:Button(self.TabTimerFrame,L.TimerResetPos):Size(324,20):Point(5,-80):Tooltip(L.TimerResetPosTooltip):OnClick(function()
-		VART.Timers.Left = nil
-		VART.Timers.Top = nil
+		VMRT.Timers.Left = nil
+		VMRT.Timers.Top = nil
 
 		module.frame:ClearAllPoints()
 		module.frame:SetPoint("CENTER",UIParent, "CENTER", 0, 0)
@@ -399,7 +399,7 @@ function module.options:Load()
 	
 	self.TimerFrameStrataDropDown = ELib:DropDown(self.TabTimerFrame,275,8):Point(338,-60):Size(324):SetText(L.S_Strata)
 	local function TimerFrameStrataDropDown_SetVaule(_,arg)
-		VART.Timers.Strata = arg
+		VMRT.Timers.Strata = arg
 		ELib:DropDownClose()
 		for i=1,#self.TimerFrameStrataDropDown.List do
 			self.TimerFrameStrataDropDown.List[i].checkState = arg == self.TimerFrameStrataDropDown.List[i].arg1
@@ -409,7 +409,7 @@ function module.options:Load()
 	for i,strataString in ipairs({"BACKGROUND","LOW","MEDIUM","HIGH","DIALOG","FULLSCREEN","FULLSCREEN_DIALOG","TOOLTIP"}) do
 		self.TimerFrameStrataDropDown.List[i] = {
 			text = strataString,
-			checkState = VART.Timers.Strata == strataString,
+			checkState = VMRT.Timers.Strata == strataString,
 			radio = true,
 			arg1 = strataString,
 			func = TimerFrameStrataDropDown_SetVaule,
@@ -418,49 +418,49 @@ function module.options:Load()
 
 	self.setTypeText = ELib:Text(self.TabTimerFrame,TYPE..":",11):Point(5,-55):Size(0,25)
 	
-	self.setType1 = ELib:Radio(self.TabTimerFrame,"1",VART.Timers.Type == 1 or not VART.Timers.Type):Point("LEFT",self.setTypeText,"RIGHT", 15, 0):OnClick(function(self) 
+	self.setType1 = ELib:Radio(self.TabTimerFrame,"1",VMRT.Timers.Type == 1 or not VMRT.Timers.Type):Point("LEFT",self.setTypeText,"RIGHT", 15, 0):OnClick(function(self) 
 		self:SetChecked(true)
 		module.options.setType2:SetChecked(false)
-		VART.Timers.Type = 1
-		if VART.Timers.enabled then
+		VMRT.Timers.Type = 1
+		if VMRT.Timers.enabled then
 			module.frame:SetScript("OnUpdate", module.frame.OnUpdateFunc)
 		end
 	end)
 	
-	self.setType2 = ELib:Radio(self.TabTimerFrame,"2",VART.Timers.Type == 2):Point("LEFT",self.setType1,"RIGHT", 75, 0):OnClick(function(self) 
+	self.setType2 = ELib:Radio(self.TabTimerFrame,"2",VMRT.Timers.Type == 2):Point("LEFT",self.setType1,"RIGHT", 75, 0):OnClick(function(self) 
 		self:SetChecked(true)
 		module.options.setType1:SetChecked(false)
-		VART.Timers.Type = 2
-		if VART.Timers.enabled then
+		VMRT.Timers.Type = 2
+		if VMRT.Timers.enabled then
 			module.frame:SetScript("OnUpdate", module.frame.OnUpdateFunc)
 		end
 	end)
 
 
-	self.SliderScale = ELib:Slider(self.TabTimerFrame,L.marksbarscale):Size(280):Point("TOP",-170,-120):Range(10,400):SetTo(VART.Timers.Scale or 100):OnChange(function(self,event) 
+	self.SliderScale = ELib:Slider(self.TabTimerFrame,L.marksbarscale):Size(280):Point("TOP",-170,-120):Range(10,400):SetTo(VMRT.Timers.Scale or 100):OnChange(function(self,event) 
 		event = event - event%1
-		VART.Timers.Scale = event
-		ART.F.SetScaleFix(module.frame,event/100)
+		VMRT.Timers.Scale = event
+		ExRT.F.SetScaleFix(module.frame,event/100)
 		self.tooltipText = event
 		self:tooltipReload(self)
 	end)
 	
-	self.SliderAlpha = ELib:Slider(self.TabTimerFrame,L.marksbaralpha):Size(280):Point("TOP",170,-120):Range(0,100):SetTo(VART.Timers.Alpha or 100):OnChange(function(self,event) 
+	self.SliderAlpha = ELib:Slider(self.TabTimerFrame,L.marksbaralpha):Size(280):Point("TOP",170,-120):Range(0,100):SetTo(VMRT.Timers.Alpha or 100):OnChange(function(self,event) 
 		event = event - event%1
-		VART.Timers.Alpha = event
+		VMRT.Timers.Alpha = event
 		module.frame:SetAlpha(event/100)
 		self.tooltipText = event
 		self:tooltipReload(self)
 	end)
 
 	
-	self.chkDPT = ELib:Check(self,L.TimerUseDptInstead,VART.Timers.useDPT):Point(15,-370):OnClick(function(self) 
+	self.chkDPT = ELib:Check(self,L.TimerUseDptInstead,VMRT.Timers.useDPT):Point(15,-370):OnClick(function(self) 
 		if self:GetChecked() then
-			VART.Timers.useDPT = true
+			VMRT.Timers.useDPT = true
 		else
-			VART.Timers.useDPT = nil
+			VMRT.Timers.useDPT = nil
 		end
-	end):Shown(not ART.isClassic or ART.isCata)
+	end):Shown(not ExRT.isClassic or ExRT.isCata)
 	
 	local function SpecsEditBoxTextChanged(self,isUser)
 		if not isUser then
@@ -476,15 +476,15 @@ function module.options:Load()
 			val = 0
 		end
 		self:SetText(val)
-		VART.Timers.specTimes[spec] = val
+		VMRT.Timers.specTimes[spec] = val
 	end
 	
-	self.scrollFrame = ELib:ScrollFrame(self):Size(678,220):Point("TOP",0,-413):Height(700):Shown(not ART.isClassic or ART.isCata)
+	self.scrollFrame = ELib:ScrollFrame(self):Size(678,220):Point("TOP",0,-413):Height(700):Shown(not ExRT.isClassic or ExRT.isCata)
 	ELib:Border(self.scrollFrame,0)
-	self.scrollFrameText = ELib:Text(self,L.TimerSpecTimerHeader,12):Size(620,30):Point("BOTTOMLEFT",self.scrollFrame,"TOPLEFT",5,1):Bottom():Shown(not ART.isClassic or ART.isCata)
+	self.scrollFrameText = ELib:Text(self,L.TimerSpecTimerHeader,12):Size(620,30):Point("BOTTOMLEFT",self.scrollFrame,"TOPLEFT",5,1):Bottom():Shown(not ExRT.isClassic or ExRT.isCata)
 	self.scrollFrame.C.classTitles = {}
 	self.scrollFrame.C.classFrames = {}
-	if ART.isCata then
+	if ExRT.isCata then
 		module.db.classNames = {
 			"WARRIOR",
 			"PALADIN",
@@ -506,7 +506,7 @@ function module.options:Load()
 		frame:SetSize(210,26)
 		frame:SetPoint("TOPLEFT", 70 + 205 * column, -20 - 140 * row)
 		local className = module.db.localizatedClassNames[class] or class
-		self.scrollFrame.C.classTitles[class] = ELib:Text(frame,"\124c"..ART.F.classColor(class)..className.."\124r",13):Size(200,20):Point(0,0 ):Top()
+		self.scrollFrame.C.classTitles[class] = ELib:Text(frame,"\124c"..ExRT.F.classColor(class)..className.."\124r",13):Size(200,20):Point(0,0 ):Top()
 		frame.icon = frame:CreateTexture(nil, "BACKGROUND")
 		
 		self.scrollFrame.C.classFrames[class].specFrames = {}
@@ -521,67 +521,67 @@ function module.options:Load()
 			specFrame.icon:SetSize(20,20)
 			local _,specName = GetSpecializationInfoByID(spec)
 			specFrame.specName = ELib:Text(specFrame,specName,13):Size(100,20):Point(22,-5):Top():FontSize(10)
-			specFrame.specEditBox = ELib:Edit(specFrame):Size(30,20):Point(120,0):Text(VART.Timers.specTimes[spec] or "10"):OnChange(SpecsEditBoxTextChanged)
+			specFrame.specEditBox = ELib:Edit(specFrame):Size(30,20):Point(120,0):Text(VMRT.Timers.specTimes[spec] or "10"):OnChange(SpecsEditBoxTextChanged)
 			specFrame.specEditBox.id = spec
 		end
 	end
 	self.scrollFrame.C.ButtonToDefaultTimers = ELib:Button(self.scrollFrame.C,L.TimerSpecTimerDefault):Size(255,20):Point("TOP",0,-670):OnClick(function()
-		VART.Timers.specTimes = tableCopy(defaultSpecTimers)
+		VMRT.Timers.specTimes = tableCopy(defaultSpecTimers)
 		for key, class in ipairs(module.db.classNames) do
 			for specRow, spec in ipairs(module.db.specByClass[class]) do
 				local specFrame = self.scrollFrame.C.classFrames[class].specFrames[spec]
-				specFrame.specEditBox:SetText(VART.Timers.specTimes[spec])
+				specFrame.specEditBox:SetText(VMRT.Timers.specTimes[spec])
 			end
 		end
 		
 	end) 
 
-	if not VART.Timers.enabled then
+	if not VMRT.Timers.enabled then
 		self.chkTimeToKill:SetChecked(nil)
 		self.chkTimeToKill:SetEnabled(false)
 	end
 end
 
 function module.main:ADDON_LOADED()
-	VART = _G.VART
-	VART.Timers = VART.Timers or {
+	VMRT = _G.VMRT
+	VMRT.Timers = VMRT.Timers or {
 		Type = 2,
 	}
 
-	if VART.Timers.Left and VART.Timers.Top then 
+	if VMRT.Timers.Left and VMRT.Timers.Top then 
 		module.frame:ClearAllPoints()
-		module.frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VART.Timers.Left,VART.Timers.Top) 
+		module.frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",VMRT.Timers.Left,VMRT.Timers.Top) 
 	end
 
-	if VART.Timers.enabled then
-		if not VART.Timers.OnlyInCombat then
+	if VMRT.Timers.enabled then
+		if not VMRT.Timers.OnlyInCombat then
 			module.frame:Show()
 		end
 		module.frame:SetScript("OnUpdate", module.frame.OnUpdateFunc)
 		module:RegisterEvents('PLAYER_REGEN_DISABLED','PLAYER_REGEN_ENABLED')		
 	end
-	if VART.Timers.enabled and VART.Timers.timeToKill then 
+	if VMRT.Timers.enabled and VMRT.Timers.timeToKill then 
 		timeToKillEnabled = true
 	end
-	if VART.Timers.Lock then
+	if VMRT.Timers.Lock then
 		module.frame:SetMovable(false)
 		module.frame:EnableMouse(false)
 	end
-	if not VART.Timers.specTimes then
-		VART.Timers.specTimes = tableCopy(defaultSpecTimers)
+	if not VMRT.Timers.specTimes then
+		VMRT.Timers.specTimes = tableCopy(defaultSpecTimers)
 	end
 	
-	VART.Timers.Strata = VART.Timers.Strata or "HIGH"
+	VMRT.Timers.Strata = VMRT.Timers.Strata or "HIGH"
 	
-	VART.Timers.timeToKillAnalyze = tonumber(VART.Timers.timeToKillAnalyze or "?") or 15
+	VMRT.Timers.timeToKillAnalyze = tonumber(VMRT.Timers.timeToKillAnalyze or "?") or 15
 	
-	module.frame:SetFrameStrata(VART.Timers.Strata)
+	module.frame:SetFrameStrata(VMRT.Timers.Strata)
 	
 	module:RegisterTimer()
 	module:RegisterSlash()
 
-	if VART.Timers.Alpha then module.frame:SetAlpha(VART.Timers.Alpha/100) end
-	if VART.Timers.Scale then module.frame:SetScale(VART.Timers.Scale/100) end
+	if VMRT.Timers.Alpha then module.frame:SetAlpha(VMRT.Timers.Alpha/100) end
+	if VMRT.Timers.Scale then module.frame:SetScale(VMRT.Timers.Scale/100) end
 end
 
 function module.main:PLAYER_REGEN_DISABLED()
@@ -590,7 +590,7 @@ function module.main:PLAYER_REGEN_DISABLED()
 	end
 	module.frame.inCombat = true
 	
-	if VART.Timers.OnlyInCombat then
+	if VMRT.Timers.OnlyInCombat then
 		module.frame:Show()
 	end
 end
@@ -598,16 +598,16 @@ end
 function module.main:PLAYER_REGEN_ENABLED()
 	module.frame.inCombat = nil
 	
-	if VART.Timers.OnlyInCombat and not module.frame.encounter then
+	if VMRT.Timers.OnlyInCombat and not module.frame.encounter then
 		module.frame:Hide()
 	end
 end
 
-module.frame = CreateFrame("Frame","ARTCombatTimer",UIParent,BackdropTemplateMixin and "BackdropTemplate")
+module.frame = CreateFrame("Frame","MRTCombatTimer",UIParent,BackdropTemplateMixin and "BackdropTemplate")
 module.frame:Hide()
 module.frame:SetSize(77,27)
 module.frame:SetPoint("CENTER", 0, 0)
-module.frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background",edgeFile = ART.F.defBorder,tile = false,edgeSize = 4})
+module.frame:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background",edgeFile = ExRT.F.defBorder,tile = false,edgeSize = 4})
 module.frame:SetBackdropBorderColor(0.1,0.1,0.1,0.7)
 module.frame:SetBackdropColor(0,0,0,0.7)
 module.frame:EnableMouse(true)
@@ -618,16 +618,16 @@ module.frame:SetScript("OnDragStart", function(self)
 end)
 module.frame:SetScript("OnDragStop", function(self)
 	self:StopMovingOrSizing()
-	VART.Timers.Left = self:GetLeft()
-	VART.Timers.Top = self:GetTop()
+	VMRT.Timers.Left = self:GetLeft()
+	VMRT.Timers.Top = self:GetTop()
 end)
 module.frame.total = 0
 module.frame.tmr = 0
 module.frame.killTmr = 0
-module.frame.txt = ELib:Text(module.frame,"00:00.0"):Size(77,27):Point("LEFT",11,0):Left():Font(ART.F.defFont,16):Color():Shadow():Outline()
-module.frame.killTime = ELib:Text(module.frame,""):Size(77,27):Point("TOP",module.frame,"BOTTOM",0,0):Top():Center():Font(ART.F.defFont,14):Color():Shadow():Outline()
-module.frame.txt_ms = ELib:Text(module.frame,""):Size(77,27):Point("LEFT",11,0):Left():Font(ART.F.defFont,16):Color():Shadow():Outline()
-module.frame.txt_s = ELib:Text(module.frame,""):Size(77,27):Point("LEFT",11,0):Left():Font(ART.F.defFont,16):Color():Shadow():Outline()
+module.frame.txt = ELib:Text(module.frame,"00:00.0"):Size(77,27):Point("LEFT",11,0):Left():Font(ExRT.F.defFont,16):Color():Shadow():Outline()
+module.frame.killTime = ELib:Text(module.frame,""):Size(77,27):Point("TOP",module.frame,"BOTTOM",0,0):Top():Center():Font(ExRT.F.defFont,14):Color():Shadow():Outline()
+module.frame.txt_ms = ELib:Text(module.frame,""):Size(77,27):Point("LEFT",11,0):Left():Font(ExRT.F.defFont,16):Color():Shadow():Outline()
+module.frame.txt_s = ELib:Text(module.frame,""):Size(77,27):Point("LEFT",11,0):Left():Font(ExRT.F.defFont,16):Color():Shadow():Outline()
 module:RegisterHideOnPetBattle(module.frame)
 
 module.db.TTK = {}
@@ -636,15 +636,15 @@ function module:UpdateView(t)
 	local self = module.frame
 	if t == 1 then
 		self:SetSize(77,27)
-		self:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background",edgeFile = ART.F.defBorder,tile = false,edgeSize = 4})
+		self:SetBackdrop({bgFile = "Interface/Tooltips/UI-Tooltip-Background",edgeFile = ExRT.F.defBorder,tile = false,edgeSize = 4})
 		self:SetBackdropBorderColor(0.1,0.1,0.1,0.7)
 		self:SetBackdropColor(0,0,0,0.7)
 
 		self.txt:SetText("00:00.0")
 		self.txt_ms:SetText("")
 		self.txt_s:SetText("")
-		self.txt:Size(77,27):Point("LEFT",11,0):Left():Font(ART.F.defFont,16):Color():Shadow():Outline()
-		self.killTime:Size(77,27):Point("TOP",self,"BOTTOM",0,0):Top():Center():Font(ART.F.defFont,14):Color():Shadow():Outline()
+		self.txt:Size(77,27):Point("LEFT",11,0):Left():Font(ExRT.F.defFont,16):Color():Shadow():Outline()
+		self.killTime:Size(77,27):Point("TOP",self,"BOTTOM",0,0):Top():Center():Font(ExRT.F.defFont,14):Color():Shadow():Outline()
 	elseif t == 2 then
 		self:SetSize(77,27)
 		self:SetBackdropBorderColor(0.1,0.1,0.1,0)
@@ -653,10 +653,10 @@ function module:UpdateView(t)
 		self.txt:SetText("0:")
 		self.txt_s:SetText("00")
 		self.txt_ms:SetText(".0")
-		self.txt:Size(29+4,27):Point("LEFT",-4,0):Right():Font(ART.F.defFont,20):Color():Shadow():Outline()
-		self.txt_s:Size(27,27):Point("LEFT",25,0):Left():Font(ART.F.defFont,20):Color():Shadow():Outline()
-		self.txt_ms:Size(0,27):Point("LEFT",45,-3):Left():Font(ART.F.defFont,12):Color():Shadow():Outline()
-		self.killTime:Size(77,27):Point("TOP",self,"BOTTOM",0,3):Top():Center():Font(ART.F.defFont,14):Color():Shadow():Outline()
+		self.txt:Size(29+4,27):Point("LEFT",-4,0):Right():Font(ExRT.F.defFont,20):Color():Shadow():Outline()
+		self.txt_s:Size(27,27):Point("LEFT",25,0):Left():Font(ExRT.F.defFont,20):Color():Shadow():Outline()
+		self.txt_ms:Size(0,27):Point("LEFT",45,-3):Left():Font(ExRT.F.defFont,12):Color():Shadow():Outline()
+		self.killTime:Size(77,27):Point("TOP",self,"BOTTOM",0,3):Top():Center():Font(ExRT.F.defFont,14):Color():Shadow():Outline()
 		
 	end
 end
@@ -701,7 +701,7 @@ do
 				hpSnapshots[ iSnapshot ] = maxHP > 0 and currHp/maxHP or 0
 				timeSnapshots[ iSnapshot ] = GetTime()
 				if iSnapshot % 2 == 0 then
-					local prevSnapshot = iSnapshot - (VART.Timers.timeToKillAnalyze * 2)
+					local prevSnapshot = iSnapshot - (VMRT.Timers.timeToKillAnalyze * 2)
 					if prevSnapshot < 1 then
 						prevSnapshot = prevSnapshot + MAX_SEGMENTS
 					end
@@ -769,7 +769,7 @@ do
 				hpSnapshots[ iSnapshot ] = maxHP > 0 and currHp/maxHP or 0
 				timeSnapshots[ iSnapshot ] = GetTime()
 				if iSnapshot % 2 == 0 then
-					local prevSnapshot = iSnapshot - (VART.Timers.timeToKillAnalyze * 2)
+					local prevSnapshot = iSnapshot - (VMRT.Timers.timeToKillAnalyze * 2)
 					if prevSnapshot < 1 then
 						prevSnapshot = prevSnapshot + MAX_SEGMENTS
 					end
@@ -802,11 +802,11 @@ do
 	end
 	
 	function module.frame.OnUpdateFunc(self,elapsed)
-		if not VART.Timers.Type or VART.Timers.Type == 1 then
+		if not VMRT.Timers.Type or VMRT.Timers.Type == 1 then
 			module:UpdateView(1)
 			self:SetScript("OnUpdate",timerType1)
 			return
-		elseif VART.Timers.Type == 2 then
+		elseif VMRT.Timers.Type == 2 then
 			module:UpdateView(2)
 			self:SetScript("OnUpdate",timerType2)
 			return
