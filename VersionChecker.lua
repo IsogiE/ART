@@ -63,18 +63,6 @@ function module:SendVersionResponse(target, senderVersion)
 
     local message = "VERSION_RESPONSE:" .. VMRT.VersionCheck.version
     AceComm:SendCommMessage("ADVANCEVERSION", message, "WHISPER", target)
-
-    -- checking for oudated versions and remind users to update if outdated
-    if compareVersions(VMRT.VersionCheck.version, senderVersion) < 0 then
-        StaticPopupDialogs["VERSION_CHECK_UPDATE"] = {
-            text = "You are using an outdated version of the addon. Please update to the latest version.",
-            button1 = "OK",
-            timeout = 0,
-            whileDead = true,
-            hideOnEscape = true,
-        }
-        StaticPopup_Show("VERSION_CHECK_UPDATE")
-    end
 end
 
 function module:OnCommReceived(prefix, message, distribution, sender)
