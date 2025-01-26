@@ -14,50 +14,10 @@ AdvanceWeakAuraUpdaterDB = AdvanceWeakAuraUpdaterDB or {}
 
 -- Function to show the import screen
 local function ShowWeakAuraImportScreen(data, senderName, description)
-    if isPromptShown then return end
-    isPromptShown = true
-
-    local popupFrame = ELib:Popup(""):Size(300, 220):Point("CENTER", UIParent, "CENTER", 0, 300)
-    
-    popupFrame.title = popupFrame:CreateFontString(nil, "OVERLAY")
-    popupFrame.title:SetFontObject("GameFontHighlight")
-    popupFrame.title:SetPoint("TOP", popupFrame, "TOP", 0, -10)
-    popupFrame.title:SetText("WeakAura Update")
-
-    popupFrame.message = popupFrame:CreateFontString(nil, "OVERLAY")
-    popupFrame.message:SetFontObject("GameFontNormal")
-    popupFrame.message:SetPoint("TOP", popupFrame.title, "BOTTOM", 0, -10)
-    popupFrame.message:SetWidth(280)
-    popupFrame.message:SetJustifyH("LEFT")
-    popupFrame.message:SetText("Sender: " .. senderName .. "\nDescription: " .. description)
-
-    -- Dynamically adjust the position of the image based on the description text's height
-    local messageHeight = popupFrame.message:GetHeight()
-    local imageOffsetY = -messageHeight - 50
-    local image = ELib:Texture(popupFrame, "Interface\\AddOns\\MRT\\media\\lumldn")
-    image:Point("CENTER", popupFrame.message, "CENTER", 0, imageOffsetY):Size(347 * 0.7, 98 * 0.7)
-
-    popupFrame.importButton = ELib:Button(popupFrame, "Import"):Size(120, 40):Point("BOTTOMLEFT", popupFrame, "BOTTOMLEFT", 10, 10)
-    popupFrame.importButton:SetScript("OnClick", function()
         if weakAurasLoaded and WeakAuras and WeakAuras.Import then
             WeakAuras.Import(data)
             AdvanceWeakAuraUpdaterDB.pendingWeakAuraData = nil
-            popupFrame:Hide()
-            isPromptShown = false
         end
-    end)
-
-    popupFrame.cancelButton = ELib:Button(popupFrame, "Cancel"):Size(120, 40):Point("BOTTOMRIGHT", popupFrame, "BOTTOMRIGHT", -10, 10)
-    popupFrame.cancelButton:SetScript("OnClick", function()
-        popupFrame:Hide()
-        isPromptShown = false
-    end)
-
-    popupFrame:SetScript("OnHide", function()
-        isPromptShown = false
-    end)
-
-    popupFrame:Show()
 end
 
 -- Sends the WeakAura data and description through AceComm
