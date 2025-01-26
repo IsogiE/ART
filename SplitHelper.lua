@@ -1,21 +1,21 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
-local module = ART:New("Splits", "Split Helper")
-local ELib, L = ART.lib, ART.L
+local module = MRT:New("Splits", "Split Helper")
+local ELib, L = MRT.lib, MRT.L
 
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 
-local VART = nil
+local VMRT = nil
 
 function module.main:ADDON_LOADED()
-    VART = _G.VART
+    VMRT = _G.VMRT
 
-    VART.Splits = VART.Splits or {}
-    VART.Splits.profiles = VART.Splits.profiles or {}
+    VMRT.Splits = VMRT.Splits or {}
+    VMRT.Splits.profiles = VMRT.Splits.profiles or {}
 
-    if not VART.Splits.upd4550 then
-        VART.Splits.KeepPosInGroup = true
-        VART.Splits.upd4550 = true
+    if not VMRT.Splits.upd4550 then
+        VMRT.Splits.KeepPosInGroup = true
+        VMRT.Splits.upd4550 = true
     end
 end
 
@@ -179,7 +179,7 @@ end
 function module:ProcessBase64String(base64String)
     local decodedString = self:DecodeBase64(base64String)
     local characters = self:ParseCharacterString(decodedString)
-    table.insert(VART.Splits.profiles, {name = "Import " .. #VART.Splits.profiles + 1, characters = characters})
+    table.insert(VMRT.Splits.profiles, {name = "Import " .. #VMRT.Splits.profiles + 1, characters = characters})
     self:UpdateDropdown()
 end
 
@@ -187,7 +187,7 @@ function module:UpdateDropdown()
     local dropdown = self.options.splitDropdown
     dropdown.List = {} 
 
-    for i, profile in ipairs(VART.Splits.profiles) do
+    for i, profile in ipairs(VMRT.Splits.profiles) do
         dropdown.List[i] = {
             text = profile.name,
             func = function()
@@ -203,7 +203,7 @@ function module:UpdateDropdown()
 end
 
 function module:LoadImport(index)
-    self.sheetCharacters = VART.Splits.profiles[index].characters
+    self.sheetCharacters = VMRT.Splits.profiles[index].characters
     self:DisplayImportedCharacters()
     ELib:DropDownClose() -- Close the dropdown after loading the import
 end
@@ -234,9 +234,9 @@ end
 
 -- Clearing the selected split after hitting the delete button 
 function module:ClearData(index)
-    if index and VART.Splits.profiles[index] then
+    if index and VMRT.Splits.profiles[index] then
         self.options.HandlingText:SetText("Import: '".. index .. "' deleted.")
-        table.remove(VART.Splits.profiles, index)
+        table.remove(VMRT.Splits.profiles, index)
         self.sheetCharacters = nil
         self.options.resultFrame.text:SetText("")
         self.options.splitDropdown.selectedIndex = nil 
@@ -259,7 +259,7 @@ function module:ShowRenamePopup(index)
     renameButton:OnClick(function()
         local newName = editBox:GetText()
         if newName and newName ~= "" then
-            VART.Splits.profiles[index].name = newName
+            VMRT.Splits.profiles[index].name = newName
             self:UpdateDropdown()
             self.options.splitDropdown:SetText(newName) 
             popupFrame:Hide()

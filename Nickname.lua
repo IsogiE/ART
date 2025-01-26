@@ -1,9 +1,9 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
-local module = ART:New("Nicknames", "Nicknames")
-local ELib, L = ART.lib, ART.L
+local module = MRT:New("Nicknames", "Nicknames")
+local ELib, L = MRT.lib, MRT.L
 
-local VART = nil
+local VMRT = nil
 
 local playerNicknames = {}
 
@@ -32,7 +32,7 @@ function module:PromptReload()
         :Point("BOTTOM", 80, 15)
         :OnClick(function()
             popupFrame:Hide()
-            print("|cFFFFFF00[ART Nicknames]|r Please reload your UI to apply the changes.")
+            print("|cFFFFFF00[MRT Nicknames]|r Please reload your UI to apply the changes.")
         end)
 
     popupFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 100) 
@@ -45,10 +45,10 @@ function module:PromptReload()
 end
 
 local function GetNicknamesMap()
-    if type(VART.Nicknames) == "table" and #VART.Nicknames > 0 and type(VART.Nicknames[1]) == "table" then
-        return VART.Nicknames[1]
+    if type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" then
+        return VMRT.Nicknames[1]
     else
-        return VART.Nicknames
+        return VMRT.Nicknames
     end
 end
 
@@ -71,13 +71,13 @@ frame:SetScript("OnEvent", function(self, event, addonName)
 end)
 
 function module.main:ADDON_LOADED()
-    VART = _G.VART
-    VART.Nicknames = VART.Nicknames or {}
+    VMRT = _G.VMRT
+    VMRT.Nicknames = VMRT.Nicknames or {}
     
-    if type(VART.Nicknames) == "table" and #VART.Nicknames > 0 and type(VART.Nicknames[1]) == "table" then
-        playerNicknames = VART.Nicknames[1]
+    if type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" then
+        playerNicknames = VMRT.Nicknames[1]
     else
-        playerNicknames = VART.Nicknames
+        playerNicknames = VMRT.Nicknames
     end
 
     if not self.initialized then
@@ -94,7 +94,7 @@ function module:ShowCharacterInputPopup(nickname, existingCharacter, callback)
         :Color(1, 1, 1)
         :Center()
 
-    local charInput = ELib:Edit(popupFrame, 50, false, "EARTInputBoxModernTemplate") 
+    local charInput = ELib:Edit(popupFrame, 50, false, "ExRTInputBoxModernTemplate") 
         :Size(280, 20)
         :Point("TOP", 0, -40)
         :BackgroundText("")
@@ -242,8 +242,8 @@ function module.options:CreateContent()
     local title = ELib:Text(content, "Player Nicknames", 14):Point("TOPLEFT", 5, -5):Color(1, 1, 0)
     table.insert(content.elements, title)
 
-    local charTitle = ELib:Text(content, "Player Characters", 14):Point("TOPLEFT", 190, -5):Color(1, 1, 0)
-    table.insert(content.elements, charTitle)
+    local chMRTitle = ELib:Text(content, "Player Characters", 14):Point("TOPLEFT", 190, -5):Color(1, 1, 0)
+    table.insert(content.elements, chMRTitle)
 
     local offset = 30
     local sortedNicknames = {}
@@ -258,7 +258,7 @@ function module.options:CreateContent()
             :Center() 
         table.insert(content.elements, nicknameText)
         
-        local dropdown = ELib:DropDown(content, 200, 10, "EARTDropDownMenuModernTemplate") 
+        local dropdown = ELib:DropDown(content, 200, 10, "ExRTDropDownMenuModernTemplate") 
             :Point("TOPLEFT", 195, -offset)
             :Size(200, 20)
         dropdown.selectedValue = nil
@@ -363,14 +363,14 @@ function module:LoadNicknames()
 end
 
 function module:SaveNicknames()
-    if type(VART.Nicknames) == "table" and #VART.Nicknames > 0 and type(VART.Nicknames[1]) == "table" then
-        VART.Nicknames[1] = playerNicknames
+    if type(VMRT.Nicknames) == "table" and #VMRT.Nicknames > 0 and type(VMRT.Nicknames[1]) == "table" then
+        VMRT.Nicknames[1] = playerNicknames
     else
-        VART.Nicknames = playerNicknames
+        VMRT.Nicknames = playerNicknames
     end
 end
 
-ART.NicknameAPI = {
+MRT.NicknameAPI = {
     GetNicknameByCharacter = function(self, characterName)
         if not characterName or type(characterName) ~= "string" then return nil end
         
@@ -459,9 +459,9 @@ ART.NicknameAPI = {
     end,
 
     GetAllNicknames = function(self)
-        if not VART or not VART.Nicknames then return {} end
+        if not VMRT or not VMRT.Nicknames then return {} end
         local nicknamesMap = GetNicknamesMap()
-        return ART.F.table_copy2(nicknamesMap or {})
+        return MRT.F.table_copy2(nicknamesMap or {})
     end,
 }
 
@@ -474,8 +474,8 @@ local function GetCachedNickname(unit)
     local name = UnitName(unit)
     if not name then return nil end
     
-    if nicknameCache[name] == nil and ART and ART.NicknameAPI then
-        nicknameCache[name] = ART.NicknameAPI:GetNicknameByCharacter(name) or name
+    if nicknameCache[name] == nil and MRT and MRT.NicknameAPI then
+        nicknameCache[name] = MRT.NicknameAPI:GetNicknameByCharacter(name) or name
     end
     
     return nicknameCache[name]
@@ -493,7 +493,7 @@ local function EnhancedUpdateCellNicknames()
     local entriesToRemove = {}
     
     -- First, get all characters we manage through our addon
-    local nicknameData = ART.NicknameAPI:GetAllNicknames()
+    local nicknameData = MRT.NicknameAPI:GetAllNicknames()
     for nickname, data in pairs(nicknameData) do
         if data.characters then
             for _, charData in ipairs(data.characters) do
@@ -542,7 +542,7 @@ end
 local function EnhancedUpdateElvUFTags()
     if not IsElvUIReady() then return end
     
-    if not ART or not ART.NicknameAPI then return end
+    if not MRT or not MRT.NicknameAPI then return end
     
     local function NicknameTag(unit)
         if not unit then return "" end
@@ -616,7 +616,7 @@ local function ReinitializeElvUITags()
     end
 end
 
-ART.ReinitializeElvUITags = ReinitializeElvUITags
+MRT.ReinitializeElvUITags = ReinitializeElvUITags
 
 if module then
     module.EnhancedUpdateElvUFTags = EnhancedUpdateElvUFTags
