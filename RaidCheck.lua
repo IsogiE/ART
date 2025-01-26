@@ -1861,7 +1861,7 @@ do
 					h = format(" (%d %s)",ctime_+1,L.raidcheckReadyCheckSec) 
 				end
 			end
-			self.headText:SetText("ART: "..L.raidcheckReadyCheck..h)
+			self.headText:SetText("MRT: "..L.raidcheckReadyCheck..h)
 		end
 	end)
 end
@@ -3034,7 +3034,7 @@ function module:ReadyCheckWindow(starter,isTest,manual)
 	end
 	self.frame:UpdateData()
 
-	self.frame.headText:SetText("ART")
+	self.frame.headText:SetText("MRT")
 
 	if manual then
 		self.frame.timeLeftLine:Hide()

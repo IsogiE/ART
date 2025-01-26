@@ -1,8 +1,8 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
-ART.Options = {}
+MRT.Options = {}
 
-local ELib,L = ART.lib,ART.L
+local ELib,L = MRT.lib,MRT.L
 
 ------------------------------------------------------------
 --------------- New Options --------------------------------
@@ -12,7 +12,7 @@ local OptionsFrameName = "MRTOptionsFrame"
 local Options = ELib:Template("ExRTBWInterfaceFrame",UIParent)
 _G[OptionsFrameName] = Options
 
-ART.Options.Frame = Options
+MRT.Options.Frame = Options
 
 Options.Width = 863
 Options.Height = 650
@@ -27,13 +27,13 @@ Options:RegisterForDrag("LeftButton")
 Options:SetScript("OnDragStart", function(self) self:StartMoving() end)
 Options:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 Options:SetDontSavePosition(true)
-Options.border = ART.lib.CreateShadow(Options,20)
+Options.border = MRT.lib.CreateShadow(Options,20)
 
 ELib:ShadowInside(Options)
 
 Options.bossButton:Hide()
 Options.backToInterface:SetScript("OnClick",function ()
-	ART.Options.Frame:Hide()
+	MRT.Options.Frame:Hide()
 	if SettingsPanel then
 		SettingsPanel:Show()
 	else
@@ -119,7 +119,7 @@ function Options.modulesList:SetListValue(index)
 end
 
 
-function ART.Options:Add(moduleName,frameName)
+function MRT.Options:Add(moduleName,frameName)
 	local self = CreateFrame("Frame",OptionsFrameName..moduleName,Options)
 	self:SetSize(Options.Width-Options.ListWidth,Options.Height-16)
 	self:SetPoint("TOPLEFT",Options.ListWidth,-16)
@@ -138,7 +138,7 @@ function ART.Options:Add(moduleName,frameName)
 	return self
 end
 
-function ART.Options:AddIcon(moduleName,icon)
+function MRT.Options:AddIcon(moduleName,icon)
 	Options.modulesList.IconsRight = Options.modulesList.IconsRight or {}
 	for i=1,#Options.Frames do
 		if Options.Frames[i].moduleName == moduleName then
@@ -150,7 +150,7 @@ function ART.Options:AddIcon(moduleName,icon)
 		Options.modulesList:Update()
 	end
 end
-function ART.Options:RemoveIcon(moduleName)
+function MRT.Options:RemoveIcon(moduleName)
 	if not Options.modulesList.IconsRight then
 		return
 	end
@@ -165,24 +165,24 @@ function ART.Options:RemoveIcon(moduleName)
 	end
 end
 
-local OptionsFrame = ART.Options:Add("Advance Raid Tools","|cffffa800Advance Raid Tools|r")
+local OptionsFrame = MRT.Options:Add("Advance Raid Tools","|cffffa800Advance Raid Tools|r")
 Options.modulesList:SetListValue(1)
 Options.modulesList.selected = 1
 Options.modulesList:Update()
 
 ------------------------------------------------------------
 
-ART.Options.InBlizzardInterface = CreateFrame( "Frame", nil )
-ART.Options.InBlizzardInterface.name = "Advance Raid Tools"
+MRT.Options.InBlizzardInterface = CreateFrame( "Frame", nil )
+MRT.Options.InBlizzardInterface.name = "Advance Raid Tools"
 if SettingsPanel then
-	local category = Settings.RegisterCanvasLayoutCategory(ART.Options.InBlizzardInterface, "Advance Raid Tools")
+	local category = Settings.RegisterCanvasLayoutCategory(MRT.Options.InBlizzardInterface, "Advance Raid Tools")
 	Settings.RegisterAddOnCategory(category)
 else
-	InterfaceOptions_AddCategory(ART.Options.InBlizzardInterface)
+	InterfaceOptions_AddCategory(MRT.Options.InBlizzardInterface)
 end
-ART.Options.InBlizzardInterface:Hide()
+MRT.Options.InBlizzardInterface:Hide()
 
-ART.Options.InBlizzardInterface:SetScript("OnShow",function (self)
+MRT.Options.InBlizzardInterface:SetScript("OnShow",function (self)
 	if SettingsPanel then
 		if SettingsPanel:IsShown() then
 			HideUIPanel(SettingsPanel)
@@ -192,11 +192,11 @@ ART.Options.InBlizzardInterface:SetScript("OnShow",function (self)
 			InterfaceOptionsFrame:Hide()
 		end
 	end
-	ART.Options:Open()
+	MRT.Options:Open()
 	self:SetScript("OnShow",nil)
 end)
 
-ART.Options.InBlizzardInterface.button = ELib:Button(ART.Options.InBlizzardInterface,"Advance Raid Tools",0):Size(400,25):Point("TOP",0,-100):OnClick(function ()
+MRT.Options.InBlizzardInterface.button = ELib:Button(MRT.Options.InBlizzardInterface,"Advance Raid Tools",0):Size(400,25):Point("TOP",0,-100):OnClick(function ()
 	if SettingsPanel then
 		if SettingsPanel:IsShown() then
 			HideUIPanel(SettingsPanel)
@@ -206,7 +206,7 @@ ART.Options.InBlizzardInterface.button = ELib:Button(ART.Options.InBlizzardInter
 			InterfaceOptionsFrame:Hide()
 		end
 	end
-	ART.Options:Open()
+	MRT.Options:Open()
 end)
 
 ------------------------------------------------------------
@@ -221,9 +221,9 @@ Options.scale = ELib:Slider(Options):_Size(70,8):Point("TOPRIGHT",-45,-5):Range(
 			self.tooltipText = L.bossmodsscale.."|n100%|n"..L.SetScaleReset
 			return
 		end
-		event = ART.F.Round(event)
+		event = MRT.F.Round(event)
 		VMRT.Addon.Scale = event / 100
-		ART.F.SetScaleFixTR(Options,VMRT.Addon.Scale)
+		MRT.F.SetScaleFixTR(Options,VMRT.Addon.Scale)
 		self:SetScale(1 / VMRT.Addon.Scale)
 		self.tooltipText = L.bossmodsscale.."|n"..event.."%|n"..L.SetScaleReset
 		self:tooltipReload(self)
@@ -250,7 +250,7 @@ end)
 ----> Minimap Icon
 
 local MiniMapIcon = CreateFrame("Button", "LibDBIcon10_AdvanceRaidTools", Minimap)
-ART.MiniMapIcon = MiniMapIcon
+MRT.MiniMapIcon = MiniMapIcon
 MiniMapIcon:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight") 
 MiniMapIcon:SetSize(32,32) 
 MiniMapIcon:SetFrameStrata("MEDIUM")
@@ -287,7 +287,7 @@ MiniMapIcon:SetScript("OnLeave", function(self)
 	self.anim:Stop()
 	self.iconMini:Hide()
 end)
-if not ART.isClassic then
+if not MRT.isClassic then
 	MiniMapIcon.icon:SetSize(20,20)
 	MiniMapIcon.iconMini:SetSize(20,20)
 	MiniMapIcon.icon:SetPoint("CENTER",1,0)
@@ -373,30 +373,30 @@ end)
 
 local function MiniMapIconOnClick(self, button)
 	if button == "RightButton" then
-		for _,func in pairs(ART.MiniMapMenu) do
+		for _,func in pairs(MRT.MiniMapMenu) do
 			func:miniMapMenu()
 		end
-		ART.Options:UpdateModulesList()
-		--EasyMenu(ART.F.menuTable, ART.Options.MiniMapDropdown, "cursor", 10 , -15, "MENU")
-		ELib.ScrollDropDown.EasyMenu(self,ART.F.menuTable,150)
+		MRT.Options:UpdateModulesList()
+		--EasyMenu(MRT.F.menuTable, MRT.Options.MiniMapDropdown, "cursor", 10 , -15, "MENU")
+		ELib.ScrollDropDown.EasyMenu(self,MRT.F.menuTable,150)
 	elseif button == "LeftButton" then
-		ART.Options:Open()
+		MRT.Options:Open()
 	end
 end
 
 MRT_MinimapClickFunction = function()
-	ART.Options:Open()
+	MRT.Options:Open()
 end
 
 MiniMapIcon:SetScript("OnMouseUp", MiniMapIconOnClick)
 
-ART.Options.MiniMapDropdown = CreateFrame("Frame", "MRTMiniMapMenuFrame", nil, "UIDropDownMenuTemplate")
+MRT.Options.MiniMapDropdown = CreateFrame("Frame", "MRTMiniMapMenuFrame", nil, "UIDropDownMenuTemplate")
 
 local MinimapMenu_UIDs = {}
 local MinimapMenu_UIDnumeric = 0
 local MinimapMenu_Level = {3,4,5,5}
 
-function ART.F.MinimapMenuAdd(text, func, level, uid, subMenu)
+function MRT.F.MinimapMenuAdd(text, func, level, uid, subMenu)
 	level = level or 2
 	if not uid then
 		MinimapMenu_UIDnumeric = MinimapMenu_UIDnumeric + 1
@@ -411,18 +411,18 @@ function ART.F.MinimapMenuAdd(text, func, level, uid, subMenu)
 		menuTable.menuList = subMenu
 		menuTable.subMenu = subMenu
 	end
-	tinsert(ART.F.menuTable,MinimapMenu_Level[level],menuTable)
+	tinsert(MRT.F.menuTable,MinimapMenu_Level[level],menuTable)
 	for i=level,#MinimapMenu_Level do
 		MinimapMenu_Level[i] = MinimapMenu_Level[i] + 1
 	end
 	MinimapMenu_UIDs[uid] = menuTable
 end
 
-function ART.F.MinimapMenuRemove(uid)
-	for i=1,#ART.F.menuTable do
-		if ART.F.menuTable[i] == MinimapMenu_UIDs[uid] then 
-			for j=i,#ART.F.menuTable do
-				ART.F.menuTable[j] = ART.F.menuTable[j+1]
+function MRT.F.MinimapMenuRemove(uid)
+	for i=1,#MRT.F.menuTable do
+		if MRT.F.menuTable[i] == MinimapMenu_UIDs[uid] then 
+			for j=i,#MRT.F.menuTable do
+				MRT.F.menuTable[j] = MRT.F.menuTable[j+1]
 			end
 			for j=1,#MinimapMenu_Level do
 				if i <= MinimapMenu_Level[j] then
@@ -435,7 +435,7 @@ function ART.F.MinimapMenuRemove(uid)
 	end
 end
 
-function ART.Options:Open(PANEL)
+function MRT.Options:Open(PANEL)
 	CloseDropDownMenus()
 	ELib.ScrollDropDown.Close()
 	Options:Show()
@@ -453,7 +453,7 @@ function ART.Options:Open(PANEL)
 	end
 end
 
-function ART.Options:OpenByModuleName(moduleName)
+function MRT.Options:OpenByModuleName(moduleName)
 	for i=1,#Options.Frames do
 		if Options.Frames[i].moduleName == moduleName then
 			Options:Show()
@@ -467,26 +467,26 @@ function ART.Options:OpenByModuleName(moduleName)
 	end
 end
 
-ART.F.menuTable = {
+MRT.F.menuTable = {
 { text = L.minimapmenu, isTitle = true, notCheckable = true, notClickable = true },
-{ text = L.minimapmenuset, func = ART.Options.Open, notCheckable = true, keepShownOnClick = true, },
+{ text = L.minimapmenuset, func = MRT.Options.Open, notCheckable = true, keepShownOnClick = true, },
 { text = " ", isTitle = true, notCheckable = true, notClickable = true },
 { text = " ", isTitle = true, notCheckable = true, notClickable = true },
-{ text = "Profiling", func = function() CloseDropDownMenus() ELib.ScrollDropDown.Close() ART.F:ProfilingWindow() end, notCheckable = true },
+{ text = "Profiling", func = function() CloseDropDownMenus() ELib.ScrollDropDown.Close() MRT.F:ProfilingWindow() end, notCheckable = true },
 { text = " ", isTitle = true, notCheckable = true, notClickable = true },
 { text = L.minimapmenuclose, func = function() CloseDropDownMenus() ELib.ScrollDropDown.Close() end, notCheckable = true },
 }
 
-if ART.Dev == true then
-	tinsert(ART.F.menuTable, { text = "Reload UI", func = function() ReloadUI() end, notCheckable = true })
+if MRT.Dev == true then
+	tinsert(MRT.F.menuTable, { text = "Reload UI", func = function() ReloadUI() end, notCheckable = true })
 end
 
 local modulesActive = {}
-function ART.Options:UpdateModulesList()
-	for i=1,#ART.ModulesOptions do
-		ART.F.MinimapMenuAdd(ART.ModulesOptions[i].name, function() 
-			ART.Options:Open(ART.ModulesOptions[i]) 
-		end, 2,ART.ModulesOptions[i].name)
+function MRT.Options:UpdateModulesList()
+	for i=1,#MRT.ModulesOptions do
+		MRT.F.MinimapMenuAdd(MRT.ModulesOptions[i].name, function() 
+			MRT.Options:Open(MRT.ModulesOptions[i]) 
+		end, 2,MRT.ModulesOptions[i].name)
 	end
 end
 
@@ -867,9 +867,9 @@ function OptionsFrame:AddChest(chestType)
 		animated.texture = animated:CreateTexture()
 		animated.texture:SetAllPoints()
 		local list = {
-			{img = [[Interface\AddOns\ART\media\frieren.jpg]],w = 256*1.5,h = 256*1.5,s = 0.15,m = 14},
-			{img = [[Interface\AddOns\ART\media\frieren2.jpg]],w = 597 * 0.75,h = 408 * 0.75,s = 0.15},
-			{img = [[Interface\AddOns\ART\media\frieren3.jpg]],w = 1024 * 0.5,h = 576 * 0.5,s = 0.10,m=31,is=8,se={[16]={.6,.9,1,.4},[17]={.12,.52,1,.3},[18]=-1,[19]=-1,[20]={.12,.52,1,.1},[24]={.6,.9,1,.3},[25]={.12,.52,1,.3},[26]={.12,.52,1,.2},[27]={.12,.52,1,.1},[28]={.12,.52,1,.05},[29]=-1}},
+			{img = [[Interface\AddOns\MRT\media\frieren.jpg]],w = 256*1.5,h = 256*1.5,s = 0.15,m = 14},
+			{img = [[Interface\AddOns\MRT\media\frieren2.jpg]],w = 597 * 0.75,h = 408 * 0.75,s = 0.15},
+			{img = [[Interface\AddOns\MRT\media\frieren3.jpg]],w = 1024 * 0.5,h = 576 * 0.5,s = 0.10,m=31,is=8,se={[16]={.6,.9,1,.4},[17]={.12,.52,1,.3},[18]=-1,[19]=-1,[20]={.12,.52,1,.1},[24]={.6,.9,1,.3},[25]={.12,.52,1,.3},[26]={.12,.52,1,.2},[27]={.12,.52,1,.1},[28]={.12,.52,1,.05},[29]=-1}},
 		}
 		local data = list[math.random(1,#list)]
 		animated.texture:SetTexture(data.img)
@@ -1027,7 +1027,7 @@ function OptionsFrame:AddWeb()
 		
 			local function ct(i,x)
 				local g1 = f:CreateTexture(nil, "BACKGROUND",nil,-6)
-				g1:SetTexture(i and "Interface\\AddOns\\ART\\media\\circle256inv" or "Interface\\AddOns\\ART\\media\\circle256")
+				g1:SetTexture(i and "Interface\\AddOns\\MRT\\media\\circle256inv" or "Interface\\AddOns\\MRT\\media\\circle256")
 				g1:SetVertexColor(1,1,1,1)
 				g1:SetTexCoord(0,1,0,x and 1 or .5)
 				return g1
@@ -1161,7 +1161,7 @@ OptionsFrame.dateChecks:SetScript("OnShow",function(self)
 	local today = date("*t",time())
 	local isChristmas, isSnowDay
 	local isFrierenFriday
-	if ART.locale == "ruRU" then
+	if MRT.locale == "ruRU" then
 		if (today.month == 12 and today.day >= 23) or (today.month == 1 and today.day <= 4) then
 			isChristmas = true
 		end
@@ -1171,14 +1171,14 @@ OptionsFrame.dateChecks:SetScript("OnShow",function(self)
 		if (today.month == 12 and today.day >= 24 and today.day <= 25) then
 			isSnowDay = true
 		end
-	elseif ART.locale == "deDE" or ART.locale == "enGB" or ART.locale == "enUS" or ART.locale == "esES" or ART.locale == "esMX" or ART.locale == "frFR" or ART.locale == "itIT" or ART.locale == "ptBR" or ART.locale == "ptPT" then
+	elseif MRT.locale == "deDE" or MRT.locale == "enGB" or MRT.locale == "enUS" or MRT.locale == "esES" or MRT.locale == "esMX" or MRT.locale == "frFR" or MRT.locale == "itIT" or MRT.locale == "ptBR" or MRT.locale == "ptPT" then
 		if (today.month == 12 and today.day >= 15) or (today.month == 1 and today.day <= 2) then
 			isChristmas = true
 		end
 		if (today.month == 12 and today.day >= 24 and today.day <= 25) or ((today.month == 12 and today.day >= 31) or (today.month == 1 and today.day <= 1)) then
 			isSnowDay = true
 		end
-	elseif ART.locale == "koKR" then
+	elseif MRT.locale == "koKR" then
 		if (today.month == 12 and today.day >= 30) or (today.month == 1 and today.day <= 2) then
 			isChristmas = true
 		end
@@ -1243,7 +1243,7 @@ OptionsFrame.dateChecks:SetScript("OnShow",function(self)
 		return
 	end
 
-	if type(GetGuildInfo) == 'function' and ((ART.isClassic and GetGuildInfo("player") == "Гачивайд") or (not ART.isClassic and today.wday == 4 and GetGuildInfo("player") == "Дивайд")) then
+	if type(GetGuildInfo) == 'function' and ((MRT.isClassic and GetGuildInfo("player") == "Гачивайд") or (not MRT.isClassic and today.wday == 4 and GetGuildInfo("player") == "Дивайд")) then
 		OptionsFrame_image:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\OptionLogogv")
 		OptionsFrame_image:SetTexCoord(0,1,0.21875,1-0.21875)
 		OptionsFrame_image:SetSize(140,79)
@@ -1264,8 +1264,8 @@ do
 			askFrame:SetSize(M_WIDTH,M_HEIGHT)
 			askFrame:SetPoint("CENTER")
 			askFrame:SetFrameStrata("DIALOG")
-			local mainbg = ELib:Texture(askFrame,[[Interface\AddOns\ART\media\askjt]],"BACKGROUND"):TexCoord(0,1,0,650/1024):Size(M_WIDTH,M_HEIGHT):Point("TOPLEFT")
-			local hiddenask = ELib:Texture(askFrame,[[Interface\AddOns\ART\media\askjt]],"BORDER"):TexCoord(0,146/1024,651/1024,874/1024):Size(147,223):Point("CENTER",mainbg,35,-112)
+			local mainbg = ELib:Texture(askFrame,[[Interface\AddOns\MRT\media\askjt]],"BACKGROUND"):TexCoord(0,1,0,650/1024):Size(M_WIDTH,M_HEIGHT):Point("TOPLEFT")
+			local hiddenask = ELib:Texture(askFrame,[[Interface\AddOns\MRT\media\askjt]],"BORDER"):TexCoord(0,146/1024,651/1024,874/1024):Size(147,223):Point("CENTER",mainbg,35,-112)
 			hiddenask:SetAlpha(0)
 
 			askFrame:SetMovable(true)
@@ -1283,7 +1283,7 @@ do
 
 			local soundWillPlay, soundHandle, soundTicker
 			askFrame:SetScript("OnShow",function()
-				soundWillPlay, soundHandle = PlaySoundFile("Interface/AddOns/ART/media/askm.ogg","Master")
+				soundWillPlay, soundHandle = PlaySoundFile("Interface/AddOns/MRT/media/askm.ogg","Master")
 				if soundTicker then
 					soundTicker:Cancel()
 				end
@@ -1291,7 +1291,7 @@ do
 					if soundHandle then
 						StopSound(soundHandle)
 					end
-					soundWillPlay, soundHandle = PlaySoundFile("Interface/AddOns/ART/media/askm.ogg","Master")	
+					soundWillPlay, soundHandle = PlaySoundFile("Interface/AddOns/MRT/media/askm.ogg","Master")	
 				end)
 			end)
 			askFrame:SetScript("OnHide",function()
@@ -1373,7 +1373,7 @@ do
 				local f = CreateFrame("Frame",nil,sf.C)
 				f:SetSize(1,1)
 				blink[i] = f
-				f.t = ELib:Texture(f,[[Interface\AddOns\ART\media\blip.tga]]):Point("CENTER")
+				f.t = ELib:Texture(f,[[Interface\AddOns\MRT\media\blip.tga]]):Point("CENTER")
 
 				f.g = f:CreateAnimationGroup()
 				f.g.p = f
@@ -1456,10 +1456,10 @@ end
 OptionsFrame.chkIconMiniMap = ELib:Check(OptionsFrame,L.setminimap1):Point(25,-155):OnClick(function(self) 
 	if self:GetChecked() then
 		VMRT.Addon.IconMiniMapHide = true
-		ART.MiniMapIcon:Hide()
+		MRT.MiniMapIcon:Hide()
 	else
 		VMRT.Addon.IconMiniMapHide = nil
-		ART.MiniMapIcon:Show()
+		MRT.MiniMapIcon:Show()
 	end
 end)
 OptionsFrame.chkIconMiniMap:SetScript("OnShow", function(self,event) 
@@ -1491,9 +1491,9 @@ local function UpdateVersionCheck()
 	local list = OptionsFrame.VersionCheck.L
 	wipe(list)
 	
-	for _, name, _, class in ART.F.IterateRoster do
+	for _, name, _, class in MRT.F.IterateRoster do
 		list[#list + 1] = {
-			"|c"..ART.F.classColor(class or "?")..name,
+			"|c"..MRT.F.classColor(class or "?")..name,
 			0,
 			name,
 		}
@@ -1502,9 +1502,9 @@ local function UpdateVersionCheck()
 	for i=1,#list do
 		local name = list[i][3]
 		
-		local ver = ART.RaidVersions[name]
+		local ver = MRT.RaidVersions[name]
 		if not ver and not name:find("%-") then
-			for long_name,v in pairs(ART.RaidVersions) do
+			for long_name,v in pairs(MRT.RaidVersions) do
 				if long_name:find("^"..name) then
 					ver = v
 					break
@@ -1523,7 +1523,7 @@ local function UpdateVersionCheck()
 			end
 		elseif not tonumber(ver) then
 		
-		elseif tonumber(ver) >= ART.V then
+		elseif tonumber(ver) >= MRT.V then
 			ver = "|cff88ff88"..ver
 		else
 			ver = "|cffffff88"..ver
@@ -1538,9 +1538,9 @@ end
 
 OptionsFrame.VersionCheck = ELib:ScrollTableList(OptionsFrame,0,130):Point("TOPLEFT",OptionsFrame.Changelog,"BOTTOMLEFT",0,-3):Size(350,115):HideBorders():OnShow(UpdateVersionCheck,true)
 OptionsFrame.VersionUpdateButton = ELib:Button(OptionsFrame,UPDATE):Point("BOTTOMLEFT",OptionsFrame.VersionCheck,"BOTTOMRIGHT",10,3):Size(100,20):Tooltip(L.OptionsUpdateVerTooltip):OnClick(function()
-	ART.F.SendExMsg("needversion","")
+	MRT.F.SendExMsg("needversion","")
 	C_Timer.After(2,UpdateVersionCheck)
-	for _, name in ART.F.IterateRoster do
+	for _, name in MRT.F.IterateRoster do
 		VersionCheckReqSended[name]=true
 	end
 	local list = OptionsFrame.VersionCheck.L

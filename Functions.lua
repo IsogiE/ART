@@ -1499,12 +1499,12 @@ end
 
 ---------------> Chat links hook <---------------
 do
-	local chatLinkFormat = "|HMRT:%s:0|h|cffffff00[ART: %s]|r|h"
+	local chatLinkFormat = "|HMRT:%s:0|h|cffffff00[MRT: %s]|r|h"
 	local funcTable = {}
 	local function createChatHook()
 		local SetHyperlink = ItemRefTooltip.SetHyperlink
 		function ItemRefTooltip:SetHyperlink(link, ...)
-			local funcName = link:match("^ART:([^:]+):")
+			local funcName = link:match("^MRT:([^:]+):")
 			if funcName then
 				local func = funcTable[funcName]
 				if not func then

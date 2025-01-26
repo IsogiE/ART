@@ -34,7 +34,7 @@ local function ShowWeakAuraImportScreen(data, senderName, description)
     -- Dynamically adjust the position of the image based on the description text's height
     local messageHeight = popupFrame.message:GetHeight()
     local imageOffsetY = -messageHeight - 50
-    local image = ELib:Texture(popupFrame, "Interface\\AddOns\\ART\\media\\lumldn")
+    local image = ELib:Texture(popupFrame, "Interface\\AddOns\\MRT\\media\\lumldn")
     image:Point("CENTER", popupFrame.message, "CENTER", 0, imageOffsetY):Size(347 * 0.7, 98 * 0.7)
 
     popupFrame.importButton = ELib:Button(popupFrame, "Import"):Size(120, 40):Point("BOTTOMLEFT", popupFrame, "BOTTOMLEFT", 10, 10)

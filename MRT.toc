@@ -3,9 +3,9 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VMRT, DataDB
-## Version: 5201
+## Version: 5205
 ## AddonCompartmentFunc: ART_MinimapClickFunction
-## IconTexture: Interface\AddOns\ART\media\MiniMap.tga
+## IconTexture: Interface\AddOns\MRT\media\MiniMap.tga
 core.lua
 Functions.lua
 embeds.xml

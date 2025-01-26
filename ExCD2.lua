@@ -11247,7 +11247,7 @@ function module:ColApplyStyle(columnFrame,currColOpt,generalOpt,defOpt,mainWidth
 	local isMasqueEnabled = (not currColOpt.iconGeneral and currColOpt.iconMasque) or (currColOpt.iconGeneral and generalOpt.iconMasque)
 	if isMasqueEnabled and module.db.Masque then
 		if not columnFrame.Masque_Group then
-			columnFrame.Masque_Group = module.db.Masque:Group("ART", "Raid cooldowns Col "..columnFrame.colNum)
+			columnFrame.Masque_Group = module.db.Masque:Group("MRT", "Raid cooldowns Col "..columnFrame.colNum)
 		end
 	elseif columnFrame.Masque_Group then
 		columnFrame.Masque_Group:Delete()

@@ -1,7 +1,7 @@
-local VersionCheckerAddonName, ART = ...
+local VersionCheckerAddonName, MRT = ...
 
-local module = ART:New("VersionCheck", "Version Check")
-local ELib, L = ART.lib, ART.L
+local module = MRT:New("VersionCheck", "Version Check")
+local ELib, L = MRT.lib, MRT.L
 
 local AceComm = LibStub("AceComm-3.0")
 

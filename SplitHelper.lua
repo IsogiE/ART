@@ -1,7 +1,7 @@
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
-local module = ART:New("Splits", "Split Helper")
-local ELib, L = ART.lib, ART.L
+local module = MRT:New("Splits", "Split Helper")
+local ELib, L = MRT.lib, MRT.L
 
 local LibDeflate = LibStub:GetLibrary("LibDeflate")
 

@@ -167,7 +167,7 @@ CheckButton	ExRTRadioButtonModernTemplate
 ]=]
 
 local GlobalAddonName, ExRT = ...
-local isExRT = GlobalAddonName == "ART"
+local isExRT = GlobalAddonName == "MRT"
 
 local libVersion = 50
 

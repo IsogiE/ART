@@ -629,7 +629,7 @@ function module.options:Load()
 
 		exportWindow.c4 = CreateButton()
 		exportWindow.c4:SetPoint("LEFT",exportWindow.c3,"RIGHT",0,0)
-		exportWindow.c4:SetText("ART export string")
+		exportWindow.c4:SetText("MRT export string")
 
 		local exportType = VMRT.RaidGroups.exportType or 4
 		local c = exportWindow["c"..exportType]

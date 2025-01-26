@@ -1,34 +1,34 @@
 --	20.11.2024
 
-local GlobalAddonName, ART = ...
+local GlobalAddonName, MRT = ...
 
-ART.V = 5100
-ART.T = "R"
+MRT.V = 5100
+MRT.T = "R"
 
-ART.Slash = {}			--> функции вызова из коммандной строки
-ART.OnAddonMessage = {}	--> внутренние сообщения аддона
-ART.MiniMapMenu = {}		--> изменение меню кнопки на миникарте
-ART.Modules = {}		--> список всех модулей
-ART.ModulesLoaded = {}		--> список загруженных модулей [для Dev & Advanced]
-ART.ModulesOptions = {}
-ART.Classic = {}		--> функции для работы на классик клиенте
-ART.Debug = {}
-ART.RaidVersions = {}
-ART.Temp = {}
-ART.Profiling = {}
+MRT.Slash = {}			--> функции вызова из коммандной строки
+MRT.OnAddonMessage = {}	--> внутренние сообщения аддона
+MRT.MiniMapMenu = {}		--> изменение меню кнопки на миникарте
+MRT.Modules = {}		--> список всех модулей
+MRT.ModulesLoaded = {}		--> список загруженных модулей [для Dev & Advanced]
+MRT.ModulesOptions = {}
+MRT.Classic = {}		--> функции для работы на классик клиенте
+MRT.Debug = {}
+MRT.RaidVersions = {}
+MRT.Temp = {}
+MRT.Profiling = {}
 
-ART.A = {}			--> ссылки на все модули
-ART.F = {}
+MRT.A = {}			--> ссылки на все модули
+MRT.F = {}
 
-ART.msg_prefix = {
+MRT.msg_prefix = {
 	["EXRTADD"] = true,
 	MRTADDA = true,	MRTADDB = true,	MRTADDC = true,
 	MRTADDD = true,	MRTADDE = true,	MRTADDF = true,
 	MRTADDG = true,	MRTADDH = true,	MRTADDI = true,
 }
 
-ART.L = {}			--> локализация
-ART.locale = GetLocale()
+MRT.L = {}			--> локализация
+MRT.locale = GetLocale()
 
 local unitIDs = {
     player = true,
@@ -44,71 +44,71 @@ local unitIDs = {
 do
 	local version, buildVersion, buildDate, uiVersion = GetBuildInfo()
 	
-	ART.clientBuildVersion = buildVersion
-	ART.clientUIinterface = uiVersion
+	MRT.clientBuildVersion = buildVersion
+	MRT.clientUIinterface = uiVersion
 	local expansion,majorPatch,minorPatch = (version or "5.0.0"):match("^(%d+)%.(%d+)%.(%d+)")
-	ART.clientVersion = (expansion or 0) * 10000 + (majorPatch or 0) * 100 + (minorPatch or 0)
+	MRT.clientVersion = (expansion or 0) * 10000 + (majorPatch or 0) * 100 + (minorPatch or 0)
 end
-if ART.clientVersion < 20000 then
-	ART.isClassic = true
-	ART.T = "Classic"	
-elseif ART.clientVersion < 30000 then
-	ART.isClassic = true
-	ART.isBC = true
-	ART.T = "BC"
-elseif ART.clientVersion < 40000 then
-	ART.isClassic = true
-	ART.isBC = true
-	ART.isLK = true
-	ART.T = "WotLK"
-elseif ART.clientVersion < 50000 then
-	ART.isClassic = true
-	ART.isBC = true
-	ART.isLK = true
-	ART.isCata = true
-	ART.T = "Cataclysm"
-elseif ART.clientVersion < 60000 then
-	ART.isClassic = true
-	ART.isBC = true
-	ART.isLK = true
-	ART.isCata = true
-	ART.isMoP = true
-	ART.T = "Pandaria"
-elseif ART.clientVersion >= 110000 then
-	ART.is11 = true
+if MRT.clientVersion < 20000 then
+	MRT.isClassic = true
+	MRT.T = "Classic"	
+elseif MRT.clientVersion < 30000 then
+	MRT.isClassic = true
+	MRT.isBC = true
+	MRT.T = "BC"
+elseif MRT.clientVersion < 40000 then
+	MRT.isClassic = true
+	MRT.isBC = true
+	MRT.isLK = true
+	MRT.T = "WotLK"
+elseif MRT.clientVersion < 50000 then
+	MRT.isClassic = true
+	MRT.isBC = true
+	MRT.isLK = true
+	MRT.isCata = true
+	MRT.T = "Cataclysm"
+elseif MRT.clientVersion < 60000 then
+	MRT.isClassic = true
+	MRT.isBC = true
+	MRT.isLK = true
+	MRT.isCata = true
+	MRT.isMoP = true
+	MRT.T = "Pandaria"
+elseif MRT.clientVersion >= 110000 then
+	MRT.is11 = true
 end
 -------------> smart DB <-------------
-ART.SDB = {}
+MRT.SDB = {}
 
 do
 	local realmKey = GetRealmName() or ""
 	local charName = UnitName'player' or ""
 	realmKey = realmKey:gsub(" ","")
-	ART.SDB.realmKey = realmKey
-	ART.SDB.charKey = charName .. "-" .. realmKey
-	ART.SDB.charName = charName
-	ART.SDB.charLevel = UnitLevel'player'
+	MRT.SDB.realmKey = realmKey
+	MRT.SDB.charKey = charName .. "-" .. realmKey
+	MRT.SDB.charName = charName
+	MRT.SDB.charLevel = UnitLevel'player'
 end
 -------------> global DB <------------
-ART.GDB = {}
+MRT.GDB = {}
 -------------> upvalues <-------------
 local pcall, unpack, pairs, coroutine, assert, next, type = pcall, unpack, pairs, coroutine, assert, next, type
 local GetTime, IsEncounterInProgress, CombatLogGetCurrentEventInfo = GetTime, IsEncounterInProgress, CombatLogGetCurrentEventInfo
 local SendAddonMessage, strsplit, tremove, Ambiguate = C_ChatInfo.SendAddonMessage, strsplit, tremove, Ambiguate
 local C_Timer_NewTicker, debugprofilestop, InCombatLockdown = C_Timer.NewTicker, debugprofilestop, InCombatLockdown
 
-if ART.T == "D" then
-	ART.isDev = true
+if MRT.T == "D" then
+	MRT.isDev = true
 	pcall = function(func,...)
 		func(...)
 		return true
 	end
 end
 
-ART.NULL = {}
-ART.NULLfunc = function() end
+MRT.NULL = {}
+MRT.NULLfunc = function() end
 ---------------> Modules <---------------
-ART.mod = {}
+MRT.mod = {}
 
 do
 	local function mod_LoadOptions(this)
@@ -119,29 +119,29 @@ do
 		end
 		--local newc,newt = collectgarbage("count"),debugprofilestop() print(this.moduleName,'options',newc - c,newt - t)
 		this.Load = nil
-		ART.F.dprint(this.moduleName.."'s options loaded")
+		MRT.F.dprint(this.moduleName.."'s options loaded")
 		this.isLoaded = true
 
-		ART.F:FireCallback("OPTIONS_LOADED", this, this.moduleName)
+		MRT.F:FireCallback("OPTIONS_LOADED", this, this.moduleName)
 	end
 	local function mod_Options_CreateTitle(self)
-		self.title = ART.lib:Text(self,self.name,20):Point(15,6):Top()
+		self.title = MRT.lib:Text(self,self.name,20):Point(15,6):Top()
 	end
 	local function mod_Options_OpenPage(self)
-		ART.Options:Open(self)
+		MRT.Options:Open(self)
 	end
 	local function mod_Options_ForceLoad(self)
 		mod_LoadOptions(self)
 	end
-	function ART:New(moduleName,localizatedName,disableOptions)
-		if ART.A[moduleName] then
+	function MRT:New(moduleName,localizatedName,disableOptions)
+		if MRT.A[moduleName] then
 			return false
 		end
 		local self = {}
-		for k,v in pairs(ART.mod) do self[k] = v end
+		for k,v in pairs(MRT.mod) do self[k] = v end
 		
 		if not disableOptions then
-			self.options = ART.Options:Add(moduleName,localizatedName)
+			self.options = MRT.Options:Add(moduleName,localizatedName)
 
 			self.options:Hide()
 			self.options.moduleName = moduleName
@@ -152,18 +152,18 @@ do
 			self.options.OpenPage = mod_Options_OpenPage
 			self.options.ForceLoad = mod_Options_ForceLoad
 			
-			ART.ModulesOptions[#ART.ModulesOptions + 1] = self.options
+			MRT.ModulesOptions[#MRT.ModulesOptions + 1] = self.options
 		end
 		
 		self.main = CreateFrame("Frame", nil)
 		self.main.events = {}
-		self.main:SetScript("OnEvent",ART.mod.Event)
+		self.main:SetScript("OnEvent",MRT.mod.Event)
 		
-		self.main.ADDON_LOADED = ART.NULLfunc	--Prevent error for modules without it, not really needed
+		self.main.ADDON_LOADED = MRT.NULLfunc	--Prevent error for modules without it, not really needed
 		
-		if ART.T == "D" or ART.T == "DU" then
+		if MRT.T == "D" or MRT.T == "DU" then
 			self.main.eventsCounter = {}
-			self.main:HookScript("OnEvent",ART.mod.HookEvent)
+			self.main:HookScript("OnEvent",MRT.mod.HookEvent)
 			
 			self.main.name = moduleName
 		end
@@ -172,37 +172,37 @@ do
 		
 		self.name = moduleName
 		self.main.moduleName = moduleName
-		table.insert(ART.Modules,self)
-		ART.A[moduleName] = self
+		table.insert(MRT.Modules,self)
+		MRT.A[moduleName] = self
 		
-		ART.F.dprint("New module: "..moduleName)
+		MRT.F.dprint("New module: "..moduleName)
 		
 		return self
 	end
 end
 
-function ART.mod:Event(event,...)
+function MRT.mod:Event(event,...)
 	return self[event](self,...)
 end
-function ART.mod:EventProfiling(event,...)
+function MRT.mod:EventProfiling(event,...)
 	local t = debugprofilestop()
 	self[event](self,...)
 	t = debugprofilestop() - t
 	local eventKey = self.moduleName .. ":" .. event
-	ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
-	ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
-	ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+	MRT.Profiling.T[eventKey] = (MRT.Profiling.T[eventKey] or 0) + t
+	MRT.Profiling.M[eventKey] = max(t, MRT.Profiling.M[eventKey] or 0)
+	MRT.Profiling.C[eventKey] = (MRT.Profiling.C[eventKey] or 0) + 1
 end
-if ART.T == "DU" then
-	local MRTDebug = ART.Debug
-	function ART.mod:Event(event,...)
+if MRT.T == "DU" then
+	local MRTDebug = MRT.Debug
+	function MRT.mod:Event(event,...)
 		local dt = debugprofilestop()
 		self[event](self,...)
 		MRTDebug[#MRTDebug+1] = {debugprofilestop() - dt,self.name,event}
 	end
 end
 
-function ART.mod:HookEvent(event)
+function MRT.mod:HookEvent(event)
 	self.eventsCounter[event] = self.eventsCounter[event] and self.eventsCounter[event] + 1 or 1
 end
 
@@ -215,7 +215,7 @@ CLEUFrame.CLEUList = CLEUList
 CLEUFrame.CLEUModules = CLEUModules
 
 
-local CLEU_realmKey = ART.SDB.realmKey:gsub("[ %-]","")
+local CLEU_realmKey = MRT.SDB.realmKey:gsub("[ %-]","")
 
 local function CLEU_OnEvent()
 	local timestamp,event,hideCaster,sourceGUID,sourceName,sourceFlags,sourceFlags2,destGUID,destName,destFlags,destFlags2,
@@ -269,9 +269,9 @@ local function CLEU_OnEvent_RecreateProfiling()
 			func(...)
 			t = debugprofilestop() - t
 			local eventKey = mod.name .. ":CLEU"
-			ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
-			ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
-			ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+			MRT.Profiling.T[eventKey] = (MRT.Profiling.T[eventKey] or 0) + t
+			MRT.Profiling.M[eventKey] = max(t, MRT.Profiling.M[eventKey] or 0)
+			MRT.Profiling.C[eventKey] = (MRT.Profiling.C[eventKey] or 0) + 1
 		end
 	end
 
@@ -285,13 +285,13 @@ end
 
 
 CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
-ART.CLEUFrame = CLEUFrame
+MRT.CLEUFrame = CLEUFrame
 
-function ART.mod:RegisterEvents(...)
+function MRT.mod:RegisterEvents(...)
 	for i=1,select("#", ...) do
 		local event = select(i,...)
 		if event ~= "COMBAT_LOG_EVENT_UNFILTERED" then
-			if not ART.isClassic then
+			if not MRT.isClassic then
 				self.main:RegisterEvent(event)
 			else
 				pcall(self.main.RegisterEvent,self.main,event)
@@ -305,24 +305,24 @@ function ART.mod:RegisterEvents(...)
 			if type(func) == "function" then
 				CLEUModules[self] = func
 				CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
-				if ART.Profiling.Enabled then
+				if MRT.Profiling.Enabled then
 					CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_RecreateProfiling)
 				end
 				CLEUFrame:RegisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
 			else
-				error("ART: "..self.name..": wrong CLEU function.")
+				error("MRT: "..self.name..": wrong CLEU function.")
 			end
 		end
 		self.main.events[event] = true
-		ART.F.dprint(self.name,'RegisterEvent',event)
+		MRT.F.dprint(self.name,'RegisterEvent',event)
 	end
 end
 
-function ART.mod:UnregisterEvents(...)
+function MRT.mod:UnregisterEvents(...)
 	for i=1,select("#", ...) do
 		local event = select(i,...)
 		if event ~= "COMBAT_LOG_EVENT_UNFILTERED" then
-			if not ART.isClassic then
+			if not MRT.isClassic then
 				self.main:UnregisterEvent(event)
 			else
 				pcall(self.main.UnregisterEvent,self.main,event)
@@ -337,39 +337,39 @@ function ART.mod:UnregisterEvents(...)
 			CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
 		end
 		self.main.events[event] = nil
-		ART.F.dprint(self.name,'UnregisterEvent',event)
+		MRT.F.dprint(self.name,'UnregisterEvent',event)
 	end
 end
 
-function ART.mod:RegisterUnitEvent(...)
+function MRT.mod:RegisterUnitEvent(...)
 	self.main:RegisterUnitEvent(...)
 	local event = ...
 	self.main.events[event] = true
-	ART.F.dprint(self.name,'RegisterUnitEvent',event)
+	MRT.F.dprint(self.name,'RegisterUnitEvent',event)
 end
 
-function ART.mod:RegisterSlash()
-	ART.Slash[self.name] = self
+function MRT.mod:RegisterSlash()
+	MRT.Slash[self.name] = self
 end
 
-function ART.mod:UnregisterSlash()
-	ART.Slash[self.name] = nil
+function MRT.mod:UnregisterSlash()
+	MRT.Slash[self.name] = nil
 end
 
-function ART.mod:RegisterAddonMessage()
-	ART.OnAddonMessage[self.name] = self
+function MRT.mod:RegisterAddonMessage()
+	MRT.OnAddonMessage[self.name] = self
 end
 
-function ART.mod:UnregisterAddonMessage()
-	ART.OnAddonMessage[self.name] = nil
+function MRT.mod:UnregisterAddonMessage()
+	MRT.OnAddonMessage[self.name] = nil
 end
 
-function ART.mod:RegisterMiniMapMenu()
-	ART.MiniMapMenu[self.name] = self
+function MRT.mod:RegisterMiniMapMenu()
+	MRT.MiniMapMenu[self.name] = self
 end
 
-function ART.mod:UnregisterMiniMapMenu()
-	ART.MiniMapMenu[self.name] = nil
+function MRT.mod:UnregisterMiniMapMenu()
+	MRT.MiniMapMenu[self.name] = nil
 end
 
 do
@@ -394,11 +394,11 @@ do
 			end
 		end
 	end)
-	if not ART.isClassic then
+	if not MRT.isClassic then
 		petBattleTracker:RegisterEvent("PET_BATTLE_OPENING_START")
 		petBattleTracker:RegisterEvent("PET_BATTLE_CLOSE")
 	end
-	function ART.mod:RegisterHideOnPetBattle(frame)
+	function MRT.mod:RegisterHideOnPetBattle(frame)
 		hideOnPetBattle[#hideOnPetBattle + 1] = frame
 	end
 end
@@ -406,76 +406,76 @@ end
 ---------------> Profiling <---------------
 
 local profilingTicker
-function ART.F:StartProfiling()
-	ART.Profiling = {
+function MRT.F:StartProfiling()
+	MRT.Profiling = {
 		T = {},
 		M = {},
 		C = {},
 		Enabled = true,
 		Start = debugprofilestop(),
 	}
-	for _,mod in pairs(ART.Modules) do
-		mod.main:SetScript("OnEvent",ART.mod.EventProfiling)
+	for _,mod in pairs(MRT.Modules) do
+		mod.main:SetScript("OnEvent",MRT.mod.EventProfiling)
 	end
 	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_RecreateProfiling)
-	ART.frame:OnUpdate_Recreate(0)
+	MRT.frame:OnUpdate_Recreate(0)
 end
-function ART.F:StopProfiling()
-	ART.Profiling.End = debugprofilestop()
-	ART.Profiling.Enabled = false
-	for _,mod in pairs(ART.Modules) do
-		mod.main:SetScript("OnEvent",ART.mod.Event)
+function MRT.F:StopProfiling()
+	MRT.Profiling.End = debugprofilestop()
+	MRT.Profiling.Enabled = false
+	for _,mod in pairs(MRT.Modules) do
+		mod.main:SetScript("OnEvent",MRT.mod.Event)
 	end
 	CLEUFrame:SetScript("OnEvent",CLEU_OnEvent_Recreate)
-	ART.frame:OnUpdate_Recreate(0)
+	MRT.frame:OnUpdate_Recreate(0)
 
 	if profilingTicker then
 		profilingTicker:Cancel()
 		profilingTicker = nil
 	end
 end
-function ART.F:StartStopProfiling()
-	if ART.Profiling.Enabled then
-		ART.F:StopProfiling()
-		print('ART: profiling stopped')
+function MRT.F:StartStopProfiling()
+	if MRT.Profiling.Enabled then
+		MRT.F:StopProfiling()
+		print('MRT: profiling stopped')
 	else
-		ART.F:StartProfiling()
-		print('ART: profiling started')
+		MRT.F:StartProfiling()
+		print('MRT: profiling started')
 	end
 end
-function ART.F:StartProfilingBoss()
+function MRT.F:StartProfilingBoss()
 	if profilingTicker then
 		profilingTicker:Cancel()
 		profilingTicker = nil
 	end
-	ART.F:StartProfiling()
+	MRT.F:StartProfiling()
 	profilingTicker = C_Timer.NewTicker(1,function(self)
-		if not IsEncounterInProgress() and not ART.Profiling.BossStarted then
-			ART.F:StartProfiling()
-		elseif not IsEncounterInProgress() and ART.Profiling.BossStarted then
-			ART.F:StopProfiling()
+		if not IsEncounterInProgress() and not MRT.Profiling.BossStarted then
+			MRT.F:StartProfiling()
+		elseif not IsEncounterInProgress() and MRT.Profiling.BossStarted then
+			MRT.F:StopProfiling()
 			self:Cancel()
 			profilingTicker = nil
-		elseif IsEncounterInProgress() and not ART.Profiling.BossStarted then
-			ART.Profiling.BossStarted = true
+		elseif IsEncounterInProgress() and not MRT.Profiling.BossStarted then
+			MRT.Profiling.BossStarted = true
 		end
 	end)
 end
-function ART.F:IsProfilingBoss()
+function MRT.F:IsProfilingBoss()
 	if profilingTicker then
 		return true
 	else
 		return false
 	end
 end
-function ART.F:GetProfiling()
-	local now = (ART.Profiling.End or debugprofilestop()) - ART.Profiling.Start
-	local str = ""..ART.V.." "..ART.T.." "..now.."\n"
+function MRT.F:GetProfiling()
+	local now = (MRT.Profiling.End or debugprofilestop()) - MRT.Profiling.Start
+	local str = ""..MRT.V.." "..MRT.T.." "..now.."\n"
 	local r = {}
-	for event in pairs(ART.Profiling.T) do
-		local t = ART.Profiling.T[event]
-		local c = ART.Profiling.C[event]
-		local m = ART.Profiling.M[event]
+	for event in pairs(MRT.Profiling.T) do
+		local t = MRT.Profiling.T[event]
+		local c = MRT.Profiling.C[event]
+		local m = MRT.Profiling.M[event]
 
 		r[#r+1] = {event,t,c,m,(t/c),t/now*1000}
 	end
@@ -483,9 +483,9 @@ function ART.F:GetProfiling()
 	for i=1,#r do
 		str = str .. r[i][1] .. " "..r[i][2].." "..r[i][3].." "..r[i][4].." "..r[i][5] .." "..r[i][6] .. "\n"
 	end
-	ART.F:Export2(str)
+	MRT.F:Export2(str)
 end
-function ART.F:LiveProfiling()
+function MRT.F:LiveProfiling()
 	debugStringFrame = CreateFrame("Frame",nil,UIParent)
 	debugStringFrame:SetAllPoints()
 	debugStringFrame:SetFrameStrata("DIALOG")
@@ -493,16 +493,16 @@ function ART.F:LiveProfiling()
 	debugString:SetPoint("TOPLEFT",5,-5)
 	debugString:SetJustifyH("LEFT")
 	debugString:SetJustifyV("TOP")
-	debugString:SetFont("Interface\\AddOns\\ART\\media\\skurri.ttf", 12,"OUTLINE")
+	debugString:SetFont("Interface\\AddOns\\MRT\\media\\skurri.ttf", 12,"OUTLINE")
 
 	C_Timer.NewTicker(0.5,function()
 		local str = ""
 		local r = {}
-		local now = (ART.Profiling.End or debugprofilestop()) - ART.Profiling.Start
-		for event in pairs(ART.Profiling.T) do
-			local t = ART.Profiling.T[event]
-			local c = ART.Profiling.C[event]
-			local m = ART.Profiling.M[event]
+		local now = (MRT.Profiling.End or debugprofilestop()) - MRT.Profiling.Start
+		for event in pairs(MRT.Profiling.T) do
+			local t = MRT.Profiling.T[event]
+			local c = MRT.Profiling.C[event]
+			local m = MRT.Profiling.M[event]
 	
 			r[#r+1] = {event,t,c,m,(t/c),t/now*1000}
 		end
@@ -512,7 +512,7 @@ function ART.F:LiveProfiling()
 		end
 		debugString:SetText(str)
 	end)
-	ART.F:StartProfiling()
+	MRT.F:StartProfiling()
 end
 
 
@@ -527,13 +527,13 @@ do
 		self.func(unpack(self.args))
 		t = debugprofilestop() - t
 		local eventKey = "delayed timers"..self.profilingevent
-		ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
-		ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
-		ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+		MRT.Profiling.T[eventKey] = (MRT.Profiling.T[eventKey] or 0) + t
+		MRT.Profiling.M[eventKey] = max(t, MRT.Profiling.M[eventKey] or 0)
+		MRT.Profiling.C[eventKey] = (MRT.Profiling.C[eventKey] or 0) + 1
 	end
-	function ART.F.ScheduleTimer(func, delay, ...)
+	function MRT.F.ScheduleTimer(func, delay, ...)
 		local self = nil
-		local isProfiling = ART.Profiling.Enabled
+		local isProfiling = MRT.Profiling.Enabled
 		local tf = isProfiling and TimerFuncProfiling or TimerFunc
 		if delay > 0 then
 			self = C_Timer_NewTicker(delay,tf,1)
@@ -558,36 +558,36 @@ do
 		
 		return self
 	end
-	function ART.F.CancelTimer(self)
+	function MRT.F.CancelTimer(self)
 		if self then
 			self:Cancel()
 		end
 	end
-	function ART.F.ScheduleETimer(self, func, delay, ...)
-		ART.F.CancelTimer(self)
-		return ART.F.ScheduleTimer(func, delay, ...)
+	function MRT.F.ScheduleETimer(self, func, delay, ...)
+		MRT.F.CancelTimer(self)
+		return MRT.F.ScheduleTimer(func, delay, ...)
 	end
 	
-	ART.F.NewTimer = ART.F.ScheduleTimer
-	ART.F.Timer = ART.F.ScheduleTimer
+	MRT.F.NewTimer = MRT.F.ScheduleTimer
+	MRT.F.Timer = MRT.F.ScheduleTimer
 
-	local st = ART.F.ScheduleTimer
-	ART.F.After = function(delay, func, ...)
+	local st = MRT.F.ScheduleTimer
+	MRT.F.After = function(delay, func, ...)
 		st(func, delay, ...)
 	end
 end
 
 -----------> Coroutinies <------------
 
-ART.Coroutinies = {}
+MRT.Coroutinies = {}
 local coroutineFrame
 
-function ART.F:AddCoroutine(func, errorHandler, disableInCombat)
+function MRT.F:AddCoroutine(func, errorHandler, disableInCombat)
 	if not coroutineFrame then
 		coroutineFrame = CreateFrame("Frame")
 
 		local sleep = {}
-		local coroutineData = ART.Coroutinies
+		local coroutineData = MRT.Coroutinies
 		
 		coroutineFrame:Hide()
 		coroutineFrame:SetScript("OnUpdate", function(self, elapsed)
@@ -656,7 +656,7 @@ function ART.F:AddCoroutine(func, errorHandler, disableInCombat)
 		errorHandler = nil
 	end
 
-	ART.Coroutinies[c] = {
+	MRT.Coroutinies[c] = {
 		eh = errorHandler,
 		cmt = disableInCombat,
 		f = func,
@@ -667,20 +667,20 @@ function ART.F:AddCoroutine(func, errorHandler, disableInCombat)
 	return c
 end
 
-function ART.F:GetCoroutine(func)
-	return ART.Coroutinies[func]
+function MRT.F:GetCoroutine(func)
+	return MRT.Coroutinies[func]
 end
 
-function ART.F:RemoveCoroutine(func)
-	ART.Coroutinies[func] = nil
+function MRT.F:RemoveCoroutine(func)
+	MRT.Coroutinies[func] = nil
 end
 
 ---------------> Data <---------------
 
-ART.F.defFont = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\skurri.ttf"
-ART.F.barImg = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar17.tga"
-ART.F.defBorder = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\border.tga"
-ART.F.textureList = {
+MRT.F.defFont = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\skurri.ttf"
+MRT.F.barImg = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar17.tga"
+MRT.F.defBorder = "Interface\\AddOns\\"..GlobalAddonName.."\\media\\border.tga"
+MRT.F.textureList = {
 	"Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar1.tga",
 	"Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar2.tga",
 	"Interface\\AddOns\\"..GlobalAddonName.."\\media\\bar3.tga",
@@ -721,7 +721,7 @@ ART.F.textureList = {
 	[[Interface\PaperDollInfoFrame\UI-Character-Skills-Bar]],
 	[[Interface\RaidFrame\Raid-Bar-Hp-Fill]],
 }
-ART.F.fontList = {
+MRT.F.fontList = {
 	"Interface\\AddOns\\"..GlobalAddonName.."\\media\\skurri.ttf",
 	"Fonts\\ARIALN.TTF",
 	"Fonts\\FRIZQT__.TTF",
@@ -741,10 +741,10 @@ ART.F.fontList = {
 	"Interface\\AddOns\\"..GlobalAddonName.."\\media\\ariblk.ttf",
 }
 
-if ART.locale and ART.locale:find("^zh") then		--China & Taiwan fix
-	ART.F.defFont = "Fonts\\ARHei.ttf"
-elseif ART.locale == "koKR" then			--Korea fix
-	ART.F.defFont = "Fonts\\2002.ttf"
+if MRT.locale and MRT.locale:find("^zh") then		--China & Taiwan fix
+	MRT.F.defFont = "Fonts\\ARHei.ttf"
+elseif MRT.locale == "koKR" then			--Korea fix
+	MRT.F.defFont = "Fonts\\2002.ttf"
 end
 
 ----------> Version Checker <----------
@@ -757,15 +757,15 @@ end
 -------------> Callbacks <-------------
 
 local callbacks = {}
-function ART.F:RegisterCallback(eventName, func)
+function MRT.F:RegisterCallback(eventName, func)
 	if not callbacks[eventName] then
 		callbacks[eventName] = {}
 	end
 	tinsert(callbacks[eventName], func)
 
-	ART.F:FireCallback("CallbackRegistered", eventName, func)
+	MRT.F:FireCallback("CallbackRegistered", eventName, func)
 end
-function ART.F:UnregisterCallback(eventName, func)
+function MRT.F:UnregisterCallback(eventName, func)
 	if not callbacks[eventName] then
 		return
 	end
@@ -778,14 +778,14 @@ function ART.F:UnregisterCallback(eventName, func)
 		end
 	end
 
-	ART.F:FireCallback("CallbackUnregistered", eventName, func, count)
+	MRT.F:FireCallback("CallbackUnregistered", eventName, func, count)
 end
 
 local function CallbackErrorHandler(err)
 	print ("Callback Error", err)
 end
 
-function ART.F:FireCallback(eventName, ...)
+function MRT.F:FireCallback(eventName, ...)
 	if not callbacks[eventName] then
 		return
 	end
@@ -801,35 +801,35 @@ SlashCmdList["mrtSlash"] = function (arg)
 	if argL == "icon" then
 		VMRT.Addon.IconMiniMapHide = not VMRT.Addon.IconMiniMapHide
 		if not VMRT.Addon.IconMiniMapHide then 
-			ART.MiniMapIcon:Show()
+			MRT.MiniMapIcon:Show()
 		else
-			ART.MiniMapIcon:Hide()
+			MRT.MiniMapIcon:Hide()
 		end
 	elseif argL == "getver" then
-		ART.F.SendExMsg("needversion","")
-		isVersionCheckCallback = ART.F.ScheduleETimer(isVersionCheckCallback, DisableVersionCheckCallback, 1.5)
+		MRT.F.SendExMsg("needversion","")
+		isVersionCheckCallback = MRT.F.ScheduleETimer(isVersionCheckCallback, DisableVersionCheckCallback, 1.5)
 	elseif argL == "getverg" then
-		ART.F.SendExMsg("needversiong","","GUILD")
-		isVersionCheckCallback = ART.F.ScheduleETimer(isVersionCheckCallback, DisableVersionCheckCallback, 1.5)
+		MRT.F.SendExMsg("needversiong","","GUILD")
+		isVersionCheckCallback = MRT.F.ScheduleETimer(isVersionCheckCallback, DisableVersionCheckCallback, 1.5)
 	elseif argL == "set" then
-		ART.Options:Open()
+		MRT.Options:Open()
 	elseif argL == "quit" then
-		for mod,data in pairs(ART.A) do
+		for mod,data in pairs(MRT.A) do
 			data.main:UnregisterAllEvents()
 			if data.CLEU then
 				data.CLEU:UnregisterAllEvents()
 			end
 		end
-		ART.frame:UnregisterAllEvents()
-		ART.frame:SetScript("OnUpdate",nil)
-		print("ART Disabled")
+		MRT.frame:UnregisterAllEvents()
+		MRT.frame:SetScript("OnUpdate",nil)
+		print("MRT Disabled")
 	elseif argL == "profiler" or argL == "profiling" then
-		ART.F:ProfilingWindow()
+		MRT.F:ProfilingWindow()
 	elseif string.len(argL) == 0 then
-		ART.Options:Open()
+		MRT.Options:Open()
 		return
 	end
-	for _,mod in pairs(ART.Slash) do
+	for _,mod in pairs(MRT.Slash) do
 		mod:slash(argL,arg)
 	end
 end
@@ -845,7 +845,7 @@ SLASH_mrtSlash6 = "/art"
 
 local reloadTimer = 0.1
 
-ART.frame = CreateFrame("Frame")
+MRT.frame = CreateFrame("Frame")
 
 local function loader(self,func)
 	xpcall(func,geterrorhandler(),self)
@@ -883,14 +883,14 @@ do
 	end
 end
 
-ART.frame:SetScript("OnEvent",function (self, event, ...)
+MRT.frame:SetScript("OnEvent",function (self, event, ...)
 	if event == "CHAT_MSG_ADDON" then
 		local prefix, message, channel, sender = ...
-		if prefix and ART.msg_prefix[prefix] and (channel=="RAID" or channel=="GUILD" or channel=="INSTANCE_CHAT" or channel=="PARTY" or (channel=="WHISPER" and (ART.F.UnitInGuild(sender) or sender == ART.SDB.charName)) or (message and (message:find("^version") or message:find("^needversion")))) then
-			ART.F.GetExMsg(sender, strsplit("\t", message))
+		if prefix and MRT.msg_prefix[prefix] and (channel=="RAID" or channel=="GUILD" or channel=="INSTANCE_CHAT" or channel=="PARTY" or (channel=="WHISPER" and (MRT.F.UnitInGuild(sender) or sender == MRT.SDB.charName)) or (message and (message:find("^version") or message:find("^needversion")))) then
+			MRT.F.GetExMsg(sender, strsplit("\t", message))
 		end
-		if prefix and ART.msg_prefix[prefix] then
-			ART.F.GetAnyExMsg(sender, prefix, message, channel, sender)
+		if prefix and MRT.msg_prefix[prefix] then
+			MRT.F.GetAnyExMsg(sender, prefix, message, channel, sender)
 		end
 	elseif event == "ADDON_LOADED" then
 		local addonName = ...
@@ -920,57 +920,57 @@ ART.frame:SetScript("OnEvent",function (self, event, ...)
 		reloadTimer = VMRT.Addon.Timer
 
 		if VMRT.Addon.IconMiniMapLeft and VMRT.Addon.IconMiniMapTop then
-			ART.MiniMapIcon:ClearAllPoints()
-			ART.MiniMapIcon:SetPoint("CENTER", VMRT.Addon.IconMiniMapLeft, VMRT.Addon.IconMiniMapTop)
+			MRT.MiniMapIcon:ClearAllPoints()
+			MRT.MiniMapIcon:SetPoint("CENTER", VMRT.Addon.IconMiniMapLeft, VMRT.Addon.IconMiniMapTop)
 		end
 		
 		if VMRT.Addon.IconMiniMapHide then 
-			ART.MiniMapIcon:Hide() 
+			MRT.MiniMapIcon:Hide() 
 		end
 
-		for prefix,_ in pairs(ART.msg_prefix) do
+		for prefix,_ in pairs(MRT.msg_prefix) do
 			C_ChatInfo.RegisterAddonMessagePrefix(prefix)
 		end
 		
 		VMRT.Addon.Version = tonumber(VMRT.Addon.Version or "0")
 		VMRT.Addon.PreVersion = VMRT.Addon.Version
 		
-		if ART.A.Profiles then
-			ART.A.Profiles:ReselectProfileOnLoad()
+		if MRT.A.Profiles then
+			MRT.A.Profiles:ReselectProfileOnLoad()
 		end
 		
-		ART.F.dprint("ADDON_LOADED event")
-		ART.F.dprint("MODULES FIND",#ART.Modules)
+		MRT.F.dprint("ADDON_LOADED event")
+		MRT.F.dprint("MODULES FIND",#MRT.Modules)
 		--local t,c = debugprofilestop(),collectgarbage("count") print('addon load event')		
-		for i=1,#ART.Modules do
-			loader(self,ART.Modules[i].main.ADDON_LOADED)
-			--local newc,newt = collectgarbage("count"),debugprofilestop() print(ART.Modules[i].name,newc - c,newt - t) t,c = newt,newc
+		for i=1,#MRT.Modules do
+			loader(self,MRT.Modules[i].main.ADDON_LOADED)
+			--local newc,newt = collectgarbage("count"),debugprofilestop() print(MRT.Modules[i].name,newc - c,newt - t) t,c = newt,newc
 
-			ART.ModulesLoaded[i] = true
+			MRT.ModulesLoaded[i] = true
 			
-			ART.F.dprint("ADDON_LOADED",i,ART.Modules[i].name)
+			MRT.F.dprint("ADDON_LOADED",i,MRT.Modules[i].name)
 		end
 
 		if not VMRT.Addon.DisableHideESC then
 			tinsert(UISpecialFrames, "MRTOptionsFrame")
 		end
 
-		VMRT.Addon.Version = ART.V
+		VMRT.Addon.Version = MRT.V
 		
-		ART.F.ScheduleTimer(function()
-			ART.frame:SetScript("OnUpdate", ART.frame.OnUpdate_Recreate)
+		MRT.F.ScheduleTimer(function()
+			MRT.frame:SetScript("OnUpdate", MRT.frame.OnUpdate_Recreate)
 		end,1)
 		self:UnregisterEvent("ADDON_LOADED")
 
-		ART.AddonLoaded = true
+		MRT.AddonLoaded = true
 
-		if not ART.isClassic then
-			if not VMRT.Addon.EJ_CHECK_VER or VMRT.Addon.EJ_CHECK_VER ~= ART.clientUIinterface or (((type(IsTestBuild)=="function" and IsTestBuild()) or (type(IsBetaBuild)=="function" and IsBetaBuild())) and VMRT.Addon.EJ_CHECK_VER_PTR ~= ART.clientBuildVersion) then
+		if not MRT.isClassic then
+			if not VMRT.Addon.EJ_CHECK_VER or VMRT.Addon.EJ_CHECK_VER ~= MRT.clientUIinterface or (((type(IsTestBuild)=="function" and IsTestBuild()) or (type(IsBetaBuild)=="function" and IsBetaBuild())) and VMRT.Addon.EJ_CHECK_VER_PTR ~= MRT.clientBuildVersion) then
 				C_Timer.After(10,function()
-					ART.F.EJ_AutoScan()
+					MRT.F.EJ_AutoScan()
 				end)
 			else
-				ART.F.EJ_LoadData()
+				MRT.F.EJ_LoadData()
 			end
 		end
 
@@ -1015,9 +1015,9 @@ do
 				func(mod, frameElapsed)
 				t = debugprofilestop() - t
 				local eventKey = mod.name .. ":OnUpdate"
-				ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
-				ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
-				ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+				MRT.Profiling.T[eventKey] = (MRT.Profiling.T[eventKey] or 0) + t
+				MRT.Profiling.M[eventKey] = max(t, MRT.Profiling.M[eventKey] or 0)
+				MRT.Profiling.C[eventKey] = (MRT.Profiling.C[eventKey] or 0) + 1
 			end
 			frameElapsed = 0
 		end
@@ -1029,7 +1029,7 @@ do
 			OnUpdate_Funcs[mod] = func
 		end
 		
-		if ART.Profiling.Enabled then
+		if MRT.Profiling.Enabled then
 			self:SetScript("OnUpdate", OnUpdateProfiling)
 			OnUpdateProfiling(self,elapsed)
 			return
@@ -1038,33 +1038,33 @@ do
 		OnUpdate(self,elapsed)
 	end
 
-	ART.frame.OnUpdate = OnUpdate
-	ART.frame.OnUpdate_Recreate = OnUpdate_Recreate
-	ART.frame.OnUpdate_Funcs = OnUpdate_Funcs
-	ART.frame.OnUpdate_Modules = OnUpdate_Modules
+	MRT.frame.OnUpdate = OnUpdate
+	MRT.frame.OnUpdate_Recreate = OnUpdate_Recreate
+	MRT.frame.OnUpdate_Funcs = OnUpdate_Funcs
+	MRT.frame.OnUpdate_Modules = OnUpdate_Modules
 
-	function ART.mod:RegisterTimer()
+	function MRT.mod:RegisterTimer()
 		local func = self.timer
 		if type(func) ~= "function" then
-			error("ART: "..self.name..": wrong timer function.")
+			error("MRT: "..self.name..": wrong timer function.")
 			return
 		end
 		OnUpdate_Modules[self] = func
 
-		ART.frame:SetScript("OnUpdate", OnUpdate_Recreate)
+		MRT.frame:SetScript("OnUpdate", OnUpdate_Recreate)
 	end
 	
-	function ART.mod:UnregisterTimer()
+	function MRT.mod:UnregisterTimer()
 		OnUpdate_Modules[self] = nil
 
-		ART.frame:SetScript("OnUpdate", OnUpdate_Recreate)
+		MRT.frame:SetScript("OnUpdate", OnUpdate_Recreate)
 	end
 	
-	function ART.F.RaidInCombat()
+	function MRT.F.RaidInCombat()
 		return isEncounter
 	end
 	
-	function ART.F.GetEncounterTime()
+	function MRT.F.GetEncounterTime()
 		if isEncounter then
 			return GetTime() - encounterTime
 		end
@@ -1160,7 +1160,7 @@ SendAddonMessage = function (...)
 	send()
 end
 
-function ART.F.SendExMsg(prefix, msg, tochat, touser, addonPrefix)
+function MRT.F.SendExMsg(prefix, msg, tochat, touser, addonPrefix)
 	addonPrefix = addonPrefix or "EXRTADD"
 	msg = msg or ""
 	if tochat and not touser then
@@ -1168,13 +1168,13 @@ function ART.F.SendExMsg(prefix, msg, tochat, touser, addonPrefix)
 	elseif tochat and touser then
 		SendAddonMessage(addonPrefix, prefix .. "\t" .. msg, tochat, touser)
 	else
-		local chat_type, playerName = ART.F.chatType()
-		if chat_type == "WHISPER" and playerName == ART.SDB.charName then
+		local chat_type, playerName = MRT.F.chatType()
+		if chat_type == "WHISPER" and playerName == MRT.SDB.charName then
 			if type(specialOpt)=="table" and type(specialOpt.ondone)=="function" then
 				specialOpt.ondone()
 			end
 			specialOpt = nil
-			ART.F.GetExMsg(ART.SDB.charName, prefix, strsplit("\t", msg))
+			MRT.F.GetExMsg(MRT.SDB.charName, prefix, strsplit("\t", msg))
 			return
 		end
 		SendAddonMessage(addonPrefix, prefix .. "\t" .. msg, chat_type, playerName)
@@ -1182,49 +1182,49 @@ function ART.F.SendExMsg(prefix, msg, tochat, touser, addonPrefix)
 end
 
 
-function ART.F.SendExMsgExt(opt, ...)
+function MRT.F.SendExMsgExt(opt, ...)
 	specialOpt = opt
-	--ART.F.SendExMsg(...)
-	xpcall(ART.F.SendExMsg,geterrorhandler(),...)
+	--MRT.F.SendExMsg(...)
+	xpcall(MRT.F.SendExMsg,geterrorhandler(),...)
 	specialOpt = nil
 end
 
 
-function ART.F.GetExMsg(sender, prefix, ...)
+function MRT.F.GetExMsg(sender, prefix, ...)
 	if prefix == "needversion" then
-		ART.F.SendExMsg("version2", ART.V)
+		MRT.F.SendExMsg("version2", MRT.V)
 	elseif prefix == "needversiong" then
-		ART.F.SendExMsg("version2", ART.V, "WHISPER", sender)
+		MRT.F.SendExMsg("version2", MRT.V, "WHISPER", sender)
 	elseif prefix == "version" then
 		local msgver = ...
 		print(sender..": "..msgver)
-		ART.RaidVersions[sender] = msgver
+		MRT.RaidVersions[sender] = msgver
 	elseif prefix == "version2" then
-		ART.RaidVersions[sender] = ...
+		MRT.RaidVersions[sender] = ...
 		if isVersionCheckCallback then
 			local msgver = ...
 			print(sender..": "..msgver)
 		end
 	end
-	if not ART.Profiling.Enabled then
-		for _,mod in pairs(ART.OnAddonMessage) do
+	if not MRT.Profiling.Enabled then
+		for _,mod in pairs(MRT.OnAddonMessage) do
 			mod:addonMessage(sender, prefix, ...)
 		end
 	else
-		for _,mod in pairs(ART.OnAddonMessage) do
+		for _,mod in pairs(MRT.OnAddonMessage) do
 			local t = debugprofilestop()
 			mod:addonMessage(sender, prefix, ...)
 			t = debugprofilestop() - t
 			local eventKey = mod.name .. ":CHAT_MSG_ADDON"
-			ART.Profiling.T[eventKey] = (ART.Profiling.T[eventKey] or 0) + t
-			ART.Profiling.M[eventKey] = max(t, ART.Profiling.M[eventKey] or 0)
-			ART.Profiling.C[eventKey] = (ART.Profiling.C[eventKey] or 0) + 1
+			MRT.Profiling.T[eventKey] = (MRT.Profiling.T[eventKey] or 0) + t
+			MRT.Profiling.M[eventKey] = max(t, MRT.Profiling.M[eventKey] or 0)
+			MRT.Profiling.C[eventKey] = (MRT.Profiling.C[eventKey] or 0) + 1
 		end
 	end
 end
 
-function ART.F.GetAnyExMsg(sender, prefix, ...)
-	if Ambiguate(sender, "none") == ART.SDB.charName then
+function MRT.F.GetAnyExMsg(sender, prefix, ...)
+	if Ambiguate(sender, "none") == MRT.SDB.charName then
 		return
 	end
 
@@ -1400,7 +1400,7 @@ if WeakAuras then
     end
 end
 
-_G["GExRT"] = ART
-_G["GMRT"] = ART
-ART.frame:RegisterEvent("CHAT_MSG_ADDON")
-ART.frame:RegisterEvent("ADDON_LOADED") 
+_G["GExRT"] = MRT
+_G["GMRT"] = MRT
+MRT.frame:RegisterEvent("CHAT_MSG_ADDON")
+MRT.frame:RegisterEvent("ADDON_LOADED") 

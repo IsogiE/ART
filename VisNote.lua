@@ -3767,7 +3767,7 @@ do
 	frame.label:SetFont(frame.label:GetFont(),10,"")
 	frame.label:SetPoint("TOP",0,-4)
 	frame.label:SetTextColor(1,1,1,1)
-	frame.label:SetText("ART: "..L.VisualNote)
+	frame.label:SetText("MRT: "..L.VisualNote)
 
 	frame.player = frame:CreateFontString(nil,"OVERLAY","GameFontWhiteSmall")
 	frame.player:SetFont(frame.player:GetFont(),10,"")
