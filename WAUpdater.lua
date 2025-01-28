@@ -58,19 +58,15 @@ function module.options:Load()
 
     local editBox = ELib:MultiEdit(self):Size(540, 300):Point("TOP", 0, -40)
     self.editBox = editBox
-	
-    -- Description box added below the edit box
-    local descriptionBox = ELib:Edit(self):Size(540, 30):Point("TOP", self.editBox, "BOTTOM", 0, -10):Text("Enter description here")
-    self.DescriptionBox = descriptionBox  -- Ensure DescriptionBox is initialized
 
     -- Error text moved above the buttons
-    self.HandlingText = ELib:Text(self, "", 11):Size(650, 200):Point("CENTER", descriptionBox, "BOTTOM", 55, -15):Color()
+    self.HandlingText = ELib:Text(self, "", 11):Size(650, 200):Point("CENTER", editBox, "BOTTOM", 55, -15):Color()
 
     -- Send button moved down to avoid overlap with the error text
-    local sendButton = ELib:Button(self, "Send"):Size(120, 40):Point("BOTTOMLEFT", self.DescriptionBox, "BOTTOMLEFT", 0, -75)
+    local sendButton = ELib:Button(self, "Send"):Size(120, 40):Point("BOTTOMLEFT", editBox, "BOTTOMLEFT", 0, -75)
     sendButton:SetScript("OnClick", function()
         local weakAuraData = self.editBox:GetText()
-        local description = self.DescriptionBox:GetText()
+        local description = ""
         if weakAuraData and weakAuraData ~= "" then
             if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
                 DistributeWeakAura(weakAuraData, description)  -- Include description in the transmission
@@ -91,7 +87,6 @@ function module.options:Load()
     clearButton:SetScript("OnClick", function()
         AdvanceWeakAuraUpdaterDB.pendingWeakAuraData = nil
         self.editBox:SetText("")
-        self.DescriptionBox:SetText("")
         self.HandlingText:SetText("")
     end)
 end
