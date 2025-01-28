@@ -94,16 +94,6 @@ local NicknameAPI = {
     end
 }
 
--- Something Ill get rid off eventually 
-local function GetCachedNickname(unit)
-    if not unit or not UnitExists(unit) then return nil end
-    
-    local name = UnitName(unit)
-    if not name then return nil end
-    
-    return NicknameAPI:GetNicknameByCharacter(name)
-end
-
 -- Cell
 local function EnhancedUpdateCellNicknames()
     if not C_AddOns.IsAddOnLoaded("Cell") then return end
@@ -160,44 +150,50 @@ end
 local function EnhancedUpdateElvUFTags()
     if not IsElvUIReady() then return end
     
+    -- Simple, direct API calls for each tag type
     local function NicknameTag(unit)
         if not unit then return "" end
-        return GetCachedNickname(unit) or ""
+        local name = UnitName(unit)
+        if not name then return "" end
+        return NicknameAPI:GetNicknameByCharacter(name) or ""
     end
     
     local function NicknameShortTag(unit)
         if not unit then return "" end
-        local nick = GetCachedNickname(unit)
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name)
         return nick and nick:sub(1, 8) or ""
     end
     
     local function NicknameVeryShortTag(unit)
         if not unit then return "" end
-        local nick = GetCachedNickname(unit)
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name)
         return nick and nick:sub(1, 5) or ""
     end
     
     local function NicknameMediumTag(unit)
         if not unit then return "" end
-        local nick = GetCachedNickname(unit)
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name)
         return nick and nick:sub(1, 10) or ""
     end
     
+    -- Register the tags directly
     ElvUF.Tags.Methods['nickname'] = NicknameTag
-    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
-    
     ElvUF.Tags.Methods['nickname:short'] = NicknameShortTag
-    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
-    
     ElvUF.Tags.Methods['nickname:veryshort'] = NicknameVeryShortTag
-    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
-    
     ElvUF.Tags.Methods['nickname:medium'] = NicknameMediumTag
-    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
-
-    if ElvUI and ElvUI and ElvUI.UpdateAllFrames then
-        ElvUI:UpdateAllFrames()
-    end
+    
+    -- Register for relevant events
+    local events = 'UNIT_NAME_UPDATE GROUP_ROSTER_UPDATE PLAYER_TARGET_CHANGED PLAYER_ENTERING_WORLD'
+    ElvUF.Tags.Events['nickname'] = events
+    ElvUF.Tags.Events['nickname:short'] = events
+    ElvUF.Tags.Events['nickname:veryshort'] = events
+    ElvUF.Tags.Events['nickname:medium'] = events
 end
 
 -- Grid2
@@ -227,11 +223,11 @@ local function EnhancedGrid2NameStatus()
     end
     
     function NicknameStatus:GetText(unit)
-        return GetCachedNickname(unit)
+        return NicknameAPI:GetNicknameByCharacter(name)
     end
     
     function NicknameStatus:GetTooltip(unit)
-        local nickname = GetCachedNickname(unit)
+        local nickname = NicknameAPI:GetNicknameByCharacter(name)
         local name = UnitName(unit)
         if nickname and nickname ~= name then
             return string.format("%s (%s)", nickname, name)
@@ -272,7 +268,7 @@ local function UpdateDefaultFrames()
         local name = UnitName(frame.unit)
         if not name then return end
         
-        local nickname = GetCachedNickname(frame.unit)
+        local nickname = NicknameAPI:GetNicknameByCharacter(name)
         if nickname then
             local overlay = overlays[frame] or CreateOverlay(frame)
             frame.name:SetAlpha(0)
