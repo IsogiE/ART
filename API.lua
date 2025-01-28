@@ -276,102 +276,66 @@ local function EnhancedUpdateCellNicknames()
     end
 end
 
--- ElvUI
-local function IsElvUIReady()
-    return ElvUF and ElvUF.Tags and ElvUF.Tags.Methods and ElvUF.Tags.Events
+-- ElvUI (thanks reloe)
+if ElvUF and ElvUF.Tags then
+	ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
+	ElvUF.Tags.Events['nickname:Short'] = 'UNIT_NAME_UPDATE'
+	ElvUF.Tags.Events['nickname:Medium'] = 'UNIT_NAME_UPDATE'
+	ElvUF.Tags.Methods['nickname'] = function(unit)
+		local name = UnitName(unit)
+		return name and NSAPI and NSAPI:GetName(name) or name
+	end
+
+	ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
+		local name = UnitName(unit)
+		name = name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
+		return string.sub(name, 1, 5)
+	end
+
+	ElvUF.Tags.Methods['nickname:short'] = function(unit)
+		local name = UnitName(unit)
+		name = name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
+		return string.sub(name, 1, 8)
+	end
+
+	ElvUF.Tags.Methods['nickname:medium'] = function(unit)
+		local name = UnitName(unit)
+		name = name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
+		return string.sub(name, 1, 10)
+	end
 end
 
-local function EnhancedUpdateElvUFTags()
-    if not IsElvUIReady() then return end
-    
-    local function NicknameTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        return NicknameAPI:GetNicknameByCharacter(name) or name
-    end
-    
-    local function NicknameShortTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
-        return nick:sub(1, 8)
-    end
-    
-    local function NicknameVeryShortTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
-        return nick:sub(1, 5)
-    end
-    
-    local function NicknameMediumTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
-        return nick:sub(1, 10)
-    end
-    
-    ElvUF.Tags.Methods['nickname'] = NicknameTag
-    ElvUF.Tags.Methods['nickname:short'] = NicknameShortTag
-    ElvUF.Tags.Methods['nickname:veryshort'] = NicknameVeryShortTag
-    ElvUF.Tags.Methods['nickname:medium'] = NicknameMediumTag
-    
-    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
+-- Grid2 (thanks reloe)
+if not Grid2 then return end
+local Name = Grid2.statusPrototype:new("name")
+
+Name.IsActive = Grid2.statusLibrary.IsActive
+
+function Name:UNIT_NAME_UPDATE(_, unit)
+	self:UpdateIndicators(unit)
 end
 
--- Grid2
-local function EnhancedGrid2NameStatus()
-    if not Grid2 then return end
-    
-    local NicknameStatus = Grid2.statusPrototype:new("name")
-    
-    NicknameStatus.IsActive = Grid2.statusLibrary.IsActive
-    
-    function NicknameStatus:UNIT_NAME_UPDATE(_, unit)
-        self:UpdateIndicators(unit)
-    end
-    
-    function NicknameStatus:GROUP_ROSTER_UPDATE()
-        self:UpdateAllUnits()
-    end
-    
-    function NicknameStatus:OnEnable()
-        self:RegisterEvent("UNIT_NAME_UPDATE")
-        self:RegisterEvent("GROUP_ROSTER_UPDATE")
-    end
-    
-    function NicknameStatus:OnDisable()
-        self:UnregisterEvent("UNIT_NAME_UPDATE")
-        self:UnregisterEvent("GROUP_ROSTER_UPDATE")
-    end
-    
-    function NicknameStatus:GetText(unit)
-        return NicknameAPI:GetNicknameByCharacter(name)
-    end
-    
-    function NicknameStatus:GetTooltip(unit)
-        local nickname = NicknameAPI:GetNicknameByCharacter(name)
-        local name = UnitName(unit)
-        if nickname and nickname ~= name then
-            return string.format("%s (%s)", nickname, name)
-        end
-        return name
-    end
-    
-    local function RegisterNicknameStatus(baseKey, dbx)
-        Grid2:RegisterStatus(NicknameStatus, {"text", "tooltip"}, baseKey, dbx)
-        return NicknameStatus
-    end
-    
-    Grid2.setupFunc["name"] = RegisterNicknameStatus
+function Name:OnEnable()
+	self:RegisterEvent("UNIT_NAME_UPDATE")
 end
+
+function Name:OnDisable()
+	self:UnregisterEvent("UNIT_NAME_UPDATE")
+end
+
+function Name:GetText(unit)
+	local name = UnitName(unit)
+	return name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
+end
+
+local function Create(baseKey, dbx)
+	Grid2:RegisterStatus(Name, {"text"}, baseKey, dbx)
+	return Name
+end
+
+Grid2.setupFunc["name"] = Create
+
+Grid2:DbSetStatusDefaultValue( "name", {type = "name"})
 
 -- Default frames
 local function UpdateDefaultFrames()
@@ -484,15 +448,10 @@ initFrame:RegisterEvent("ADDON_LOADED")
 initFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "PLAYER_ENTERING_WORLD" then
         EnhancedUpdateCellNicknames()
-        EnhancedUpdateElvUFTags()
-        EnhancedGrid2NameStatus()
         UpdateDefaultFrames()
     elseif event == "ADDON_LOADED" then
-        if arg1 == "Cell" or arg1 == "Grid2" or arg1 == "ElvUI" then
-                EnhancedUpdateCellNicknames()
-                EnhancedUpdateElvUFTags()
-                EnhancedGrid2NameStatus()
-                UpdateDefaultFrames()
+        if arg1 == "Cell" then
+            EnhancedUpdateCellNicknames()
         end
     end
 end)
