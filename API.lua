@@ -319,36 +319,43 @@ if ElvUF and ElvUF.Tags then
 end
 
 -- Grid2 (thanks reloe)
-if not Grid2 then return end
-local Name = Grid2.statusPrototype:new("name")
+local function InitializeGrid2()
+    if not Grid2 then return end
 
-Name.IsActive = Grid2.statusLibrary.IsActive
+    local Name = Grid2.statusPrototype:new("name")
 
-function Name:UNIT_NAME_UPDATE(_, unit)
-	self:UpdateIndicators(unit)
+    Name.IsActive = Grid2.statusLibrary.IsActive
+
+    function Name:UNIT_NAME_UPDATE(_, unit)
+        self:UpdateIndicators(unit)
+    end
+
+    function Name:OnEnable()
+        self:RegisterEvent("UNIT_NAME_UPDATE")
+    end
+
+    function Name:OnDisable()
+        self:UnregisterEvent("UNIT_NAME_UPDATE")
+    end
+
+    function Name:GetText(unit)
+        local name = UnitName(unit)
+        return name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
+    end
+
+    local function Create(baseKey, dbx)
+        Grid2:RegisterStatus(Name, {"text"}, baseKey, dbx)
+        return Name
+    end
+
+    Grid2.setupFunc["name"] = Create
+
+    Grid2:DbSetStatusDefaultValue("name", { type = "name" })
 end
 
-function Name:OnEnable()
-	self:RegisterEvent("UNIT_NAME_UPDATE")
+if C_AddOns.IsAddOnLoaded("Grid2") then
+    InitializeGrid2()
 end
-
-function Name:OnDisable()
-	self:UnregisterEvent("UNIT_NAME_UPDATE")
-end
-
-function Name:GetText(unit)
-	local name = UnitName(unit)
-	return name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
-end
-
-local function Create(baseKey, dbx)
-	Grid2:RegisterStatus(Name, {"text"}, baseKey, dbx)
-	return Name
-end
-
-Grid2.setupFunc["name"] = Create
-
-Grid2:DbSetStatusDefaultValue( "name", {type = "name"})
 
 -- Default frames
 local function UpdateDefaultFrames()
@@ -464,7 +471,7 @@ initFrame:SetScript("OnEvent", function(self, event, arg1)
         UpdateDefaultFrames()
     elseif event == "ADDON_LOADED" then
         if arg1 == "Cell" then
-            EnhancedUpdateCellNicknames()
+        EnhancedUpdateCellNicknames()
         end
     end
 end)
