@@ -5,16 +5,6 @@ local function GetNicknamesMap()
     return VMRT.Nicknames
 end
 
-local function FindNicknameKey(nicknamesMap, nickname)
-    nickname = nickname:lower()
-    for key in pairs(nicknamesMap) do
-        if key:lower() == nickname then
-            return key
-        end
-    end
-    return nil
-end
-
 -- Nickname API
 local NicknameAPI = {
     GetNicknameByCharacter = function(_, characterName)
@@ -93,259 +83,6 @@ local NicknameAPI = {
         return GetNicknamesMap()
     end
 }
-
--- Cell
-local function EnhancedUpdateCellNicknames()
-    if not C_AddOns.IsAddOnLoaded("Cell") then return end
-    
-    CellDB.nicknames.list = CellDB.nicknames.list or {}
-    CellDB.nicknames.custom = true
-    
-    local ourManagedCharacters = {}
-    local entriesToRemove = {}
-    
-    local nicknameData = NicknameAPI:GetAllNicknames()
-    for nickname, data in pairs(nicknameData) do
-        if data.characters then
-            for _, charData in ipairs(data.characters) do
-                if charData.character then
-                    ourManagedCharacters[charData.character] = true
-                end
-            end
-        end
-    end
-    
-    for i, entry in ipairs(CellDB.nicknames.list) do
-        local character = strsplit(":", entry)
-        if ourManagedCharacters[character] then
-            table.insert(entriesToRemove, i)
-        end
-    end
-    
-    table.sort(entriesToRemove, function(a,b) return a > b end)
-    for _, index in ipairs(entriesToRemove) do
-        table.remove(CellDB.nicknames.list, index)
-    end
-    
-    for nickname, data in pairs(nicknameData) do
-        if data.characters then
-            for _, charData in ipairs(data.characters) do
-                if charData.character then
-                    table.insert(CellDB.nicknames.list, charData.character .. ":" .. nickname)
-                end
-            end
-        end
-    end
-    
-    if Cell.funcs and Cell.funcs.UpdateNicknames then
-        Cell.funcs.UpdateNicknames()
-    end
-end
-
--- ElvUI
-local function IsElvUIReady()
-    return ElvUF and ElvUF.Tags and ElvUF.Tags.Methods and ElvUF.Tags.Events
-end
-
-local function EnhancedUpdateElvUFTags()
-    if not IsElvUIReady() then return end
-    
-    -- Simple, direct API calls for each tag type
-    local function NicknameTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        return NicknameAPI:GetNicknameByCharacter(name) or ""
-    end
-    
-    local function NicknameShortTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name)
-        return nick and nick:sub(1, 8) or ""
-    end
-    
-    local function NicknameVeryShortTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name)
-        return nick and nick:sub(1, 5) or ""
-    end
-    
-    local function NicknameMediumTag(unit)
-        if not unit then return "" end
-        local name = UnitName(unit)
-        if not name then return "" end
-        local nick = NicknameAPI:GetNicknameByCharacter(name)
-        return nick and nick:sub(1, 10) or ""
-    end
-    
-    -- Register the tags directly
-    ElvUF.Tags.Methods['nickname'] = NicknameTag
-    ElvUF.Tags.Methods['nickname:short'] = NicknameShortTag
-    ElvUF.Tags.Methods['nickname:veryshort'] = NicknameVeryShortTag
-    ElvUF.Tags.Methods['nickname:medium'] = NicknameMediumTag
-    
-    -- Register for relevant events
-    local events = 'UNIT_NAME_UPDATE GROUP_ROSTER_UPDATE PLAYER_TARGET_CHANGED PLAYER_ENTERING_WORLD'
-    ElvUF.Tags.Events['nickname'] = events
-    ElvUF.Tags.Events['nickname:short'] = events
-    ElvUF.Tags.Events['nickname:veryshort'] = events
-    ElvUF.Tags.Events['nickname:medium'] = events
-end
-
--- Grid2
-local function EnhancedGrid2NameStatus()
-    if not Grid2 then return end
-    
-    local NicknameStatus = Grid2.statusPrototype:new("name")
-    
-    NicknameStatus.IsActive = Grid2.statusLibrary.IsActive
-    
-    function NicknameStatus:UNIT_NAME_UPDATE(_, unit)
-        self:UpdateIndicators(unit)
-    end
-    
-    function NicknameStatus:GROUP_ROSTER_UPDATE()
-        self:UpdateAllUnits()
-    end
-    
-    function NicknameStatus:OnEnable()
-        self:RegisterEvent("UNIT_NAME_UPDATE")
-        self:RegisterEvent("GROUP_ROSTER_UPDATE")
-    end
-    
-    function NicknameStatus:OnDisable()
-        self:UnregisterEvent("UNIT_NAME_UPDATE")
-        self:UnregisterEvent("GROUP_ROSTER_UPDATE")
-    end
-    
-    function NicknameStatus:GetText(unit)
-        return NicknameAPI:GetNicknameByCharacter(name)
-    end
-    
-    function NicknameStatus:GetTooltip(unit)
-        local nickname = NicknameAPI:GetNicknameByCharacter(name)
-        local name = UnitName(unit)
-        if nickname and nickname ~= name then
-            return string.format("%s (%s)", nickname, name)
-        end
-        return name
-    end
-    
-    local function RegisterNicknameStatus(baseKey, dbx)
-        Grid2:RegisterStatus(NicknameStatus, {"text", "tooltip"}, baseKey, dbx)
-        return NicknameStatus
-    end
-    
-    Grid2.setupFunc["name"] = RegisterNicknameStatus
-end
-
--- Default frames
-local function UpdateDefaultFrames()
-    local overlays = {}
-    
-    local function CreateOverlay(frame)
-        if not frame or overlays[frame] then return end
-        
-        local overlay = frame:CreateFontString(nil, "OVERLAY")
-        overlay:SetFontObject(frame.name:GetFontObject())
-        overlay:SetPoint("LEFT", frame.name, "LEFT")
-        overlay:SetJustifyH("LEFT")
-        overlay:SetWidth(frame:GetWidth() - 8)
-        overlay:SetWordWrap(false)
-        
-        overlays[frame] = overlay
-        return overlay
-    end
-    
-    local function UpdateFrameName(frame)
-        if not frame or not frame.unit or not frame.name then return end
-        if not UnitExists(frame.unit) or not UnitIsPlayer(frame.unit) then return end
-        
-        local name = UnitName(frame.unit)
-        if not name then return end
-        
-        local nickname = NicknameAPI:GetNicknameByCharacter(name)
-        if nickname then
-            local overlay = overlays[frame] or CreateOverlay(frame)
-            frame.name:SetAlpha(0)
-            if overlay then
-                overlay:SetWidth(frame:GetWidth() - 8) 
-                overlay:SetText(nickname)
-            end
-        else
-            frame.name:SetAlpha(1)
-            if overlays[frame] then
-                overlays[frame]:SetText("")
-            end
-        end
-    end
-    
-    local function OnFrameResize(frame)
-        if overlays[frame] then
-            overlays[frame]:SetWidth(frame:GetWidth() - 8)
-        end
-    end
-    
-    local function UpdateAllFrames()
-        for i = 1, 8 do
-            local frame = _G["CompactPartyFrameMember"..i]
-            if frame and frame:IsVisible() then
-                UpdateFrameName(frame)
-                if not frame.sizeHooked then
-                    frame:HookScript("OnSizeChanged", OnFrameResize)
-                    frame.sizeHooked = true
-                end
-            end
-        end
-        
-        for i = 1, 40 do
-            local frame = _G["CompactRaidFrame"..i]
-            if frame and frame:IsVisible() then
-                UpdateFrameName(frame)
-                if not frame.sizeHooked then
-                    frame:HookScript("OnSizeChanged", OnFrameResize)
-                    frame.sizeHooked = true
-                end
-            end
-            
-            for j = 1, 5 do
-                local groupFrame = _G["CompactRaidGroup"..i.."Member"..j]
-                if groupFrame and groupFrame:IsVisible() then
-                    UpdateFrameName(groupFrame)
-                    if not groupFrame.sizeHooked then
-                        groupFrame:HookScript("OnSizeChanged", OnFrameResize)
-                        groupFrame.sizeHooked = true
-                    end
-                end
-            end
-        end
-    end
-    
-    local defaultFrame = CreateFrame("Frame")
-    defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-    
-    defaultFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "UNIT_NAME_UPDATE" then
-            local unit = ...
-            for i = 1, 40 do
-                local frame = _G["CompactRaidFrame"..i]
-                if frame and frame.unit == unit then
-                    UpdateFrameName(frame)
-                    break
-                end
-            end
-        else
-            C_Timer.After(0.1, UpdateAllFrames)
-        end
-    end)
-    
-    C_Timer.After(0.1, UpdateAllFrames)
-end
 
 -- LiquidAPI (stolen from Ironi teehee)
 local unitIDs = {
@@ -491,6 +228,253 @@ if WeakAuras then
     end
 end
 
+-- Cell
+local function EnhancedUpdateCellNicknames()
+    if not C_AddOns.IsAddOnLoaded("Cell") then return end
+    
+    CellDB.nicknames.list = CellDB.nicknames.list or {}
+    CellDB.nicknames.custom = true
+    
+    local ourManagedCharacters = {}
+    local entriesToRemove = {}
+    
+    local nicknameData = NicknameAPI:GetAllNicknames()
+    for nickname, data in pairs(nicknameData) do
+        if data.characters then
+            for _, charData in ipairs(data.characters) do
+                if charData.character then
+                    ourManagedCharacters[charData.character] = true
+                end
+            end
+        end
+    end
+    
+    for i, entry in ipairs(CellDB.nicknames.list) do
+        local character = strsplit(":", entry)
+        if ourManagedCharacters[character] then
+            table.insert(entriesToRemove, i)
+        end
+    end
+    
+    table.sort(entriesToRemove, function(a,b) return a > b end)
+    for _, index in ipairs(entriesToRemove) do
+        table.remove(CellDB.nicknames.list, index)
+    end
+    
+    for nickname, data in pairs(nicknameData) do
+        if data.characters then
+            for _, charData in ipairs(data.characters) do
+                if charData.character then
+                    table.insert(CellDB.nicknames.list, charData.character .. ":" .. nickname)
+                end
+            end
+        end
+    end
+    
+    if Cell.funcs and Cell.funcs.UpdateNicknames then
+        Cell.funcs.UpdateNicknames()
+    end
+end
+
+-- ElvUI
+local function IsElvUIReady()
+    return ElvUF and ElvUF.Tags and ElvUF.Tags.Methods and ElvUF.Tags.Events
+end
+
+local function EnhancedUpdateElvUFTags()
+    if not IsElvUIReady() then return end
+    
+    local function NicknameTag(unit)
+        if not unit then return "" end
+        local name = UnitName(unit)
+        if not name then return "" end
+        return NicknameAPI:GetNicknameByCharacter(name) or name
+    end
+    
+    local function NicknameShortTag(unit)
+        if not unit then return "" end
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
+        return nick:sub(1, 8)
+    end
+    
+    local function NicknameVeryShortTag(unit)
+        if not unit then return "" end
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
+        return nick:sub(1, 5)
+    end
+    
+    local function NicknameMediumTag(unit)
+        if not unit then return "" end
+        local name = UnitName(unit)
+        if not name then return "" end
+        local nick = NicknameAPI:GetNicknameByCharacter(name) or name
+        return nick:sub(1, 10)
+    end
+    
+    ElvUF.Tags.Methods['nickname'] = NicknameTag
+    ElvUF.Tags.Methods['nickname:short'] = NicknameShortTag
+    ElvUF.Tags.Methods['nickname:veryshort'] = NicknameVeryShortTag
+    ElvUF.Tags.Methods['nickname:medium'] = NicknameMediumTag
+    
+    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Events['nickname:short'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Events['nickname:veryshort'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Events['nickname:medium'] = 'UNIT_NAME_UPDATE'
+end
+
+-- Grid2
+local function EnhancedGrid2NameStatus()
+    if not Grid2 then return end
+    
+    local NicknameStatus = Grid2.statusPrototype:new("name")
+    
+    NicknameStatus.IsActive = Grid2.statusLibrary.IsActive
+    
+    function NicknameStatus:UNIT_NAME_UPDATE(_, unit)
+        self:UpdateIndicators(unit)
+    end
+    
+    function NicknameStatus:GROUP_ROSTER_UPDATE()
+        self:UpdateAllUnits()
+    end
+    
+    function NicknameStatus:OnEnable()
+        self:RegisterEvent("UNIT_NAME_UPDATE")
+        self:RegisterEvent("GROUP_ROSTER_UPDATE")
+    end
+    
+    function NicknameStatus:OnDisable()
+        self:UnregisterEvent("UNIT_NAME_UPDATE")
+        self:UnregisterEvent("GROUP_ROSTER_UPDATE")
+    end
+    
+    function NicknameStatus:GetText(unit)
+        return NicknameAPI:GetNicknameByCharacter(name)
+    end
+    
+    function NicknameStatus:GetTooltip(unit)
+        local nickname = NicknameAPI:GetNicknameByCharacter(name)
+        local name = UnitName(unit)
+        if nickname and nickname ~= name then
+            return string.format("%s (%s)", nickname, name)
+        end
+        return name
+    end
+    
+    local function RegisterNicknameStatus(baseKey, dbx)
+        Grid2:RegisterStatus(NicknameStatus, {"text", "tooltip"}, baseKey, dbx)
+        return NicknameStatus
+    end
+    
+    Grid2.setupFunc["name"] = RegisterNicknameStatus
+end
+
+-- Default frames
+local function UpdateDefaultFrames()
+    local overlays = {}
+    
+    local function CreateOverlay(frame)
+        if not frame or overlays[frame] then return end
+        
+        local overlay = frame:CreateFontString(nil, "OVERLAY")
+        overlay:SetFontObject(frame.name:GetFontObject())
+        overlay:SetPoint("LEFT", frame.name, "LEFT")
+        overlay:SetJustifyH("LEFT")
+        overlay:SetWidth(frame:GetWidth() - 8)
+        overlay:SetWordWrap(false)
+        
+        overlays[frame] = overlay
+        return overlay
+    end
+    
+    local function UpdateFrameName(frame)
+        if not frame or not frame.unit or not frame.name then return end
+        if not UnitExists(frame.unit) or not UnitIsPlayer(frame.unit) then return end
+        
+        local name = UnitName(frame.unit)
+        if not name then return end
+        
+        local nickname = NicknameAPI:GetNicknameByCharacter(name)
+        if nickname then
+            local overlay = overlays[frame] or CreateOverlay(frame)
+            frame.name:SetAlpha(0)
+            if overlay then
+                overlay:SetWidth(frame:GetWidth() - 8) 
+                overlay:SetText(nickname)
+            end
+        else
+            frame.name:SetAlpha(1)
+            if overlays[frame] then
+                overlays[frame]:SetText("")
+            end
+        end
+    end
+    
+    local function OnFrameResize(frame)
+        if overlays[frame] then
+            overlays[frame]:SetWidth(frame:GetWidth() - 8)
+        end
+    end
+    
+    local function UpdateAllFrames()
+        for i = 1, 8 do
+            local frame = _G["CompactPartyFrameMember"..i]
+            if frame and frame:IsVisible() then
+                UpdateFrameName(frame)
+                if not frame.sizeHooked then
+                    frame:HookScript("OnSizeChanged", OnFrameResize)
+                    frame.sizeHooked = true
+                end
+            end
+        end
+        
+        for i = 1, 40 do
+            local frame = _G["CompactRaidFrame"..i]
+            if frame and frame:IsVisible() then
+                UpdateFrameName(frame)
+                if not frame.sizeHooked then
+                    frame:HookScript("OnSizeChanged", OnFrameResize)
+                    frame.sizeHooked = true
+                end
+            end
+            
+            for j = 1, 5 do
+                local groupFrame = _G["CompactRaidGroup"..i.."Member"..j]
+                if groupFrame and groupFrame:IsVisible() then
+                    UpdateFrameName(groupFrame)
+                    if not groupFrame.sizeHooked then
+                        groupFrame:HookScript("OnSizeChanged", OnFrameResize)
+                        groupFrame.sizeHooked = true
+                    end
+                end
+            end
+        end
+    end
+    
+    local defaultFrame = CreateFrame("Frame")
+    defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    
+    defaultFrame:SetScript("OnEvent", function(self, event, ...)
+        if event == "UNIT_NAME_UPDATE" then
+            local unit = ...
+            for i = 1, 40 do
+                local frame = _G["CompactRaidFrame"..i]
+                if frame and frame.unit == unit then
+                    UpdateFrameName(frame)
+                    break
+                end
+            end
+        end
+    end)
+    
+    C_Timer.After(0.1, UpdateAllFrames)
+end
+
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 initFrame:RegisterEvent("ADDON_LOADED")
@@ -503,12 +487,10 @@ initFrame:SetScript("OnEvent", function(self, event, arg1)
         UpdateDefaultFrames()
     elseif event == "ADDON_LOADED" then
         if arg1 == "Cell" or arg1 == "Grid2" or arg1 == "ElvUI" then
-            C_Timer.After(0.5, function()
                 EnhancedUpdateCellNicknames()
                 EnhancedUpdateElvUFTags()
                 EnhancedGrid2NameStatus()
                 UpdateDefaultFrames()
-            end)
         end
     end
 end)
