@@ -283,7 +283,7 @@ if ElvUF and ElvUF.Tags then
 	ElvUF.Tags.Events['nickname:Medium'] = 'UNIT_NAME_UPDATE'
 	ElvUF.Tags.Methods['nickname'] = function(unit)
 		local name = UnitName(unit)
-		return name and NSAPI and NSAPI:GetName(name) or name
+		return name and NicknameAPI and NicknameAPI:GetNicknameByCharacter(name) or name
 	end
 
 	ElvUF.Tags.Methods['nickname:veryshort'] = function(unit)
