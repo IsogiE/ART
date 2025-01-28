@@ -9,15 +9,15 @@ end
 local NicknameAPI = {
     GetNicknameByCharacter = function(_, characterName)
         if not characterName or type(characterName) ~= "string" then return nil end
-        
-        characterName = (characterName:match("^([^-]+)") or characterName):lower()
-        
+
+        characterName = characterName:lower()
+
         local nicknamesMap = GetNicknamesMap()
-        
+
         for nickname, data in pairs(nicknamesMap) do
             if data.characters then
                 for _, charData in ipairs(data.characters) do
-                    local storedChar = (charData.character:match("^([^-]+)") or charData.character):lower()
+                    local storedChar = charData.character:lower() 
                     if storedChar == characterName then
                         return nickname
                     end
@@ -28,19 +28,19 @@ local NicknameAPI = {
     end,
 
     IsCharacterInNickname = function(_, characterName, nickname)
-        if not characterName or not nickname or 
-           type(characterName) ~= "string" or type(nickname) ~= "string" then 
-            return false 
+        if not characterName or not nickname or
+            type(characterName) ~= "string" or type(nickname) ~= "string" then
+            return false
         end
-        
-        characterName = (characterName:match("^([^-]+)") or characterName):lower()
+
+        characterName = characterName:lower()
         nickname = nickname:lower()
-        
+
         local nicknamesMap = GetNicknamesMap()
-        
+
         if nicknamesMap[nickname] and nicknamesMap[nickname].characters then
             for _, charData in ipairs(nicknamesMap[nickname].characters) do
-                local storedChar = (charData.character:match("^([^-]+)") or charData.character):lower()
+                local storedChar = charData.character:lower()
                 if storedChar == characterName then
                     return true
                 end
@@ -51,12 +51,12 @@ local NicknameAPI = {
 
     GetCharacterByNickname = function(_, nickname)
         if not nickname or type(nickname) ~= "string" then return nil end
-        
+
         nickname = nickname:lower()
         local nicknamesMap = GetNicknamesMap()
-        
-        if nicknamesMap[nickname] and nicknamesMap[nickname].characters 
-           and #nicknamesMap[nickname].characters > 0 then
+
+        if nicknamesMap[nickname] and nicknamesMap[nickname].characters
+            and #nicknamesMap[nickname].characters > 0 then
             return nicknamesMap[nickname].characters[1].character
         end
         return nil
@@ -64,10 +64,10 @@ local NicknameAPI = {
 
     GetAllCharactersByNickname = function(_, nickname)
         if not nickname or type(nickname) ~= "string" then return {} end
-        
+
         nickname = nickname:lower()
         local nicknamesMap = GetNicknamesMap()
-        
+
         if nicknamesMap[nickname] and nicknamesMap[nickname].characters then
             local characters = {}
             for _, charData in ipairs(nicknamesMap[nickname].characters) do
@@ -97,25 +97,35 @@ local unitIDs = {
 
 local LiquidAPI = {
     GetName = function(_, characterName, formatting, atlasSize)
-        if not characterName then 
-            error("LiquidAPI:GetName(characterName[, formatting, atlasSize]), characterName is nil") 
-            return 
-        end
-        
-        local nickname
-        if unitIDs[characterName:lower()] then
-            local n = UnitNameUnmodified(characterName)
-            if n then
-                n = n:match("^([^-]+)")
-                nickname = NicknameAPI:GetNicknameByCharacter(n)
-            end
-        else
-            characterName = characterName:match("^([^-]+)")
-            nickname = NicknameAPI:GetNicknameByCharacter(characterName)
+        if not characterName then
+            error("LiquidAPI:GetName(characterName[, formatting, atlasSize]), characterName is nil")
+            return
         end
 
-        if not formatting then 
-            return nickname or characterName
+        local nickname
+        characterName = characterName:lower()
+
+        nickname = NicknameAPI:GetCharacterByNickname(characterName) and characterName
+
+        if not nickname then
+            if unitIDs[characterName] then
+                if UnitExists(characterName) then
+                    local n = UnitName(characterName)
+                    if n then
+                        n = n:match("^([^-]+)")
+                        nickname = NicknameAPI:GetNicknameByCharacter(n) or n
+                    end
+                else
+                    nickname = characterName
+                end
+            else
+                nickname = NicknameAPI:GetNicknameByCharacter(characterName) or characterName
+            end
+        end
+
+
+        if not formatting then
+            return nickname
         end
 
         local guid = UnitGUID(characterName)
@@ -123,58 +133,61 @@ local LiquidAPI = {
             return nickname or characterName, "%s", ""
         end
 
+        if not UnitExists(characterName) then
+            return nickname, "%s", ""
+        end
+
         local classFileName = UnitClassBase(characterName)
-        local colorStr = classFileName and RAID_CLASS_COLORS[classFileName] 
-                         and RAID_CLASS_COLORS[classFileName].colorStr or "ffffffff"
+        local colorStr = classFileName and RAID_CLASS_COLORS[classFileName]
+            and RAID_CLASS_COLORS[classFileName].colorStr or "ffffffff"
         local colorFormat = string.format("|c%s%%s|r", colorStr)
 
         local role = UnitGroupRolesAssigned(characterName)
-        local roleAtlas = role == "TANK" and "Role-Tank-SM" or 
-                          role == "HEALER" and "Role-Healer-SM" or 
-                          role == "DAMAGER" and "Role-DPS-SM"
+        local roleAtlas = role == "TANK" and "Role-Tank-SM" or
+            role == "HEALER" and "Role-Healer-SM" or
+            role == "DAMAGER" and "Role-DPS-SM"
         local roleIcon = roleAtlas and CreateAtlasMarkup(roleAtlas, atlasSize or 12, atlasSize or 12) or ""
 
-        return nickname or characterName, colorFormat, roleIcon, 
-               RAID_CLASS_COLORS[classFileName] or {}
+        return nickname, colorFormat, roleIcon,
+            RAID_CLASS_COLORS[classFileName] or {}
     end,
 
     GetCharacterInGroup = function(_, nickname)
-        local nicknameData = NicknameAPI:GetAllNicknames()
-        
         if not nickname then return nil end
-        
-        for nickKey, data in pairs(nicknameData) do
-            if nickKey:lower() == nickname:lower() and data.characters then
-                for _, charData in ipairs(data.characters) do
-                    if UnitExists(charData.character) then
-                        local guid = UnitGUID(charData.character)
-                        local classFileName = UnitClassBase(charData.character)
-                        return charData.character, 
-                               string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr), 
-                               guid
-                    end
+        nickname = nickname:lower()
+
+        local nicknamesMap = NicknameAPI:GetAllNicknames()
+
+        if nicknamesMap[nickname] and nicknamesMap[nickname].characters then
+            for _, charData in ipairs(nicknamesMap[nickname].characters) do
+                local charNameLower = charData.character:lower()
+                if UnitExists(charNameLower) then
+                    local guid = UnitGUID(charNameLower)
+                    local classFileName = UnitClassBase(charNameLower)
+                    return charData.character,
+                        string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr),
+                        guid
                 end
             end
         end
+        return nil
     end,
 
     GetCharacters = function(_, nickname)
-        if not nickname then 
-            error("LiquidAPI:GetCharacters(nickname), nickname is nil") 
-            return 
+        if not nickname then
+            error("LiquidAPI:GetCharacters(nickname), nickname is nil")
+            return
         end
-        
+
         local nicknamesMap = NicknameAPI:GetAllNicknames()
-        
-        nickname = nickname:gsub("^%l", string.upper)
-        for nickKey, data in pairs(nicknamesMap) do
-            if nickKey:lower() == nickname:lower() and data.characters then
-                local chars = {}
-                for _, charData in ipairs(data.characters) do
-                    chars[charData.character] = true
-                end
-                return chars
+
+        nickname = nickname:lower() -- Normalize to lowercase
+        if nicknamesMap[nickname] and nicknamesMap[nickname].characters then
+            local chars = {}
+            for _, charData in ipairs(nicknamesMap[nickname].characters) do
+                chars[charData.character] = true
             end
+            return chars
         end
         return nil
     end
