@@ -839,7 +839,7 @@ SLASH_mrtSlash3 = "/raidtools"
 SLASH_mrtSlash4 = "/methodraidtools"
 SLASH_mrtSlash5 = "/ert"
 SLASH_mrtSlash6 = "/mrt"
-SLASH_mrtSlash6 = "/art"
+SLASH_mrtSlash7 = "/art"
 
 ---------------> Global addon frame <---------------
 
