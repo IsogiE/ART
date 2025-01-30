@@ -7,7 +7,6 @@
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\MRT\media\MiniMap.tga
 core.lua
-API.lua
 Functions.lua
 embeds.xml
 ExLib.lua
@@ -20,6 +19,7 @@ localization\localization.kr.lua
 localization\localization.it.lua
 localization\localization.lua
 libs\AceComm-3.0\AceComm-3.0.xml
+libs\AceComm-3.0\AceComm-3.0.lua
 libs\AceTimer-3.0\AceTimer-3.0.lua
 Libs\AceDB-3.0\AceDB-3.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
