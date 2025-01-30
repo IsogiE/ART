@@ -1,5 +1,9 @@
 local AddonName = ...
 
+local AceComm = LibStub("AceComm-3.0")
+local LibSerialize = LibStub("LibSerialize")
+local LibDeflate = LibStub("LibDeflate")
+
 local function GetNicknamesMap()
     if not VMRT or not VMRT.Nicknames then return {} end
     return VMRT.Nicknames
@@ -85,7 +89,6 @@ local NicknameAPI = {
 }
 
 -- LiquidAPI (stolen from Ironi teehee)
--- Merge the two unitIDs tables
 local unitIDs = {
     player = true,
     target = true,
@@ -96,7 +99,6 @@ local unitIDs = {
     pet = true,
 }
 
--- Expanded unitIDs
 for i = 1, 4 do
     unitIDs["party" .. i] = true
     unitIDs["party" .. i .. "target"] = true
@@ -115,6 +117,7 @@ end
 for i = 1, 15 do
     unitIDs["boss" .. i .. "target"] = true
 end
+
 local LiquidAPI = {
     GetName = function(_, characterName, formatting, atlasSize)
         if not characterName then
@@ -213,9 +216,164 @@ local LiquidAPI = {
     end
 }
 
--- Lisa can you teach me Japanese
 _G.LiquidAPI = LiquidAPI
-_G.NSAPI = LiquidAPI
+
+-- NSAPI (from NS Database WA)
+local NSAPI = {}
+
+NSAPI.specs = {}
+
+_G.fullCharList = {}
+_G.sortedCharList = {}
+
+local function BuildSheet()
+    local sheet = {}
+    local nicknamesMap = NicknameAPI:GetAllNicknames()
+    
+    for nickname, data in pairs(nicknamesMap) do
+        if data.characters then
+            for _, charData in ipairs(data.characters) do
+                table.insert(sheet, charData.character .. ":" .. nickname)
+            end
+        end
+    end
+    
+    return table.concat(sheet, ";")
+end
+
+local function RebuildCharacterLists()
+    wipe(_G.fullCharList)
+    wipe(_G.sortedCharList)
+    
+    local sheet = BuildSheet()
+    if sheet ~= "" then
+        for _, str in pairs({strsplit(";", sheet)}) do
+            local from, to = strsplit(":", str)
+            from = strsplit("-", from) 
+            if from and to then
+                _G.fullCharList[from] = to
+                if not _G.sortedCharList[to] then
+                    _G.sortedCharList[to] = {}
+                end
+                _G.sortedCharList[to][from] = true
+            end
+        end
+    end
+end
+
+function NSAPI:Version()
+    return 9
+end
+
+function NSAPI:GetCharacters(str)
+    if not str then
+        error("NSAPI:GetCharacters(str), str is nil")
+        return
+    end
+    
+    return _G.sortedCharList[str] and CopyTable(_G.sortedCharList[str])
+end
+
+function NSAPI:GetAllCharacters()
+    return CopyTable(_G.fullCharList)
+end
+
+function NSAPI:GetName(str)
+    if not str then
+        error("NSAPI:GetName(str), str is nil")
+        return
+    end
+    
+    if UnitExists(str) then
+        local n = UnitName(str)
+        return n and _G.fullCharList[n] or n
+    else
+        return _G.fullCharList[str] or str
+    end
+end
+
+function NSAPI:GetChar(name, nick)
+    if not name then return nil end
+    
+    name = nick and self:GetName(name) or name
+    
+    if UnitExists(name) and UnitIsConnected(name) then
+        return name
+    end
+    
+    local chars = self:GetCharacters(name)
+    if chars then
+        for charName, _ in pairs(chars) do
+            local raidIndex = UnitInRaid(charName)
+            if UnitIsVisible(charName) or (raidIndex and select(3, GetRaidRosterInfo(raidIndex)) <= 4) then
+                return charName
+            end
+        end
+    end
+    
+    return name
+end
+
+local function utf8sub(str, start, numChars)
+    if not str then return "" end
+    
+    local currentIndex = 1
+    local currentChar = 0
+    local result = ""
+    
+    while currentChar < start + (numChars or 0) - 1 and currentIndex <= #str do
+        local byte = string.byte(str, currentIndex)
+        local width = byte >= 240 and 4 or byte >= 224 and 3 or byte >= 192 and 2 or 1
+        
+        currentChar = currentChar + 1
+        if currentChar > start - 1 then
+            result = result .. string.sub(str, currentIndex, currentIndex + width - 1)
+        end
+        
+        currentIndex = currentIndex + width
+    end
+    
+    return result
+end
+
+function NSAPI:Shorten(unit, num, role)
+    if not unit then return nil end
+    
+    local classFilename = select(2, UnitClass(unit))
+    local roleIcon
+    
+    if role then
+        local unitRole = UnitGroupRolesAssigned(unit)
+        if unitRole ~= "NONE" then
+            roleIcon = CreateAtlasMarkup(GetIconForRole(unitRole), 0, 0)
+        end
+    end
+    
+    if classFilename then
+        local name = UnitName(unit)
+        local color = GetClassColorObj(classFilename)
+        name = self:GetName(name)
+        
+        if num then
+            name = utf8sub(name, 1, num)
+        end
+        
+        if color then
+            return color:WrapTextInColorCode(name), roleIcon
+        else
+            return name, roleIcon
+        end
+    end
+    
+    return unit, ""
+end
+
+function NSAPI:GetSpecs(unit)
+    if unit and self.specs[unit] then
+        return self.specs[unit]
+    end
+    return self.specs
+end
 
 -- WeakAuras (also stolen from Ironi teehee)
 if WeakAuras then
@@ -489,9 +647,164 @@ initFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "PLAYER_ENTERING_WORLD" then
         EnhancedUpdateCellNicknames()
         UpdateDefaultFrames()
+        RebuildCharacterLists()
     elseif event == "ADDON_LOADED" then
         if arg1 == "Cell" then
         EnhancedUpdateCellNicknames()
         end
     end
 end)
+
+RebuildCharacterLists()
+
+function NSAPI:Broadcast(event, channel, ...)
+    local message = event
+    local argTable = {...}
+    
+    local unitID = UnitInRaid("player") and "raid"..UnitInRaid("player") or UnitName("player")   
+    message = string.format("%s:%s(%s)", message, unitID, "string")
+    
+    for i = 1, #argTable do
+        local functionArg = argTable[i]
+        local argType = type(functionArg)
+        
+        if argType == "table" then
+            functionArg = LibSerialize:Serialize(functionArg)    
+            functionArg = LibDeflate:CompressDeflate(functionArg)            
+            functionArg = LibDeflate:EncodeForWoWAddonChannel(functionArg)
+            message = string.format("%s:%s(%s)", message, tostring(functionArg), argType)
+        else
+            if argType ~= "string" and argType ~= "number" and argType ~= "boolean" then
+                functionArg = ""
+                argType = "string"
+            end
+            message = string.format("%s:%s(%s)", message, tostring(functionArg), argType)
+        end
+    end
+    
+    if channel == "WHISPER" then
+        AceComm:SendCommMessage("NSWA_MSG2", message, "RAID")
+    else
+        AceComm:SendCommMessage("NSWA_MSG", message, channel)
+    end
+end
+
+function NSAPI:GetNote()
+    if not C_AddOns.IsAddOnLoaded("MRT") then
+        error("Addon MRT is disabled, can't read the note")
+        return ""
+    end
+    
+    if not VMRT or not VMRT.Note or not VMRT.Note.Text1 then
+        error("No MRT Note found")
+        return ""
+    end
+    
+    local note = VMRT.Note.Text1
+    local now = GetTime()
+    
+    if ((not self.lastnote) or now >= self.lastnote + 1) or 
+       ((not self.RawNote) or self.RawNote ~= note) then
+        self.lastnote = now
+        self.RawNote = note
+        
+        local newnote = ""
+        local list = false
+        local namelist = {}
+        
+        for line in note:gmatch('[^\r\n]+') do
+            if string.match(line, "ns.*start") or line == "intstart" then
+                list = true
+            elseif string.match(line, "ns.*end") or line == "intend" then
+                list = false
+                newnote = newnote..line.."\n"
+            end
+            if list then
+                newnote = newnote..line.."\n"
+            end
+        end
+        
+        note = newnote
+        note = strtrim(note)
+        note = note:gsub("||r", "")
+        note = note:gsub("||c%x%x%x%x%x%x%x%x", "")
+        
+        for name in note:gmatch("%S+") do
+            local charname = (UnitIsVisible(name) and name) or self:GetChar(name, true)
+            if name ~= charname and not namelist[name] then
+                namelist[name] = charname
+            end
+        end
+        
+        for nickname, charname in pairs(namelist) do
+            note = note:gsub("(%f[%w])"..nickname.."(%f[%W])", "%1"..charname.."%2")
+        end
+        
+        self.Note = note
+    end
+    
+    self.Note = self.Note or ""
+    return self.Note
+end
+
+function NSAPI:GetHash(text)
+    local counter = 1
+    local len = string.len(text)
+    for i = 1, len, 3 do 
+        counter = math.fmod(counter*8161, 4294967279) + 
+        (string.byte(text,i)*16776193) +
+        ((string.byte(text,i+1) or (len-i+256))*8372226) +
+        ((string.byte(text,i+2) or (len-i+256))*3932164)
+    end
+    return math.fmod(counter, 4294967291) 
+end
+
+local function ReceiveComm(text, sender, whisper)
+    local argTable = {strsplit(":", text)}
+    if UnitExists(sender) and (UnitInRaid(sender) or UnitInParty(sender)) then
+        local formattedArgTable = {}
+        local event = argTable[1]
+        table.remove(argTable, 1)
+        
+        if whisper then
+            local target, argType = argTable[2]:match("(.*)%((%a+)%)") 
+            if not (UnitIsUnit("player", target)) then
+                return 
+            end
+            table.remove(argTable, 2)
+        end
+        
+        for _, functionArg in ipairs(argTable) do
+            local argValue, argType = functionArg:match("(.*)%((%a+)%)")
+            if argType == "number" then
+                argValue = tonumber(argValue)
+            elseif argType == "boolean" then
+                argValue = argValue == "true"
+            elseif argType == "table" then
+                argValue = LibDeflate:DecodeForWoWAddonChannel(argValue)  
+                argValue = LibDeflate:DecompressDeflate(argValue)     
+                local success, table = LibSerialize:Deserialize(argValue)
+                if success then
+                    argValue = table
+                else
+                    argValue = ""
+                end
+            end
+            
+            if argValue == "" then
+                table.insert(formattedArgTable, false)
+            else
+                table.insert(formattedArgTable, argValue)
+            end
+        end
+        
+        WeakAuras.ScanEvents(event, unpack(formattedArgTable))
+    end
+end
+
+AceComm:RegisterComm("NSWA_MSG", function(_, text, _, sender) ReceiveComm(text, sender, false) end)
+AceComm:RegisterComm("NSWA_MSG2", function(_, text, _, sender) ReceiveComm(text, sender, true) end)
+
+_G.NSAPI = NSAPI
+
+return NSAPI
