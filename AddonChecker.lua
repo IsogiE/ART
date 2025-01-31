@@ -21,29 +21,45 @@ module.db.addonsToCheck = {
 	"WeakAuras"
 }
 
+local function NormalizeVersion(version)
+    local normalized = version:gsub("[^0-9]", "")
+    return normalized ~= "" and normalized or "0" 
+end
+
+local function CompareVersions(v1, v2)
+    if not v1 or not v2 or v1 == "" or v2 == "" then
+        return true 
+    end
+
+    local n1 = NormalizeVersion(v1)
+    local n2 = NormalizeVersion(v2)
+
+    return tonumber(n1) >= tonumber(n2)
+end
+
 function module:OnEnable()
     AceComm:RegisterComm("ART_AddonChecker", function(prefix, message, distribution, sender)
         if sender == UnitName("player") then return end
-        
+
         if message == "CHECK_REQUEST" then
             local addonInfoTable = {}
-    
+
             for _, addonName in ipairs(self.db.addonsToCheck) do
                 local name, _, _, loadable = C_AddOns.GetAddOnInfo(addonName)
                 if not name or not C_AddOns.IsAddOnLoaded(addonName) then
                 else
                     local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "-"
-                    table.insert(addonInfoTable, addonName .. "=" .. version)
+                    table.insert(addonInfoTable, addonName.. "=".. version)
                 end
             end
-            
-        local responseStr = #addonInfoTable > 0 and table.concat(addonInfoTable, ",") or "NONE"
+
+            local responseStr = #addonInfoTable > 0 and table.concat(addonInfoTable, ",") or "NONE"
             if responseStr == "" then responseStr = "NONE" end
             AceComm:SendCommMessage("ART_AddonChecker", "STATUS:"..responseStr, "WHISPER", sender)
-            elseif message:find("^STATUS:") then
+        elseif message:find("^STATUS:") then
             local statusStr = message:sub(8)
             local response = {}
-        
+
             if statusStr ~= "NONE" then
                 for chunk in string.gmatch(statusStr, "[^,]+") do
                     local addonName, version = strsplit("=", chunk)
@@ -55,7 +71,7 @@ function module:OnEnable()
                     end
                 end
             end
-        
+
             for _, addonName in ipairs(self.db.addonsToCheck) do
                 if not response[addonName] then
                     response[addonName] = {
@@ -64,10 +80,10 @@ function module:OnEnable()
                     }
                 end
             end
-        
+
             local shortName = Ambiguate(sender, "short")
             self.db.responces[shortName] = response
-        
+
             if self.options:IsVisible() and self.options.UpdatePage then
                 self.options.UpdatePage()
             end
@@ -169,34 +185,44 @@ function module.options:Load()
     raidSlider.Low.Show = raidSlider.Low.Hide
     raidSlider.High.Show = raidSlider.High.Hide
     
-    local function SetIcon(self,type)
+    local icon5 = C_Texture.GetAtlasInfo("Islands-QuestBangDisable") or C_Texture.GetAtlasInfo("QuestTurnin")
+    local function SetIcon(self, type, playerVersion, latestVersion)
         if self.texturechanged then
             self:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\DiesalGUIcons16x256x128")
             self.texturechanged = nil
         end
         if not type or type == 0 then
             self:SetAlpha(0)
-        elseif type == 1 then
-            self:SetTexCoord(0.5,0.5625,0.5,0.625)
-            self:SetVertexColor(.8,0,0,1) 
-        elseif type == 2 then
-            self:SetTexCoord(0.5625,0.625,0.5,0.625)
-            self:SetVertexColor(0,.8,0,1)  
-        end     
+        elseif type == 1 then 
+            self:SetTexCoord(0.5, 0.5625, 0.5, 0.625)
+            self:SetVertexColor(.8, 0, 0, 1)
+        elseif type == 2 then 
+            self:SetTexCoord(0.5625, 0.625, 0.5, 0.625)
+            self:SetVertexColor(0,.8, 0, 1)
+        elseif type == 3 then 
+            if icon5 then
+                self:SetTexture(icon5.file)
+                self:SetTexCoord(icon5.leftTexCoord, icon5.rightTexCoord, icon5.topTexCoord, icon5.bottomTexCoord)
+            end
+            self:SetVertexColor(1, 1, 1, 1)
+            self.texturechanged = true
+        end
     end
     
     self.helpicons = {}
-    for i=0,1 do
+    for i=0,2 do  
         local icon = self:CreateTexture(nil,"ARTWORK")
         icon:SetPoint("TOPLEFT",5,-10-i*12)
         icon:SetSize(14,14)
         icon:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\DiesalGUIcons16x256x128")
-        SetIcon(icon,i+1)
+        SetIcon(icon,i+1)  
         local t = ELib:Text(self,"",10):Point("LEFT",icon,"RIGHT",2,0):Size(0,16):Color(1,1,1)
         if i==0 then
             t:SetText("Missing Addon")
         elseif i==1 then
             t:SetText("Addon Present")
+        elseif i==2 then
+            t:SetText("Outdated Addon") 
         end
         self.helpicons[i+1] = {icon,t}
     end
@@ -371,9 +397,15 @@ function module.options:Load()
                     SetIcon(line.icons[j], 0)
                 else
                     local addonData = db[addonName]
+                    local latestVersion = module:GetLatestAddonVersion(addonName)
+
                     if addonData.loaded then
-                        SetIcon(line.icons[j], 2)
-                        line.icons[j].hoverFrame.HOVER_TEXT = addonData.version 
+                        if CompareVersions(addonData.version, latestVersion) then 
+                            SetIcon(line.icons[j], 2)
+                        else
+                            SetIcon(line.icons[j], 3, addonData.version, latestVersion) 
+                        end
+                        line.icons[j].hoverFrame.HOVER_TEXT = addonData.version
                         line.icons[j].hoverFrame:Show()
                     else
                         SetIcon(line.icons[j], 1)
@@ -420,4 +452,19 @@ end
 
 function module.main:ADDON_LOADED()
     module:OnEnable()
+end
+
+function module:GetLatestAddonVersion(addonName)
+    local latestVersion = "0" 
+
+    for playerName, playerData in pairs(self.db.responces) do
+        if playerData[addonName] and playerData[addonName].loaded then
+            local version = playerData[addonName].version
+            if not version or CompareVersions(version, latestVersion) then  
+                latestVersion = version or "0"
+            end
+        end
+    end
+
+    return latestVersion
 end
