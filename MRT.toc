@@ -3,7 +3,7 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VMRT, DataDB
-## Version: 5301
+## Version: 5302
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\MRT\media\MiniMap.tga
 core.lua
@@ -36,11 +36,11 @@ RaidGroups.lua
 Marks.lua
 BattleRes.lua
 Timers.lua
-WAChecker.lua
 WAUpdater.lua
 SplitHelper.lua
 Bindings.lua
+AdvanceMacros.lua
 AddonChecker.lua
 VersionChecker.lua
-AdvanceMacros.lua
+WAChecker.lua
 Profiles.lua
