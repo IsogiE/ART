@@ -63,7 +63,7 @@ function module.options:Load()
     self.HandlingText = ELib:Text(self, "", 11):Size(650, 200):Point("CENTER", editBox, "BOTTOM", 55, -15):Color()
 
     -- Send button moved down to avoid overlap with the error text
-    local sendButton = ELib:Button(self, "Send"):Size(120, 40):Point("BOTTOMLEFT", editBox, "BOTTOMLEFT", 0, -75)
+    local sendButton = ELib:Button(self, "Send"):Size(260, 60):Point("BOTTOMLEFT", editBox, "BOTTOMLEFT", 0, -75)
     sendButton:SetScript("OnClick", function()
         local weakAuraData = self.editBox:GetText()
         local description = ""
@@ -83,12 +83,16 @@ function module.options:Load()
     end)
 
     -- Clear button moved down to match the new layout
-    local clearButton = ELib:Button(self, "Clear"):Size(120, 40):Point("RIGHT", sendButton, "RIGHT", 140, 0)
+    local clearButton = ELib:Button(self, "Clear"):Size(260, 60):Point("RIGHT", sendButton, "RIGHT", 280, 0)
     clearButton:SetScript("OnClick", function()
         AdvanceWeakAuraUpdaterDB.pendingWeakAuraData = nil
         self.editBox:SetText("")
         self.HandlingText:SetText("")
     end)
+
+    lumlDN = ELib:Texture(self,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\lumldn"):Point("BOTTOM",self,"BOTTOM",0,20):Size(520*0.8,200*0.8)
+
+
 end
 
 -- Register AceComm to handle incoming WeakAura data
