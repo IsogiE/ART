@@ -86,15 +86,15 @@ local NicknameAPI = {
 
 -- LiquidAPI (stolen from Ironi teehee)
 local unitIDs = {
-    player = true,
+	player = true,
 	focus = true,
 	focustarget = true,
-    target = true,
+	target = true,
 	targettarget = true,
-    mouseover = true,
-    npc = true,
-    vehicle = true,
-    pet = true,
+	mouseover = true,
+	npc = true,
+	vehicle = true,
+	pet = true,
 }
 
 for i = 1, 4 do
