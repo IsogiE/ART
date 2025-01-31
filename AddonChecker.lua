@@ -1,187 +1,376 @@
-local GlobalAddonName, MRT = ...
-local ELib, L = MRT.lib, MRT.L
+local GlobalAddonName, ExRT = ...
+
+local module = ExRT:New("AddonChecker", ExRT.L.AddonChecker)
+local ELib, L = ExRT.lib, ExRT.L
 local AceComm = LibStub:GetLibrary("AceComm-3.0")
 
-local module = MRT:New("AddonChecker", "Addon Checker")
+module.db.responces = {}
+module.db.lastReq = {}
+module.db.lastCheck = {}
+module.db.lastCheckName = {}
 
-local addonList = {
-    "NorthernSkyMedia",  
-    "SharedMedia_Causese",       
-    "LibOpenRaid",               
+module.db.addonsToCheck = {
+	"AuraUpdater",
+	"BigWigs",
+	"ElvUI",
+	"LibOpenRaid",
+	"NorthernSkyMedia",
+	"RCLootCouncil",
+    "SharedMedia_Causese",
+	"TimelineReminders",
+	"WeakAuras"
 }
 
-local playerList = {}
-local playerAddonStatus = {}
-
-local function StripRealmName(playerName)
-    return playerName:match("([^%-]+)") or playerName
-end
-
-local function CheckAddons()
-    local missingAddons = {}
-
-    for _, addonName in ipairs(addonList) do
-        local loadedOrLoading, loaded = C_AddOns.IsAddOnLoaded(addonName)
-        if not loadedOrLoading and not loaded then
-            table.insert(missingAddons, addonName)
-        end
-    end
-
-    return missingAddons
-end
-
-local function BroadcastAddonCheckRequest(channel)
-    local message = "CHECK_ADDONS"
-    
-    local missingAddons = CheckAddons()
-    playerAddonStatus[UnitName("player")] = missingAddons
-
-    if channel == "RAID" then
-        AceComm:SendCommMessage("ART_AddonChecker", message, "RAID")
-    end
-
-    module.options:UpdateTable(false) 
-end
-
-local function OnCommReceived(prefix, message, distribution, sender)
-    if prefix == "ART_AddonChecker" then
-        if message == "CHECK_ADDONS" then
-            C_Timer.After(1, function()
-                local missingAddons = CheckAddons()
-                local responseMessage = table.concat(missingAddons, ",") or "none"
-                AceComm:SendCommMessage("ART_AddonChecker", "ADDON_RESPONSE:" .. responseMessage, "WHISPER", sender)
-            end)
-
-        elseif message:find("^ADDON_RESPONSE:") then
-            local response = message:sub(16) 
+function module:OnEnable()
+    AceComm:RegisterComm("ART_AddonChecker", function(prefix, message, distribution, sender)
+        if sender == UnitName("player") then return end
+        
+        if message == "CHECK_REQUEST" then
             local missingAddons = {}
-
-            if response ~= "none" then
-                for addon in string.gmatch(response, "([^,]+)") do
-                    table.insert(missingAddons, addon)
+            for _, addonName in ipairs(self.db.addonsToCheck) do
+                local name, title, notes, loadable = C_AddOns.GetAddOnInfo(addonName)
+                if not name or not C_AddOns.IsAddOnLoaded(addonName) then
+                    table.insert(missingAddons, addonName)
+                end
+            end
+            
+            local responseStr = table.concat(missingAddons, ",")
+            if responseStr == "" then responseStr = "NONE" end
+            AceComm:SendCommMessage("ART_AddonChecker", "STATUS:"..responseStr, "WHISPER", sender)
+        elseif message:find("^STATUS:") then
+            local status = message:sub(8)
+            local missingAddons = {}
+            
+            if status ~= "NONE" then
+                for addon in string.gmatch(status, "[^,]+") do
+                    missingAddons[addon] = true
                 end
             end
 
-            playerAddonStatus[sender] = missingAddons  
-            module.options:UpdateTable(true) 
+            local response = {}
+            for _, addonName in ipairs(self.db.addonsToCheck) do
+                response[addonName] = not missingAddons[addonName]
+            end
+
+            local shortName = Ambiguate(sender, "short")
+            self.db.responces[shortName] = response
+
+            if self.options:IsVisible() and self.options.UpdatePage then
+                self.options.UpdatePage()
+            end
         end
+    end)
+end
+
+function module:SendReq()
+    local myResponse = self.db.responces[UnitName("player")]
+    wipe(self.db.responces)
+    
+    local missingAddons = {}
+    for _, addonName in ipairs(self.db.addonsToCheck) do
+        local name, title, notes, loadable = C_AddOns.GetAddOnInfo(addonName)
+        if not name or not C_AddOns.IsAddOnLoaded(addonName) then
+            missingAddons[addonName] = true
+        end
+    end
+
+    local response = {}
+    for _, addonName in ipairs(self.db.addonsToCheck) do
+        response[addonName] = not missingAddons[addonName]
+    end
+    self.db.responces[UnitName("player")] = response
+
+    if IsInRaid() or IsInGroup() then
+        AceComm:SendCommMessage("ART_AddonChecker", "CHECK_REQUEST", "RAID")
+    end
+
+    if self.options:IsVisible() and self.options.UpdatePage then
+        self.options.UpdatePage()
     end
 end
 
-
-AceComm:RegisterComm("ART_AddonChecker", OnCommReceived)
-
-module.options.addonOffsets = {}
-
-function module.options:RefreshPlayerList()
-    playerList = {}
-    for i = 1, GetNumGroupMembers() do
-        local name = GetRaidRosterInfo(i)
-        if name then
-            table.insert(playerList, name)
-        end
+function module:CheckResponse()
+    local response = {}
+    for _, addonName in ipairs(module.db.addonsToCheck) do
+        local loadedOrLoading, loaded = C_AddOns.IsAddOnLoaded(addonName)
+        response[addonName] = (loadedOrLoading or loaded)
     end
-
-    playerAddonStatus = {}
-    module.options:UpdateTable(false)  
+    return response
 end
 
 function module.options:Load()
     self:CreateTilte()
+    
+    local UpdatePage, UpdatePageView
 
-    self.table = ELib:ScrollFrame(self):Point("TOPLEFT", 10, -120):Size(660, 450)
+    local errorNoAddons = ELib:Text(self, "No addons found"):Point("TOP",0,-30)
+    errorNoAddons:Hide()
+    
+    local PAGE_HEIGHT, PAGE_WIDTH = 520, 680
+    local LINE_HEIGHT, LINE_NAME_WIDTH = 16, 160
+    local VERTICALNAME_WIDTH = 20
+    local VERTICALNAME_COUNT = 24
+    
+    local mainScroll = ELib:ScrollFrame(self):Size(PAGE_WIDTH,PAGE_HEIGHT):Point("TOP",0,-80):Height(700)
+    ELib:Border(mainScroll,0)
 
-    self.table.content = CreateFrame("Frame", nil, self.table)
-    self.table.content:SetSize(660, 450)
-    self.table:SetScrollChild(self.table.content)
-
-    local xOffset = 200 
-    self.addonOffsets = {} 
-
-    for _, addonName in ipairs(addonList) do
-        ELib:Text(self.table.content, addonName, 12):Point("TOPLEFT", xOffset, 0)
-        table.insert(self.addonOffsets, xOffset) 
-        xOffset = xOffset + 150 
+    ELib:DecorationLine(self):Point("BOTTOM",mainScroll,"TOP",0,0):Point("LEFT",self):Point("RIGHT",self):Size(0,1)
+    ELib:DecorationLine(self):Point("TOP",mainScroll,"BOTTOM",0,0):Point("LEFT",self):Point("RIGHT",self):Size(0,1)
+    
+    local prevTopLine = 0
+    local prevPlayerCol = 0
+    
+    mainScroll.ScrollBar:ClickRange(LINE_HEIGHT)
+    mainScroll.ScrollBar.slider:SetScript("OnValueChanged", function (self,value)
+        local parent = self:GetParent():GetParent()
+        parent:SetVerticalScroll(value % LINE_HEIGHT) 
+        self:UpdateButtons()
+        local currTopLine = floor(value / LINE_HEIGHT)
+        if currTopLine ~= prevTopLine then
+            prevTopLine = currTopLine
+            UpdatePageView()
+        end
+    end)
+    
+    local raidSlider = ELib:Slider(self,""):Point("TOPLEFT",mainScroll,"BOTTOMLEFT",LINE_NAME_WIDTH + 15,-3):Range(0,25):Size(VERTICALNAME_WIDTH*VERTICALNAME_COUNT):SetTo(0):OnChange(function(self,value)
+        local currPlayerCol = floor(value)
+        if currPlayerCol ~= prevPlayerCol then
+            prevPlayerCol = currPlayerCol
+            UpdatePageView()
+        end
+    end)
+    raidSlider.Low:Hide()
+    raidSlider.High:Hide()
+    raidSlider.text:Hide()
+    raidSlider.Low.Show = raidSlider.Low.Hide
+    raidSlider.High.Show = raidSlider.High.Hide
+    
+    local function SetIcon(self,type)
+        if self.texturechanged then
+            self:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\DiesalGUIcons16x256x128")
+            self.texturechanged = nil
+        end
+        if not type or type == 0 then
+            self:SetAlpha(0)
+        elseif type == 1 then
+            self:SetTexCoord(0.5,0.5625,0.5,0.625)
+            self:SetVertexColor(.8,0,0,1) 
+        elseif type == 2 then
+            self:SetTexCoord(0.5625,0.625,0.5,0.625)
+            self:SetVertexColor(0,.8,0,1)  
+        end     
+    end
+    
+    self.helpicons = {}
+    for i=0,1 do
+        local icon = self:CreateTexture(nil,"ARTWORK")
+        icon:SetPoint("TOPLEFT",5,-10-i*12)
+        icon:SetSize(14,14)
+        icon:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\DiesalGUIcons16x256x128")
+        SetIcon(icon,i+1)
+        local t = ELib:Text(self,"",10):Point("LEFT",icon,"RIGHT",2,0):Size(0,16):Color(1,1,1)
+        if i==0 then
+            t:SetText("Missing Addon")
+        elseif i==1 then
+            t:SetText("Addon Present")
+        end
+        self.helpicons[i+1] = {icon,t}
     end
 
-    self.checkRaidButton = ELib:Button(self, "Check Raid Addons"):Size(150, 20):Point("BOTTOMLEFT", 10, 25)
-    self.checkRaidButton:OnClick(function()
-        BroadcastAddonCheckRequest("RAID")
+    local lines = {}
+    self.lines = lines
+    for i=1,floor(PAGE_HEIGHT / LINE_HEIGHT) + 2 do
+        local line = CreateFrame("Frame",nil,mainScroll.C)
+        lines[i] = line
+        line:SetPoint("TOPLEFT",0,-(i-1)*LINE_HEIGHT)
+        line:SetPoint("TOPRIGHT",0,-(i-1)*LINE_HEIGHT)
+        line:SetSize(0,LINE_HEIGHT)
+        
+        line.name = ELib:Text(line,"",10):Point("LEFT",2,0):Size(LINE_NAME_WIDTH-LINE_HEIGHT/2,LINE_HEIGHT):Color(1,1,1):Tooltip("ANCHOR_LEFT",true)
+        
+        line.icons = {}
+        local iconSize = min(VERTICALNAME_WIDTH,LINE_HEIGHT)
+        for j=1,VERTICALNAME_COUNT do
+            local icon = line:CreateTexture(nil,"ARTWORK")
+            line.icons[j] = icon
+            icon:SetPoint("CENTER",line,"LEFT",LINE_NAME_WIDTH + 15 + VERTICALNAME_WIDTH*(j-1) + VERTICALNAME_WIDTH / 2,0)
+            icon:SetSize(iconSize,iconSize)
+            icon:SetTexture("Interface\\AddOns\\"..GlobalAddonName.."\\media\\DiesalGUIcons16x256x128")
+            SetIcon(icon,0)
+        end
+        
+        line.t=line:CreateTexture(nil,"BACKGROUND")
+        line.t:SetAllPoints()
+        line.t:SetColorTexture(1,1,1,.05)
+    end
+    
+    local function RaidNames_OnEnter(self)
+        local t = self.t:GetText()
+        if t ~= "" then
+            ELib.Tooltip.Show(self,"ANCHOR_LEFT",t)
+        end
+    end
+    
+    local raidNames = CreateFrame("Frame",nil,self)
+    for i=1,VERTICALNAME_COUNT do
+        raidNames[i] = ELib:Text(raidNames,"RaidName"..i,10):Point("BOTTOMLEFT",mainScroll,"TOPLEFT",LINE_NAME_WIDTH + 15 + VERTICALNAME_WIDTH*(i-1),0):Color(1,1,1)
+
+        local f = CreateFrame("Frame",nil,self)
+        f:SetPoint("BOTTOMLEFT",mainScroll,"TOPLEFT",LINE_NAME_WIDTH + 15 + VERTICALNAME_WIDTH*(i-1),0)
+        f:SetSize(VERTICALNAME_WIDTH,80)
+        f:SetScript("OnEnter",RaidNames_OnEnter)
+        f:SetScript("OnLeave",ELib.Tooltip.Hide)
+        f.t = raidNames[i]
+        
+        local t=mainScroll:CreateTexture(nil,"BACKGROUND")
+        raidNames[i].t = t
+        t:SetPoint("TOPLEFT",LINE_NAME_WIDTH + 15 + VERTICALNAME_WIDTH*(i-1),0)
+        t:SetSize(VERTICALNAME_WIDTH,PAGE_HEIGHT)
+        if i%2==1 then
+            t:SetColorTexture(.5,.5,1,.05)
+            t.Vis = true
+        end
+    end
+
+    local group = raidNames:CreateAnimationGroup()
+    group:SetScript('OnFinished', function() group:Play() end)
+    local rotation = group:CreateAnimation('Rotation')
+    rotation:SetDuration(0.000001)
+    rotation:SetEndDelay(2147483647)
+    rotation:SetOrigin('BOTTOMRIGHT', 0, 0)
+    rotation:SetDegrees(60)
+    group:Play()
+    
+    local highlight_y = mainScroll.C:CreateTexture(nil,"BACKGROUND",nil,2)
+    highlight_y:SetColorTexture(1,1,1,.2)
+    local highlight_x = mainScroll:CreateTexture(nil,"BACKGROUND",nil,2)
+    highlight_x:SetColorTexture(1,1,1,.2)
+    
+    local highlight_onupdate_maxY = (floor(PAGE_HEIGHT / LINE_HEIGHT) + 2) * LINE_HEIGHT
+    local highlight_onupdate_minX = LINE_NAME_WIDTH + 15
+    local highlight_onupdate_maxX = highlight_onupdate_minX + #raidNames * VERTICALNAME_WIDTH
+    mainScroll.C:SetScript("OnUpdate",function(self)
+        local x,y = ExRT.F.GetCursorPos(mainScroll)
+        if y < 0 or y > PAGE_HEIGHT then
+            highlight_x:Hide()
+            highlight_y:Hide()
+            return
+        end 
+        local x,y = ExRT.F.GetCursorPos(self)
+        if y >= 0 and y <= highlight_onupdate_maxY then
+            y = floor(y / LINE_HEIGHT)
+            highlight_y:ClearAllPoints()
+            highlight_y:SetAllPoints(lines[y+1])
+            highlight_y:Show()
+        else
+            highlight_x:Hide()
+            highlight_y:Hide()
+            return
+        end
+        if x >= highlight_onupdate_minX and x <= highlight_onupdate_maxX then
+            x = floor((x - highlight_onupdate_minX) / VERTICALNAME_WIDTH)
+            highlight_x:ClearAllPoints()
+            highlight_x:SetAllPoints(raidNames[x+1].t)
+            highlight_x:Show()
+        elseif x >= 0 and x <= (PAGE_WIDTH - 16) then
+            highlight_x:Hide()
+        else
+            highlight_x:Hide()
+            highlight_y:Hide()
+        end
+    end)
+    
+    local UpdateButton = ELib:Button(self,UPDATE):Point("TOPLEFT",mainScroll,"BOTTOMLEFT",-2,-5):Size(130,20):OnClick(function(self)
+        module:SendReq()
     end)
 
-
-    self:RefreshPlayerList()
-end
-
-function module.options:UpdateTable(showIcons)
-    if not self.table then
-        return
-    end
-
-    for _, child in ipairs({self.table.content:GetChildren()}) do
-        child:Hide()
-    end
-
-    local yOffset = -40
-    for _, playerName in ipairs(playerList) do
-        local missingAddons = playerAddonStatus[playerName] or {}
-
-        local row = CreateFrame("Frame", nil, self.table.content)
-        row:SetSize(660, 20)
-        row:SetPoint("TOPLEFT", 10, yOffset)
-        yOffset = yOffset - 25
-
-        local strippedName = StripRealmName(playerName)
-        ELib:Text(row, strippedName, 12):Point("LEFT", 5, 0)
-
-        for index, addonName in ipairs(addonList) do
-            local icon = row:CreateTexture(nil, "ARTWORK")
-            icon:SetPoint("LEFT", self.addonOffsets[index], 0) 
-            icon:SetSize(14, 14)
-
-            if showIcons then
-                if tContains(missingAddons, addonName) then
-                    icon:SetTexture("Interface\\RAIDFRAME\\ReadyCheck-NotReady")
-                else
-                    icon:SetTexture("Interface\\RAIDFRAME\\ReadyCheck-Ready")
-                end
-            else
-                icon:SetTexture(nil) 
+    function UpdatePageView()
+        local namesList = self.namesList or {}
+        local namesList2 = {}
+        local raidNamesUsed = 0
+        for i=1+prevPlayerCol,#namesList do
+            raidNamesUsed = raidNamesUsed + 1
+            if not raidNames[raidNamesUsed] then
+                break
+            end
+            local name = ExRT.F.delUnitNameServer(namesList[i].name)
+            raidNames[raidNamesUsed]:SetText(name)
+            raidNames[raidNamesUsed]:SetTextColor(ExRT.F.classColorNum(namesList[i].class))
+            namesList2[raidNamesUsed] = name
+            if raidNames[raidNamesUsed].Vis then
+                raidNames[raidNamesUsed]:SetAlpha(.05)
             end
         end
+        for i=raidNamesUsed+1,#raidNames do
+            raidNames[i]:SetText("")
+            raidNames[i].t:SetAlpha(0)
+        end
 
-        row:Show()
+        local lineNum = 1
+        local backgroundLineStatus = (prevTopLine % 2) == 1
+
+        for i=1,#module.db.addonsToCheck do
+            local addonName = module.db.addonsToCheck[i]
+            local line = lines[lineNum]
+            if not line then
+                break
+            end
+            line:Show()
+            line.name:SetText(addonName)
+            line.t:SetShown(backgroundLineStatus)
+
+            for j=1,VERTICALNAME_COUNT do
+                local pname = namesList2[j] or "-"
+                
+                local db = module.db.responces[pname]
+
+                if not db then
+                    SetIcon(line.icons[j],0)
+                else
+                    local isLoaded = db[addonName]
+                    if isLoaded then
+                        SetIcon(line.icons[j],2)
+                    else
+                        SetIcon(line.icons[j],1)
+                    end
+                end
+            end
+            backgroundLineStatus = not backgroundLineStatus
+            lineNum = lineNum + 1
+        end
+        for i=lineNum,#lines do
+            lines[i]:Hide()
+        end
     end
-
-    self:UpdateScrollFrame(yOffset)
-end
-
-function module.options:UpdateScrollFrame(yOffset)
-    local minHeight = self.table:GetHeight()
-    local buffer = 10  
-    local contentHeight = math.abs(yOffset) + buffer
-
-    contentHeight = math.max(contentHeight, minHeight)
-
-    self.table.content:SetHeight(contentHeight)
-    self.table:UpdateScrollChildRect()
-
-    local scrollBar = self.table.ScrollBar
-    scrollBar:SetMinMaxValues(0, math.max(0, contentHeight - minHeight))
-
-    if contentHeight <= minHeight then
-        scrollBar:Hide()
-    else
-        scrollBar:Show()
+    
+    function UpdatePage()
+        local namesList = {}
+        self.namesList = namesList
+        for _,name,_,class in ExRT.F.IterateRoster do
+            namesList[#namesList + 1] = {
+                name = name,
+                class = class,
+            }
+        end
+        sort(namesList,function(a,b) return a.name < b.name end)
+        
+        if #namesList <= VERTICALNAME_COUNT then
+            raidSlider:Hide()
+            prevPlayerCol = 0
+        else
+            raidSlider:Show()
+            raidSlider:Range(0,#namesList - VERTICALNAME_COUNT)
+        end
+        
+        UpdatePageView()
+    end
+    self.UpdatePage = UpdatePage
+    
+    function self:OnShow()
+        UpdatePage()
     end
 end
-
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-eventFrame:SetScript("OnEvent", function(self, event)
-    module.options:RefreshPlayerList()
-end)
 
 function module.main:ADDON_LOADED()
+    module:OnEnable()
 end
