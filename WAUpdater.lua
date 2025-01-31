@@ -63,7 +63,7 @@ function module.options:Load()
     self.HandlingText = ELib:Text(self, "", 11):Size(650, 200):Point("CENTER", editBox, "BOTTOM", 55, -15):Color()
 
     -- Send button moved down to avoid overlap with the error text
-    local sendButton = ELib:Button(self, "Send"):Size(260, 60):Point("BOTTOMLEFT", editBox, "BOTTOMLEFT", 0, -75)
+    local sendButton = ELib:Button(self, "Send"):Size(260, 60):Point("BOTTOMLEFT", editBox, "BOTTOMLEFT", 0, -85)
     sendButton:SetScript("OnClick", function()
         local weakAuraData = self.editBox:GetText()
         local description = ""
@@ -90,7 +90,7 @@ function module.options:Load()
         self.HandlingText:SetText("")
     end)
 
-    lumlDN = ELib:Texture(self,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\lumldn"):Point("BOTTOM",self,"BOTTOM",0,20):Size(520*0.8,200*0.8)
+    lumlDN = ELib:Texture(self,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\lumldn"):Point("BOTTOM",self,"BOTTOM",0,30):Size(520*0.8,200*0.8)
 
 
 end
