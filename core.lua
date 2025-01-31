@@ -2,7 +2,7 @@
 
 local GlobalAddonName, MRT = ...
 
-MRT.V = 5301
+MRT.V = 5302
 MRT.T = "R"
 
 MRT.Slash = {}			--> функции вызова из коммандной строки
