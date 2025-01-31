@@ -85,7 +85,6 @@ local NicknameAPI = {
 }
 
 -- LiquidAPI (stolen from Ironi teehee)
--- Merge the two unitIDs tables
 local unitIDs = {
     player = true,
     target = true,
@@ -96,7 +95,6 @@ local unitIDs = {
     pet = true,
 }
 
--- Expanded unitIDs
 for i = 1, 4 do
     unitIDs["party" .. i] = true
     unitIDs["party" .. i .. "target"] = true
@@ -115,6 +113,7 @@ end
 for i = 1, 15 do
     unitIDs["boss" .. i .. "target"] = true
 end
+
 local LiquidAPI = {
     GetName = function(_, characterName, formatting, atlasSize)
         if not characterName then
