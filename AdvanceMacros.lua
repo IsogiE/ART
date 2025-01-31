@@ -1,7 +1,7 @@
 local GlobalAddonName, MRT = ...
 local ELib, L = MRT.lib, MRT.L
 
-local module = MRT:New("MACROS", "MACROS")
+local module = MRT:New("Macros", "Macros")
 
 function module.options:Load()
     self:CreateTilte()
@@ -82,7 +82,7 @@ function module.options:Load()
 	WorldMarkMacroText = ELib:Text(WorldMarkMacroOutput,"Place + Clear World Marker Macro @cursor",12):Size(300,15):Point(20, 70)
 	
 	-- Create ouput for WA Macro
-    WAMacroOutput = ELib:MultiEdit(mainFrame):Size(300, 90):Point(0, -200)
+    	WAMacroOutput = ELib:MultiEdit(mainFrame):Size(300, 90):Point(0, -200)
 	WAMacroScroll = WAMacroOutput.ScrollBar
 	WAMacroScroll:Hide()
 	
@@ -94,7 +94,7 @@ function module.options:Load()
 	WAMacroOutput:SetText(WAmacroText)
 	
 	-- Create ouput for Reloe Macro
-    ReloeMacroOutput = ELib:MultiEdit(mainFrame):Size(300, 90):Point(350, -200)
+    	ReloeMacroOutput = ELib:MultiEdit(mainFrame):Size(300, 90):Point(350, -200)
 	ReloeMacroScroll = ReloeMacroOutput.ScrollBar
 	ReloeMacroScroll:Hide()
 	
@@ -104,5 +104,7 @@ function module.options:Load()
 	local ReloemacroText = "/ping [@player] Warning\n/run WeakAuras.ScanEvents(\"\NS_EXTERNAL\"\, true)"
 	
 	ReloeMacroOutput:SetText(ReloemacroText)
+
+	ronkASS = ELib:Texture(mainFrame,"Interface\\AddOns\\"..GlobalAddonName.."\\media\\ronkASS"):Point("BOTTOM",mainFrame,"BOTTOM",0,0):Size(400*0.8,360*0.8)
 	
 end
