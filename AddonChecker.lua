@@ -26,35 +26,48 @@ function module:OnEnable()
         if sender == UnitName("player") then return end
         
         if message == "CHECK_REQUEST" then
-            local missingAddons = {}
+            local addonInfoTable = {}
+    
             for _, addonName in ipairs(self.db.addonsToCheck) do
-                local name, title, notes, loadable = C_AddOns.GetAddOnInfo(addonName)
+                local name, _, _, loadable = C_AddOns.GetAddOnInfo(addonName)
                 if not name or not C_AddOns.IsAddOnLoaded(addonName) then
-                    table.insert(missingAddons, addonName)
+                else
+                    local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "-"
+                    table.insert(addonInfoTable, addonName .. "=" .. version)
                 end
             end
             
-            local responseStr = table.concat(missingAddons, ",")
+        local responseStr = #addonInfoTable > 0 and table.concat(addonInfoTable, ",") or "NONE"
             if responseStr == "" then responseStr = "NONE" end
             AceComm:SendCommMessage("ART_AddonChecker", "STATUS:"..responseStr, "WHISPER", sender)
-        elseif message:find("^STATUS:") then
-            local status = message:sub(8)
-            local missingAddons = {}
-            
-            if status ~= "NONE" then
-                for addon in string.gmatch(status, "[^,]+") do
-                    missingAddons[addon] = true
+            elseif message:find("^STATUS:") then
+            local statusStr = message:sub(8)
+            local response = {}
+        
+            if statusStr ~= "NONE" then
+                for chunk in string.gmatch(statusStr, "[^,]+") do
+                    local addonName, version = strsplit("=", chunk)
+                    if addonName and version then
+                        response[addonName] = {
+                            loaded = true,
+                            version = version,
+                        }
+                    end
                 end
             end
-
-            local response = {}
+        
             for _, addonName in ipairs(self.db.addonsToCheck) do
-                response[addonName] = not missingAddons[addonName]
+                if not response[addonName] then
+                    response[addonName] = {
+                        loaded = false,
+                        version = nil,
+                    }
+                end
             end
-
+        
             local shortName = Ambiguate(sender, "short")
             self.db.responces[shortName] = response
-
+        
             if self.options:IsVisible() and self.options.UpdatePage then
                 self.options.UpdatePage()
             end
@@ -76,7 +89,14 @@ function module:SendReq()
 
     local response = {}
     for _, addonName in ipairs(self.db.addonsToCheck) do
-        response[addonName] = not missingAddons[addonName]
+        local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+        if not version or version == "" then
+            version = "-"
+        end
+        response[addonName] = {
+            loaded  = not missingAddons[addonName],
+            version = version,
+        }
     end
     self.db.responces[UnitName("player")] = response
 
@@ -93,7 +113,11 @@ function module:CheckResponse()
     local response = {}
     for _, addonName in ipairs(module.db.addonsToCheck) do
         local loadedOrLoading, loaded = C_AddOns.IsAddOnLoaded(addonName)
-        response[addonName] = (loadedOrLoading or loaded)
+        local version = C_AddOns.GetAddOnMetadata(addonName, "Version") 
+        response[addonName] = {
+            loaded = (loadedOrLoading or loaded),
+            version = version,  
+        }
     end
     return response
 end
@@ -306,6 +330,19 @@ function module.options:Load()
             raidNames[i].t:SetAlpha(0)
         end
 
+
+        local function LineName_Icon_OnEnter(self)
+            if self.HOVER_TEXT then
+                ELib.Tooltip.Show(self, "ANCHOR_RIGHT", self.HOVER_TEXT) 
+            end
+        end
+        
+        local function LineName_Icon_OnLeave(self)
+            if self.HOVER_TEXT then
+                ELib.Tooltip.Hide()
+            end
+        end
+
         local lineNum = 1
         local backgroundLineStatus = (prevTopLine % 2) == 1
 
@@ -321,17 +358,27 @@ function module.options:Load()
 
             for j=1,VERTICALNAME_COUNT do
                 local pname = namesList2[j] or "-"
-                
+                if not line.icons[j].hoverFrame then
+                    line.icons[j].hoverFrame = CreateFrame("Frame", nil, line)
+                    line.icons[j].hoverFrame:Hide()
+                    line.icons[j].hoverFrame:SetAllPoints(line.icons[j])
+                    line.icons[j].hoverFrame:SetScript("OnEnter", LineName_Icon_OnEnter)
+                    line.icons[j].hoverFrame:SetScript("OnLeave", LineName_Icon_OnLeave)
+                end
                 local db = module.db.responces[pname]
 
                 if not db then
-                    SetIcon(line.icons[j],0)
+                    SetIcon(line.icons[j], 0)
                 else
-                    local isLoaded = db[addonName]
-                    if isLoaded then
-                        SetIcon(line.icons[j],2)
+                    local addonData = db[addonName]
+                    if addonData.loaded then
+                        SetIcon(line.icons[j], 2)
+                        line.icons[j].hoverFrame.HOVER_TEXT = addonData.version 
+                        line.icons[j].hoverFrame:Show()
                     else
-                        SetIcon(line.icons[j],1)
+                        SetIcon(line.icons[j], 1)
+                        line.icons[j].hoverFrame.HOVER_TEXT = nil
+                        line.icons[j].hoverFrame:Hide()
                     end
                 end
             end
