@@ -40,6 +40,7 @@ L.RaidGroups = "Raid Groups"
 L.Reminder = "Reminder"
 L.Interrupts = "Interrupts"
 L.panelmarks = "Automarking"
+L.AddonChecker = "Addon Checker"
 
 L.messagebutsend = "Send"
 L.messagebutclear = "Clear"
