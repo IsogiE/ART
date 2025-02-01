@@ -1,5 +1,8 @@
 local GlobalAddonName, MRT = ...
 
+
+importString = table.concat(DefaultNicknames)
+
 local module = MRT:New("Nicknames", "Nicknames")
 local ELib, L = MRT.lib, MRT.L
 
@@ -12,9 +15,9 @@ function module:PromptReload()
         return
     end
 
-    local popupFrame = ELib:Popup("Reload Required"):Size(450, 100)
+    local popupFrame = ELib:Popup("Reload Required"):Size(400, 120)
 
-    ELib:Text(popupFrame, "You have made changes that require a UI reload to apply the changes.\nWould you like to reload now?", 12)
+    ELib:Text(popupFrame, "You have made changes that require a UI reload.\n\nWould you like to reload now?", 12)
         :Point("TOP", 0, -20)
         :Color(1, 1, 1)
         :Center() 
@@ -150,17 +153,22 @@ function module.options:Load()
     self.loaded = true
 
     self:CreateTilte()
+	
+	local title = ELib:Text(self, "Player Nicknames", 14):Point("TOPLEFT", 11, -101):Color(1, 1, 1)
+
+    local chMRTitle = ELib:Text(self, "Player Characters", 14):Point("TOPLEFT", 201, -101):Color(1, 1, 1)
 
 
     self.importBox = ELib:MultiEdit(self):Size(675, 60):Point("TOPLEFT", 10, -25)
     
-    self.importButton = ELib:Button(self, "Import"):Size(100, 20):Point("TOPLEFT", 10, -90)
+    self.importButton = ELib:Button(self, "Import"):Size(120, 20):Point("TOPRIGHT", -10, -92)
         :OnClick(function()
             local importString = self.importBox:GetText()
             if importString and importString ~= "" then
                 self:ProcessImportString(importString)
                 self.importBox:SetText("") 
             end
+			module:PromptReload()
         end)
 
     self.nicknamesFrame = ELib:ScrollFrame(self):Size(675, 450):Point("TOPLEFT", 10, -120) 
@@ -171,14 +179,14 @@ function module.options:Load()
 
     self:CreateContent()
 
-    self.wipeButton = ELib:Button(self, "Wipe All Data"):Size(120, 20):Point("BOTTOMLEFT", 10, 39)
+    self.wipeButton = ELib:Button(self, "Default Data"):Size(120, 20):Point("BOTTOMRIGHT", -10, 35)
     :OnClick(function()
-        local popupFrame = ELib:Popup("Confirm Wipe"):Size(300, 120)
+        local popupFrame = ELib:Popup("Confirm Wipe"):Size(400, 120)
         
-        ELib:Text(popupFrame, "Are you sure you want to delete all data?", 12)
+        ELib:Text(popupFrame, "\nAre you sure you want to return to default data?\nThis requires a reload.", 12)
             :Point("TOP", 0, -20)
-            :Color(1, 0.1, 0.1) 
-            :Center()
+			:Color(1, 1, 1)
+			:Center() 
         
         ELib:Button(popupFrame, "Confirm"):Size(100, 20):Point("BOTTOM", -60, 20)
             :OnClick(function()
@@ -186,7 +194,8 @@ function module.options:Load()
                 module:SaveNicknames() 
                 self:CreateContent()
                 popupFrame:Hide()
-                module:PromptReload() 
+				ReloadUI()
+                
             end)
         
         ELib:Button(popupFrame, "Cancel"):Size(100, 20):Point("BOTTOM", 60, 20)
@@ -196,10 +205,40 @@ function module.options:Load()
         
         popupFrame:Show()
     end)
+	
+	if importString and importString ~= "" then
+    self:ProcessImportString(importString)
+	end
+	
 end
 
 function module.options:ProcessImportString(importString)
-    wipe(GetNicknamesMap())
+    local nicknamesMap = GetNicknamesMap()
+    local normalizedMap = {}
+    
+    for nickname, data in pairs(nicknamesMap) do
+        local normalizedNick = nickname:lower()
+        if not normalizedMap[normalizedNick] then
+            normalizedMap[normalizedNick] = {
+                originalCase = nickname,
+                characters = data.characters or {}
+            }
+        else
+            for _, char in ipairs(data.characters or {}) do
+                local exists = false
+                for _, existingChar in ipairs(normalizedMap[normalizedNick].characters) do
+                    if existingChar.character:lower() == char.character:lower() then
+                        exists = true
+                        break
+                    end
+                end
+                if not exists then
+                    table.insert(normalizedMap[normalizedNick].characters, char)
+                end
+            end
+        end
+    end
+    
     for _, playerData in ipairs({strsplit(";", importString)}) do
         playerData = strtrim(playerData)
         if playerData ~= "" then
@@ -207,25 +246,43 @@ function module.options:ProcessImportString(importString)
             nickname = strtrim(nickname)
             
             if nickname and characters then
-                GetNicknamesMap()[nickname] = {
+                local normalizedNick = nickname:lower()
+                normalizedMap[normalizedNick] = normalizedMap[normalizedNick] or {
+                    originalCase = nickname,
                     characters = {}
                 }
                 
                 for _, charName in ipairs({strsplit(",", characters)}) do
                     charName = strtrim(charName)
                     if charName ~= "" then
-                        table.insert(GetNicknamesMap()[nickname].characters, {
-                            character = charName
-                        })
+                        local exists = false
+                        for _, existingChar in ipairs(normalizedMap[normalizedNick].characters) do
+                            if existingChar.character:lower() == charName:lower() then
+                                exists = true
+                                break
+                            end
+                        end
+                        
+                        if not exists then
+                            table.insert(normalizedMap[normalizedNick].characters, {
+                                character = charName
+                            })
+                        end
                     end
                 end
             end
         end
     end
     
+    wipe(nicknamesMap)
+    for _, data in pairs(normalizedMap) do
+        nicknamesMap[data.originalCase] = {
+            characters = data.characters
+        }
+    end
+    
     module:SaveNicknames()
     self:CreateContent()
-    module:PromptReload() 
 end
 
 function module.options:CreateContent()
@@ -239,12 +296,6 @@ function module.options:CreateContent()
     end
     content.elements = {}
 
-    local title = ELib:Text(content, "Player Nicknames", 14):Point("TOPLEFT", 5, -5):Color(1, 1, 0)
-    table.insert(content.elements, title)
-
-    local chMRTitle = ELib:Text(content, "Player Characters", 14):Point("TOPLEFT", 190, -5):Color(1, 1, 0)
-    table.insert(content.elements, chMRTitle)
-
     local offset = 30
     local sortedNicknames = {}
     local nicknamesMap = GetNicknamesMap()
@@ -252,13 +303,21 @@ function module.options:CreateContent()
         table.insert(sortedNicknames, nickname)
     end
     table.sort(sortedNicknames)
+	
+	local first = 0
 
     for _, nickname in ipairs(sortedNicknames) do
+	
+		if first == 0 then
+			offset = 5
+		end
+	
         local nicknameText = ELib:Text(content, nickname, 12):Point("TOPLEFT", 10, -offset)
             :Center() 
         table.insert(content.elements, nicknameText)
+		
         
-        local dropdown = ELib:DropDown(content, 200, 10, "ExRTDropDownMenuModernTemplate") 
+        local dropdown = ELib:DropDown(content, 184, 10, "ExRTDropDownMenuModernTemplate") 
             :Point("TOPLEFT", 195, -offset)
             :Size(200, 20)
         dropdown.selectedValue = nil
@@ -332,6 +391,7 @@ function module.options:CreateContent()
             end)
         table.insert(content.elements, deleteBtn)
 
+		first = 1
         offset = offset + 25
     end
 
