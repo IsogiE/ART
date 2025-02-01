@@ -486,9 +486,10 @@ initFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 initFrame:RegisterEvent("ADDON_LOADED")
 
 initFrame:SetScript("OnEvent", function(self, event, arg1)
-    if event == "PLAYER_ENTERING_WORLD" then
+    if event == "PLAYER_ENTERING_WORLD" and firstLoad ~= "1" then
         EnhancedUpdateCellNicknames()
         UpdateDefaultFrames()
+		firstLoad = "1"
     elseif event == "ADDON_LOADED" then
         if arg1 == "Cell" then
         EnhancedUpdateCellNicknames()
