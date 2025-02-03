@@ -3,7 +3,7 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VMRT, DataDB
-## Version: 5303
+## Version: 5304
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\MRT\media\MiniMap.tga
 core.lua
@@ -30,6 +30,7 @@ NicknameString.lua
 Nickname.lua
 Note.lua
 ExCD2.lua
+Inspect.lua
 VisNote.lua
 RaidCheck.lua
 InviteTool.lua
