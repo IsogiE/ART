@@ -63,7 +63,9 @@ Options.modulesList.Frame.ScrollBar.border_right = ELib:Texture(Options.modulesL
 
 Options.Frames = {}
 
-
+local version = ELib:Text(Options.modulesList,"Version: "..C_AddOns.GetAddOnMetadata(GlobalAddonName, "Version"),11):Color(1,0.66,0,1)
+version:SetPoint("BOTTOMLEFT", Options.modulesList, "BOTTOMLEFT", 7, 3)
+version:SetPoint("RIGHT", Options.modulesList, "RIGHT", -1, 0)
 
 Options:SetScript("OnShow",function(self)
 	self.modulesList:Update()

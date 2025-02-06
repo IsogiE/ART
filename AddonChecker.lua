@@ -10,7 +10,8 @@ module.db.lastCheck = {}
 module.db.lastCheckName = {}
 
 module.db.addonsToCheck = {
-	"AuraUpdater",
+	"ACT",
+    "AuraUpdater",
 	"BigWigs",
 	"ElvUI",
 	"LibOpenRaid",

@@ -3,11 +3,10 @@
 ## Author: ykiigor, Isogi, Jaf
 ## Notes: Advance Raid Tools
 ## SavedVariables: VMRT, DataDB
-## Version: 5302
+## Version: 09931
 ## AddonCompartmentFunc: ART_MinimapClickFunction
 ## IconTexture: Interface\AddOns\MRT\media\MiniMap.tga
 core.lua
-API.lua
 Functions.lua
 embeds.xml
 ExLib.lua
@@ -26,9 +25,9 @@ Libs\AceAddon-3.0\AceAddon-3.0.xml
 Data.lua
 BlizzFix.lua
 Options.lua
-Nickname.lua
 Note.lua
 ExCD2.lua
+Inspect.lua
 VisNote.lua
 RaidCheck.lua
 InviteTool.lua
