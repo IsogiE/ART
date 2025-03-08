@@ -78,33 +78,30 @@ end
 local function GetRoster()
     local roster = {}
     local playerName = Ambiguate(UnitName("player"), "short")
-
+    table.insert(roster, playerName)
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
             local name = UnitName(unit)
             if name then
-                table.insert(roster, Ambiguate(name, "short"))
+                local shortName = Ambiguate(name, "short")
+                if shortName ~= playerName then
+                    table.insert(roster, shortName)
+                end
             end
         end
     elseif IsInGroup() then
         for i = 1, GetNumSubgroupMembers() do
-            local unit = (i == 1 and "player") or ("party" .. i-1)
+            local unit = "party" .. i
             local name = UnitName(unit)
             if name then
-                table.insert(roster, Ambiguate(name, "short"))
+                local shortName = Ambiguate(name, "short")
+                if shortName ~= playerName then
+                    table.insert(roster, shortName)
+                end
             end
         end
-    else
-        table.insert(roster, playerName)
     end
-    for i, name in ipairs(roster) do
-        if name == playerName and i > 1 then
-            table.remove(roster, i)
-            break
-        end
-    end
-    table.insert(roster, 1, playerName)
 
     return roster
 end
