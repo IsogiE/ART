@@ -448,25 +448,22 @@ end
 local function UpdateDefaultFrames()
     local hookedFrames = {}
     
-    -- Secure hook to handle text changes without overriding styling
     local function HookFrameName(frame)
         if hookedFrames[frame] or not frame.name then return end
-        
-        -- Store original functions
+    
         frame.name.OriginalSetText = frame.name.SetText
-        frame.name.OriginalGetText = frame.name.GetText
-        
-        -- Create proxy function to handle nickname replacement
-        frame.name.SetText = function(self, text)
-            if text and ACT and ACT.db.profile.useNicknameIntegration then
-                local nickname = NicknameAPI:GetNicknameByCharacter(text)
-                if nickname then
-                    text = nickname
-                end
+    
+        hooksecurefunc(frame.name, "SetText", function(self, text)
+            if not ACT or not ACT.db.profile.useNicknameIntegration then return end
+
+            local baseName = text and text:match("^([^-]+)") or ""
+            local nickname = NicknameAPI:GetNicknameByCharacter(baseName)
+
+            if nickname then
+                self:OriginalSetText(nickname)
             end
-            self:OriginalSetText(text)
-        end
-        
+        end)
+    
         hookedFrames[frame] = true
     end
 
@@ -474,14 +471,12 @@ local function UpdateDefaultFrames()
         if not frame or not frame.unit then return end
         HookFrameName(frame)
         
-        -- Trigger initial update
         if frame.name:GetText() then
             frame.name:SetText(frame.name:GetText())
         end
     end
 
     local function UpdateAllFrames()
-        -- Party Frames
         for i = 1, 8 do
             local frame = _G["CompactPartyFrameMember" .. i]
             if frame and frame:IsVisible() then
@@ -489,14 +484,12 @@ local function UpdateDefaultFrames()
             end
         end
 
-        -- Raid Frames
         for i = 1, 40 do
             local frame = _G["CompactRaidFrame" .. i]
             if frame and frame:IsVisible() then
                 UpdateFrameName(frame)
             end
 
-            -- Raid Group Member Frames
             for j = 1, 5 do
                 local groupFrame = _G["CompactRaidGroup" .. i .. "Member" .. j]
                 if groupFrame and groupFrame:IsVisible() then
@@ -506,7 +499,6 @@ local function UpdateDefaultFrames()
         end
     end
 
-    -- Event handler frame
     local eventFrame = CreateFrame("Frame")
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -514,7 +506,6 @@ local function UpdateDefaultFrames()
 
     eventFrame:SetScript("OnEvent", function(self, event, unit)
         if event == "UNIT_NAME_UPDATE" then
-            -- Update specific frame if possible
             for i = 1, 40 do
                 local frame = _G["CompactRaidFrame" .. i]
                 if frame and frame.unit == unit then
@@ -523,11 +514,10 @@ local function UpdateDefaultFrames()
                 end
             end
         else
-            C_Timer.After(0.5, UpdateAllFrames) -- Longer delay for initial load
+            C_Timer.After(0.5, UpdateAllFrames)
         end
     end)
 
-    -- Initial update with safety delay
     C_Timer.After(1, UpdateAllFrames)
 end
 
