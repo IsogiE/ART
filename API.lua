@@ -446,22 +446,42 @@ end
 
 -- Default frames
 local function UpdateDefaultFrames()
-    local function UpdateFrameName(frame)
-        if not frame or not frame.unit or not frame.name then return end
-        if not UnitExists(frame.unit) or not UnitIsPlayer(frame.unit) then return end
-
-        local name = UnitName(frame.unit)
-        if not name then return end
-
-        local displayName = name
-        if ACT and ACT.db and ACT.db.profile and ACT.db.profile.useNicknameIntegration then
-            displayName = NicknameAPI:GetNicknameByCharacter(name) or name
+    local hookedFrames = {}
+    
+    -- Secure hook to handle text changes without overriding styling
+    local function HookFrameName(frame)
+        if hookedFrames[frame] or not frame.name then return end
+        
+        -- Store original functions
+        frame.name.OriginalSetText = frame.name.SetText
+        frame.name.OriginalGetText = frame.name.GetText
+        
+        -- Create proxy function to handle nickname replacement
+        frame.name.SetText = function(self, text)
+            if text and ACT and ACT.db.profile.useNicknameIntegration then
+                local nickname = NicknameAPI:GetNicknameByCharacter(text)
+                if nickname then
+                    text = nickname
+                end
+            end
+            self:OriginalSetText(text)
         end
+        
+        hookedFrames[frame] = true
+    end
 
-        frame.name:SetText(displayName)
+    local function UpdateFrameName(frame)
+        if not frame or not frame.unit then return end
+        HookFrameName(frame)
+        
+        -- Trigger initial update
+        if frame.name:GetText() then
+            frame.name:SetText(frame.name:GetText())
+        end
     end
 
     local function UpdateAllFrames()
+        -- Party Frames
         for i = 1, 8 do
             local frame = _G["CompactPartyFrameMember" .. i]
             if frame and frame:IsVisible() then
@@ -469,12 +489,14 @@ local function UpdateDefaultFrames()
             end
         end
 
+        -- Raid Frames
         for i = 1, 40 do
             local frame = _G["CompactRaidFrame" .. i]
             if frame and frame:IsVisible() then
                 UpdateFrameName(frame)
             end
 
+            -- Raid Group Member Frames
             for j = 1, 5 do
                 local groupFrame = _G["CompactRaidGroup" .. i .. "Member" .. j]
                 if groupFrame and groupFrame:IsVisible() then
@@ -484,14 +506,29 @@ local function UpdateDefaultFrames()
         end
     end
 
-    local defaultFrame = CreateFrame("Frame")
-    defaultFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    defaultFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-    defaultFrame:SetScript("OnEvent", function(self, event)
-        C_Timer.After(0.1, UpdateAllFrames)
+    -- Event handler frame
+    local eventFrame = CreateFrame("Frame")
+    eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+    eventFrame:RegisterEvent("UNIT_NAME_UPDATE")
+
+    eventFrame:SetScript("OnEvent", function(self, event, unit)
+        if event == "UNIT_NAME_UPDATE" then
+            -- Update specific frame if possible
+            for i = 1, 40 do
+                local frame = _G["CompactRaidFrame" .. i]
+                if frame and frame.unit == unit then
+                    UpdateFrameName(frame)
+                    break
+                end
+            end
+        else
+            C_Timer.After(0.5, UpdateAllFrames) -- Longer delay for initial load
+        end
     end)
-    
-    C_Timer.After(0.1, UpdateAllFrames)
+
+    -- Initial update with safety delay
+    C_Timer.After(1, UpdateAllFrames)
 end
 
 -- MRT cooldown bars
