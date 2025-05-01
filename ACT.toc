@@ -3,7 +3,7 @@
 ## Author: Isogi, Jaf
 ## Notes: Advance Custom Tools
 ## SavedVariables: ACTDB, VACT
-## Version: 4.0
+## Version: 4.1
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
 ## OptionalDeps: ElvUI, WeakAuras, Grid2, MRT
 ## Category: Advance
