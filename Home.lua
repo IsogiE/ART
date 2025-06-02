@@ -14,7 +14,7 @@ function HomeModule:CreateConfigPanel(parent)
         self.configPanel:Show()
         return
     end
-    
+
     local configPanel = CreateFrame("Frame", nil, parent)
     configPanel:SetAllPoints()
 
@@ -40,7 +40,7 @@ function HomeModule:CreateConfigPanel(parent)
 
     local o7 = configPanel:CreateTexture(nil, "ARTWORK")
     o7:SetSize(24, 24)
-    o7:SetPoint("RIGHT", cope, "LEFT", -6, 0) 
+    o7:SetPoint("RIGHT", cope, "LEFT", -6, 0)
     o7:SetTexture("Interface\\AddOns\\ACT\\media\\o7.png")
 
     local info = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
