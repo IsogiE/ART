@@ -2,12 +2,12 @@ AssignmentBossUI = AssignmentBossUI or {}
 AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
     local frame = CreateFrame("Frame", nil, parentFrame)
     frame:SetAllPoints(parentFrame)
-    
+
     local desc = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     desc:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
     desc:SetText("Amplifier Soakers Assignments")
-    
-    local markers = { "star", "circle", "diamond", "triangle", "moon", "square", "cross", "skull" }
+
+    local markers = {"star", "circle", "diamond", "triangle", "moon", "square", "cross", "skull"}
     local markerLabelWidth = 150
     local prevLabel = nil
     local slotsGroups = {}
@@ -36,7 +36,7 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
             slot:SetBackdrop({
                 bgFile = "Interface\\Buttons\\WHITE8x8",
                 edgeFile = "Interface\\Buttons\\WHITE8x8",
-                edgeSize = 1,
+                edgeSize = 1
             })
             slot:SetBackdropColor(0.1, 0.1, 0.1, 1)
             slot:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
@@ -70,18 +70,18 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
             AssignmentModule:UpdateRosterList()
         end
     end)
-    
+
     local bossID = "rikreverb"
     VACT = VACT or {}
     VACT.BossPresets = VACT.BossPresets or {}
     VACT.BossPresets[bossID] = VACT.BossPresets[bossID] or {}
-    
+
     local isRenamePopupOpen = false
     local isGenerateNotePopupOpen = false
 
     local presetDropdown
 
-    local function UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"] = function()
         local options = {}
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
             table.insert(options, {
@@ -89,21 +89,50 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
                 value = idx,
                 onClick = function()
                     presetDropdown.button.text:SetText(preset.name)
-                end,
+                end
             })
         end
-        UI:SetDropdownOptions(presetDropdown, options)
+        if presetDropdown then
+            UI:SetDropdownOptions(presetDropdown, options)
+        end
     end
+
+    local function GetRikReverbAssignmentState()
+        local hasData = false
+        local data = {}
+        if AssignmentModule.currentSlots then
+            for i, group in ipairs(AssignmentModule.currentSlots) do
+                data[i] = {}
+                for j, editBox in ipairs(group) do
+                    local name = editBox.usedName or ""
+                    if name ~= "" then
+                        hasData = true
+                    end
+                    data[i][j] = name
+                end
+            end
+        end
+        if not hasData then
+            return nil
+        end
+        return {
+            data = data
+        }
+    end
+
+    AssignmentModule:RegisterGetStateFunction(GetRikReverbAssignmentState)
 
     local function capFirst(str)
         if str and str ~= "" then
-            return str:sub(1,1):upper() .. str:sub(2)
+            return str:sub(1, 1):upper() .. str:sub(2)
         end
         return str
     end
-    
+
     local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
-        if isGenerateNotePopupOpen then return end
+        if isGenerateNotePopupOpen then
+            return
+        end
         isGenerateNotePopupOpen = true
         local note = "liquidStart\n"
         for i, marker in ipairs(markers) do
@@ -131,10 +160,12 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
         end, function()
             isGenerateNotePopupOpen = false
         end)
-        popup:SetScript("OnHide", function() isGenerateNotePopupOpen = false end)
+        popup:SetScript("OnHide", function()
+            isGenerateNotePopupOpen = false
+        end)
         popup:Show()
         editBox:ClearFocus()
-    end)    
+    end)
     noteButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -155, 35)
 
     local spacing = 10
@@ -150,9 +181,9 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
                                 local editBox = group[j]
                                 if editBox then
                                     if presetName and presetName ~= "" then
-                                        local color = GetPlayerClassColorByName(presetName) or {1,1,1,1}
+                                        local color = GetPlayerClassColorByName(presetName) or {1, 1, 1, 1}
                                         local r, g, b = color[1], color[2], color[3]
-                                        local hexColor = string.format("%02x%02x%02x", r*255, g*255, b*255)
+                                        local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
                                         editBox:SetText("|cff" .. hexColor .. presetName .. "|r")
                                         editBox.usedName = presetName
                                     else
@@ -184,14 +215,16 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
         end
         if selectedIndex then
             table.remove(VACT.BossPresets[bossID], selectedIndex)
-            UpdatePresetDropdown()
+            _G["Update" .. bossID .. "PresetDropdown"]()
             presetDropdown.button.text:SetText("Select Preset")
         end
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
     local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
-        if isRenamePopupOpen then return end
+        if isRenamePopupOpen then
+            return
+        end
         local selectedText = presetDropdown.button.text:GetText()
         local selectedIndex = nil
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -207,12 +240,13 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
                 function(newName)
                     if newName and newName:trim() ~= "" then
                         currentPreset.name = newName
-                        UpdatePresetDropdown()
+                        _G["Update" .. bossID .. "PresetDropdown"]()
                         presetDropdown.button.text:SetText(newName)
                     end
                     isRenamePopupOpen = false
-                end,
-                function() isRenamePopupOpen = false end)
+                end, function()
+                    isRenamePopupOpen = false
+                end)
             popup:Show()
         end
     end)
@@ -221,41 +255,32 @@ AssignmentBossUI["rikreverb"] = function(parentFrame, rosterList)
     presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
-    UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"]()
 
     local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
-    
-        local hasData = false
-        local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
-                data[i] = {}
-                for j, editBox in ipairs(group) do
-                    local name = editBox.usedName or ""
-                    if name ~= "" then hasData = true end
-                    data[i][j] = name
-                end
-            end
+
+        local assignmentState = GetRikReverbAssignmentState()
+        if not assignmentState then
+            return
         end
-        if not hasData then return end
-    
+
         isRenamePopupOpen = true
-        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "",
-            function(newName)
-                if newName and newName:trim() ~= "" then
-                    local presetName = newName
-                    table.insert(VACT.BossPresets[bossID], { name = presetName, data = data })
-                    UpdatePresetDropdown()
-                    presetDropdown.button.text:SetText(presetName)
-                end
-                isRenamePopupOpen = false
-            end,
-            function()
-                isRenamePopupOpen = false
-            end)
+        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
+            if newName and newName:trim() ~= "" then
+                table.insert(VACT.BossPresets[bossID], {
+                    name = newName,
+                    data = assignmentState.data
+                })
+                _G["Update" .. bossID .. "PresetDropdown"]()
+                presetDropdown.button.text:SetText(newName)
+            end
+            isRenamePopupOpen = false
+        end, function()
+            isRenamePopupOpen = false
+        end)
         popup:Show()
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)

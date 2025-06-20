@@ -7,17 +7,17 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
     scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -190, 90)
-    
+
     local content = CreateFrame("Frame", nil, scrollFrame)
     content:SetWidth(scrollFrame:GetWidth())
     scrollFrame:SetScrollChild(content)
 
     local yOffset = -10
 
-    local mugzeeGaolRows = {}  
-    local mugzeeGripRows = {}  
-    local mugzeeGoblinGroups = { {}, {} } 
-    local mugzeeFrostRows = {}  
+    local mugzeeGaolRows = {}
+    local mugzeeGripRows = {}
+    local mugzeeGoblinGroups = {{}, {}}
+    local mugzeeFrostRows = {}
 
     local function CreateMugzeeEditBox(parent)
         local slot = CreateFrame("Frame", nil, parent, "BackdropTemplate")
@@ -29,7 +29,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         })
         slot:SetBackdropColor(0.1, 0.1, 0.1, 1)
         slot:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-        
+
         local editBox = CreateFrame("EditBox", nil, slot)
         editBox:SetAllPoints(slot)
         editBox:SetAutoFocus(false)
@@ -42,7 +42,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
 
         AssignmentModule = AssignmentModule or {}
         AssignmentModule.allowDuplicates = true
-        
+
         editBox:SetScript("OnEditFocusLost", function(self)
             local plain = self:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
             plain = plain:match("^%s*(.-)%s*$") or ""
@@ -52,14 +52,14 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                 local filtered = AssignmentModule:GetDisplayName(plain)
                 local color = GetPlayerClassColorByName(filtered)
                 local r, g, b = color[1], color[2], color[3]
-                local hexColor = string.format("%02x%02x%02x", r*255, g*255, b*255)
+                local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
                 self:SetText("|cff" .. hexColor .. filtered .. "|r")
                 self:SetCursorPosition(0)
                 self.usedName = filtered
             end
             AssignmentModule:UpdateRosterList()
         end)
-        
+
         editBox:EnableMouse(true)
         editBox:RegisterForDrag("LeftButton")
         editBox:SetScript("OnDragStart", function(self)
@@ -73,7 +73,9 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                             self.isDragging = true
                             self:SetScript("OnUpdate", nil)
                             if self.usedName and self.usedName ~= "" then
-                                AssignmentModule.DragContainer = AssignmentModule.DragContainer or CreateFrame("Frame", "Assignment_DragContainer", UIParent)
+                                AssignmentModule.DragContainer =
+                                    AssignmentModule.DragContainer or
+                                        CreateFrame("Frame", "Assignment_DragContainer", UIParent)
                                 local dragLayer = AssignmentModule.DragContainer
                                 dragLayer:SetAllPoints(UIParent)
                                 dragLayer:SetFrameStrata("HIGH")
@@ -86,7 +88,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                     edgeFile = "Interface\\Buttons\\WHITE8x8",
                                     edgeSize = 1
                                 })
-                                dragFrame:SetBackdropBorderColor(1,1,1,1)
+                                dragFrame:SetBackdropBorderColor(1, 1, 1, 1)
                                 dragFrame.text = dragFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                                 dragFrame.text:SetPoint("CENTER")
                                 dragFrame.text:SetText(self.usedName)
@@ -95,7 +97,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                     local cx, cy = GetCursorPosition()
                                     local scale = UIParent:GetEffectiveScale()
                                     frame:ClearAllPoints()
-                                    frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx/scale, cy/scale)
+                                    frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
                                 end)
                                 self.dragFrame = dragFrame
                             end
@@ -110,7 +112,9 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                         self.isDragging = true
                         self:SetScript("OnUpdate", nil)
                         if self.usedName and self.usedName ~= "" then
-                            AssignmentModule.DragContainer = AssignmentModule.DragContainer or CreateFrame("Frame", "Assignment_DragContainer", UIParent)
+                            AssignmentModule.DragContainer =
+                                AssignmentModule.DragContainer or
+                                    CreateFrame("Frame", "Assignment_DragContainer", UIParent)
                             local dragLayer = AssignmentModule.DragContainer
                             dragLayer:SetAllPoints(UIParent)
                             dragLayer:SetFrameStrata("HIGH")
@@ -123,7 +127,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                 edgeFile = "Interface\\Buttons\\WHITE8x8",
                                 edgeSize = 1
                             })
-                            dragFrame:SetBackdropBorderColor(1,1,1,1)
+                            dragFrame:SetBackdropBorderColor(1, 1, 1, 1)
                             dragFrame.text = dragFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                             dragFrame.text:SetPoint("CENTER")
                             dragFrame.text:SetText(self.usedName)
@@ -132,7 +136,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                 local cx, cy = GetCursorPosition()
                                 local scale = UIParent:GetEffectiveScale()
                                 frame:ClearAllPoints()
-                                frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx/scale, cy/scale)
+                                frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
                             end)
                             self.dragFrame = dragFrame
                         end
@@ -153,7 +157,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                             if target and target:IsVisible() and target:GetLeft() and target:GetRight() then
                                 local cx, cy = GetCursorPosition()
                                 local scale = target:GetEffectiveScale()
-                                cx, cy = cx/scale, cy/scale
+                                cx, cy = cx / scale, cy / scale
                                 local left, right = target:GetLeft(), target:GetRight()
                                 local top, bottom = target:GetTop(), target:GetBottom()
                                 if cx >= left - 15 and cx <= right + 15 and cy >= bottom - 8 and cy <= top + 8 then
@@ -162,21 +166,27 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                 end
                             end
                         end
-                        if dropTarget then break end
+                        if dropTarget then
+                            break
+                        end
                     end
                 end
                 local sourceEditBox = self
-                local sourceText = sourceEditBox.usedName or (sourceEditBox:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+                local sourceText = sourceEditBox.usedName or
+                                       (sourceEditBox:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
                 sourceText = AssignmentModule:GetDisplayName(sourceText)
                 if dropTarget then
                     if dropTarget ~= sourceEditBox then
-                        local targetText = dropTarget.usedName or (dropTarget:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+                        local targetText = dropTarget.usedName or
+                                               (dropTarget:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
                         targetText = AssignmentModule:GetDisplayName(targetText)
                         if targetText and targetText ~= "" then
-                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1,1,1,1}
-                            local targetColor = GetPlayerClassColorByName(targetText) or {1,1,1,1}
-                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1]*255, sourceColor[2]*255, sourceColor[3]*255)
-                            local targetHex = string.format("%02x%02x%02x", targetColor[1]*255, targetColor[2]*255, targetColor[3]*255)
+                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
+                            local targetColor = GetPlayerClassColorByName(targetText) or {1, 1, 1, 1}
+                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
+                                sourceColor[3] * 255)
+                            local targetHex = string.format("%02x%02x%02x", targetColor[1] * 255, targetColor[2] * 255,
+                                targetColor[3] * 255)
                             sourceEditBox:SetText("|cff" .. targetHex .. targetText .. "|r")
                             sourceEditBox:SetJustifyH("LEFT")
                             sourceEditBox:SetCursorPosition(0)
@@ -186,8 +196,9 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                             dropTarget:SetCursorPosition(0)
                             dropTarget.usedName = sourceText
                         else
-                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1,1,1,1}
-                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1]*255, sourceColor[2]*255, sourceColor[3]*255)
+                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
+                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
+                                sourceColor[3] * 255)
                             dropTarget:SetText("|cff" .. sourceHex .. sourceText .. "|r")
                             dropTarget:SetJustifyH("LEFT")
                             dropTarget:SetCursorPosition(0)
@@ -210,7 +221,8 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                         if plain ~= "" then
                             local color = GetPlayerClassColorByName(plain)
                             if color then
-                                local hexColor = string.format("%02x%02x%02x", color[1]*255, color[2]*255, color[3]*255)
+                                local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255,
+                                    color[3] * 255)
                                 sourceEditBox:SetText("|cff" .. hexColor .. plain .. "|r")
                             else
                                 sourceEditBox:SetText(plain)
@@ -225,7 +237,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                 self.dragFrame = nil
             end
         end)
-        
+
         return editBox, slot
     end
 
@@ -239,9 +251,12 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             if i == 1 then
                 slot:SetPoint("LEFT", rowFrame, "LEFT", 0, 0)
             else
-                slot:SetPoint("LEFT", boxes[i-1].slot, "RIGHT", spacing, 0)
+                slot:SetPoint("LEFT", boxes[i - 1].slot, "RIGHT", spacing, 0)
             end
-            boxes[i] = { editBox = editBox, slot = slot }
+            boxes[i] = {
+                editBox = editBox,
+                slot = slot
+            }
         end
         return rowFrame, boxes
     end
@@ -255,17 +270,34 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     gaolTitle:SetText("Gaol Assignments")
     yOffset = yOffset - 25
 
-    local gaolRowDefs = {
-        {group = 1, label = "Gaol 1 - Left"},
-        {group = 1, label = "Gaol 1 - Right"},
-        {group = 2, label = "Gaol 2 - Left"},
-        {group = 2, label = "Gaol 2 - Far Left"},
-        {group = 2, label = "Gaol 2 - Right"},
-        {group = 3, label = "Gaol 3 - Left"},
-        {group = 3, label = "Gaol 3 - Far Left"},
-        {group = 3, label = "Gaol 3 - Right"},
-        {group = 3, label = "Gaol 3 - Far Right"},
-    }
+    local gaolRowDefs = {{
+        group = 1,
+        label = "Gaol 1 - Left"
+    }, {
+        group = 1,
+        label = "Gaol 1 - Right"
+    }, {
+        group = 2,
+        label = "Gaol 2 - Left"
+    }, {
+        group = 2,
+        label = "Gaol 2 - Far Left"
+    }, {
+        group = 2,
+        label = "Gaol 2 - Right"
+    }, {
+        group = 3,
+        label = "Gaol 3 - Left"
+    }, {
+        group = 3,
+        label = "Gaol 3 - Far Left"
+    }, {
+        group = 3,
+        label = "Gaol 3 - Right"
+    }, {
+        group = 3,
+        label = "Gaol 3 - Far Right"
+    }}
 
     for i, def in ipairs(gaolRowDefs) do
         local label = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -280,7 +312,10 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         for _, b in ipairs(boxes) do
             table.insert(rowEditBoxes, b.editBox)
         end
-        table.insert(mugzeeGaolRows, {group = def.group, editBoxes = rowEditBoxes})
+        table.insert(mugzeeGaolRows, {
+            group = def.group,
+            editBoxes = rowEditBoxes
+        })
     end
 
     local gripTitle = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -310,10 +345,13 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     rocketTitle:SetText("Goblin Guided Rocket Assign")
     yOffset = yOffset - 25
 
-    local rocketGroupDefs = {
-        { title = "Soak 1 & 3", rows = 3 },
-        { title = "Soak 2 & 4", rows = 3 },
-    }
+    local rocketGroupDefs = {{
+        title = "Soak 1 & 3",
+        rows = 3
+    }, {
+        title = "Soak 2 & 4",
+        rows = 3
+    }}
     for groupIndex, groupDef in ipairs(rocketGroupDefs) do
         local groupLabel = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         groupLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 10, yOffset)
@@ -381,7 +419,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
 
     local presetDropdown
 
-    local function UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"] = function()
         local options = {}
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
             table.insert(options, {
@@ -389,24 +427,53 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                 value = idx,
                 onClick = function()
                     presetDropdown.button.text:SetText(preset.name)
-                end,
+                end
             })
         end
-        UI:SetDropdownOptions(presetDropdown, options)
+        if presetDropdown then
+            UI:SetDropdownOptions(presetDropdown, options)
+        end
     end
+
+    local function GetMugzeeAssignmentState()
+        local hasData = false
+        local data = {}
+        if AssignmentModule.currentSlots then
+            for i, group in ipairs(AssignmentModule.currentSlots) do
+                data[i] = {}
+                for j, editBox in ipairs(group) do
+                    local name = editBox.usedName or ""
+                    if name ~= "" then
+                        hasData = true
+                    end
+                    data[i][j] = name
+                end
+            end
+        end
+        if not hasData then
+            return nil
+        end
+        return {
+            data = data
+        }
+    end
+
+    AssignmentModule:RegisterGetStateFunction(GetMugzeeAssignmentState)
 
     local function capFirst(str)
         if str and str ~= "" then
-            return str:sub(1,1):upper() .. str:sub(2)
+            return str:sub(1, 1):upper() .. str:sub(2)
         end
         return str
     end
 
     local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
-        if isGenerateNotePopupOpen then return end
+        if isGenerateNotePopupOpen then
+            return
+        end
         isGenerateNotePopupOpen = true
         local note = ""
-        
+
         note = note .. "liquidStart\n"
         local currentGroup = nil
         for i, row in ipairs(mugzeeGaolRows) do
@@ -433,7 +500,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             note = note .. table.concat(names, " ") .. "\n"
         end
         note = note .. "liquidEnd\n\n"
-    
+
         note = note .. "liquidStart3\n"
         for i, row in ipairs(mugzeeGripRows) do
             local names = {}
@@ -453,7 +520,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             note = note .. table.concat(names, " ") .. "\n"
         end
         note = note .. "liquidEnd3\n\n"
-    
+
         note = note .. "liquidStart2\n"
         for groupIndex, group in ipairs(mugzeeGoblinGroups) do
             local names = {}
@@ -473,7 +540,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             note = note .. table.concat(names, " ") .. "\n"
         end
         note = note .. "liquidEnd2\n\n"
-    
+
         note = note .. "liquidStart4\n"
         local names = {}
         for _, editBox in ipairs(mugzeeFrostRows) do
@@ -491,13 +558,15 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         end
         note = note .. table.concat(names, " ") .. "\n"
         note = note .. "liquidEnd4"
-    
+
         local popup, editBox = UI:CreatePopupWithEditBox("Assignment Note - Mugzee", 400, 300, note, function(text)
             isGenerateNotePopupOpen = false
         end, function()
             isGenerateNotePopupOpen = false
         end)
-        popup:SetScript("OnHide", function() isGenerateNotePopupOpen = false end)
+        popup:SetScript("OnHide", function()
+            isGenerateNotePopupOpen = false
+        end)
         popup:Show()
         editBox:ClearFocus()
     end)
@@ -516,9 +585,9 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                                 local editBox = group[j]
                                 if editBox then
                                     if presetName and presetName ~= "" then
-                                        local color = GetPlayerClassColorByName(presetName) or {1,1,1,1}
+                                        local color = GetPlayerClassColorByName(presetName) or {1, 1, 1, 1}
                                         local r, g, b = color[1], color[2], color[3]
-                                        local hexColor = string.format("%02x%02x%02x", r*255, g*255, b*255)
+                                        local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
                                         editBox:SetText("|cff" .. hexColor .. presetName .. "|r")
                                         editBox.usedName = presetName
                                     else
@@ -550,14 +619,16 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         end
         if selectedIndex then
             table.remove(VACT.BossPresets[bossID], selectedIndex)
-            UpdatePresetDropdown()
+            _G["Update" .. bossID .. "PresetDropdown"]()
             presetDropdown.button.text:SetText("Select Preset")
         end
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
     local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
-        if isRenamePopupOpen then return end
+        if isRenamePopupOpen then
+            return
+        end
         local selectedText = presetDropdown.button.text:GetText()
         local selectedIndex = nil
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -573,12 +644,13 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
                 function(newName)
                     if newName and newName:trim() ~= "" then
                         currentPreset.name = newName
-                        UpdatePresetDropdown()
+                        _G["Update" .. bossID .. "PresetDropdown"]()
                         presetDropdown.button.text:SetText(newName)
                     end
                     isRenamePopupOpen = false
-                end,
-                function() isRenamePopupOpen = false end)
+                end, function()
+                    isRenamePopupOpen = false
+                end)
             popup:Show()
         end
     end)
@@ -587,41 +659,32 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
-    UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"]()
 
     local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
-    
-        local hasData = false
-        local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
-                data[i] = {}
-                for j, editBox in ipairs(group) do
-                    local name = editBox.usedName or ""
-                    if name ~= "" then hasData = true end
-                    data[i][j] = name
-                end
-            end
+
+        local assignmentState = GetMugzeeAssignmentState()
+        if not assignmentState then
+            return
         end
-        if not hasData then return end
-    
+
         isRenamePopupOpen = true
-        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "",
-            function(newName)
-                if newName and newName:trim() ~= "" then
-                    local presetName = newName
-                    table.insert(VACT.BossPresets[bossID], { name = presetName, data = data })
-                    UpdatePresetDropdown()
-                    presetDropdown.button.text:SetText(presetName)
-                end
-                isRenamePopupOpen = false
-            end,
-            function()
-                isRenamePopupOpen = false
-            end)
+        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
+            if newName and newName:trim() ~= "" then
+                table.insert(VACT.BossPresets[bossID], {
+                    name = newName,
+                    data = assignmentState.data
+                })
+                _G["Update" .. bossID .. "PresetDropdown"]()
+                presetDropdown.button.text:SetText(newName)
+            end
+            isRenamePopupOpen = false
+        end, function()
+            isRenamePopupOpen = false
+        end)
         popup:Show()
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)

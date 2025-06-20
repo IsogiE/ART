@@ -7,7 +7,7 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
     orderLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
     orderLabel:SetText("Spin-to-Win Order:")
 
-    local outcomes = { "None", "SF", "SB", "FB", "FC", "CS", "CB" }
+    local outcomes = {"None", "SF", "SB", "FB", "FC", "CS", "CB"}
     local dropdowns = {}
     local prev = orderLabel
     for i = 1, 6 do
@@ -26,7 +26,9 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
             table.insert(options, {
                 text = code,
                 value = code,
-                onClick = function() dd.button.text:SetText(code) end
+                onClick = function()
+                    dd.button.text:SetText(code)
+                end
             })
         end
         UI:SetDropdownOptions(dd, options)
@@ -80,7 +82,7 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
         end
     end
 
-    AssignmentModule.currentSlots = { dispelSlots } 
+    AssignmentModule.currentSlots = {dispelSlots}
 
     frame:SetScript("OnHide", function()
         for _, slot in ipairs(dispelSlots) do
@@ -100,7 +102,7 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
 
     local presetDropdown
 
-    local function UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"] = function()
         local options = {}
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
             table.insert(options, {
@@ -108,11 +110,50 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
                 value = idx,
                 onClick = function()
                     presetDropdown.button.text:SetText(preset.name)
-                end,
+                end
             })
         end
-        UI:SetDropdownOptions(presetDropdown, options)
+        if presetDropdown then
+            UI:SetDropdownOptions(presetDropdown, options)
+        end
     end
+
+    local function GetBanditAssignmentState()
+        local hasData = false
+        local data = {}
+        if AssignmentModule.currentSlots then
+            for i, group in ipairs(AssignmentModule.currentSlots) do
+                data[i] = {}
+                for j, editBox in ipairs(group) do
+                    local name = editBox.usedName or ""
+                    if name ~= "" then
+                        hasData = true
+                    end
+                    data[i][j] = name
+                end
+            end
+        end
+
+        local dropdownData = {}
+        for i, dd in ipairs(dropdowns) do
+            local text = dd.button.text:GetText() or "None"
+            if text ~= "None" then
+                hasData = true
+            end
+            dropdownData[i] = text
+        end
+
+        if not hasData then
+            return nil
+        end
+
+        return {
+            data = data,
+            dropdowns = dropdownData
+        }
+    end
+
+    AssignmentModule:RegisterGetStateFunction(GetBanditAssignmentState)
 
     local function capFirst(str)
         if str and str ~= "" then
@@ -122,7 +163,9 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
     end
 
     local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
-        if isGenerateNotePopupOpen then return end
+        if isGenerateNotePopupOpen then
+            return
+        end
         isGenerateNotePopupOpen = true
         local sequence = {}
         for _, dd in ipairs(dropdowns) do
@@ -145,13 +188,17 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
                 table.insert(dispelNames, name)
             end
         end
-        local note = "liquidStart\n" .. table.concat(sequence, " ") .. "\nliquidEnd\n\nliquidStart2\n" .. table.concat(dispelNames, " ") .. "\nliquidEnd2"
-        local popup, editBox = UI:CreatePopupWithEditBox("Assignment Note - One-Armed Bandit", 400, 200, note, function(text)
-            isGenerateNotePopupOpen = false
-        end, function()
+        local note = "liquidStart\n" .. table.concat(sequence, " ") .. "\nliquidEnd\n\nliquidStart2\n" ..
+                         table.concat(dispelNames, " ") .. "\nliquidEnd2"
+        local popup, editBox = UI:CreatePopupWithEditBox("Assignment Note - One-Armed Bandit", 400, 200, note,
+            function(text)
+                isGenerateNotePopupOpen = false
+            end, function()
+                isGenerateNotePopupOpen = false
+            end)
+        popup:SetScript("OnHide", function()
             isGenerateNotePopupOpen = false
         end)
-        popup:SetScript("OnHide", function() isGenerateNotePopupOpen = false end)
         popup:Show()
         editBox:ClearFocus()
     end)
@@ -170,9 +217,9 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
                                 local editBox = group[j]
                                 if editBox then
                                     if presetName and presetName ~= "" then
-                                        local color = GetPlayerClassColorByName(presetName) or {1,1,1,1}
+                                        local color = GetPlayerClassColorByName(presetName) or {1, 1, 1, 1}
                                         local r, g, b = color[1], color[2], color[3]
-                                        local hexColor = string.format("%02x%02x%02x", r*255, g*255, b*255)
+                                        local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
                                         editBox:SetText("|cff" .. hexColor .. presetName .. "|r")
                                         editBox.usedName = presetName
                                     else
@@ -212,14 +259,16 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
         end
         if selectedIndex then
             table.remove(VACT.BossPresets[bossID], selectedIndex)
-            UpdatePresetDropdown()
+            _G["Update" .. bossID .. "PresetDropdown"]()
             presetDropdown.button.text:SetText("Select Preset")
         end
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
     local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
-        if isRenamePopupOpen then return end
+        if isRenamePopupOpen then
+            return
+        end
         local selectedText = presetDropdown.button.text:GetText()
         local selectedIndex = nil
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -235,12 +284,13 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
                 function(newName)
                     if newName and newName:trim() ~= "" then
                         currentPreset.name = newName
-                        UpdatePresetDropdown()
+                        _G["Update" .. bossID .. "PresetDropdown"]()
                         presetDropdown.button.text:SetText(newName)
                     end
                     isRenamePopupOpen = false
-                end,
-                function() isRenamePopupOpen = false end)
+                end, function()
+                    isRenamePopupOpen = false
+                end)
             popup:Show()
         end
     end)
@@ -249,53 +299,36 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
     presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
-    UpdatePresetDropdown()
+    _G["Update" .. bossID .. "PresetDropdown"]()
 
     local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
-        if isRenamePopupOpen then 
-            return 
+        if isRenamePopupOpen then
+            return
         end
-    
-        local hasData = false
-        local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
-                data[i] = {}
-                for j, editBox in ipairs(group) do
-                    local name = editBox.usedName or ""
-                    if name ~= "" then 
-                        hasData = true 
-                    end
-                    data[i][j] = name
-                end
-            end
+
+        local assignmentState = GetBanditAssignmentState()
+        if not assignmentState then
+            return
         end
-        if not hasData then 
-            return 
-        end
-    
-        local dropdownData = {}
-        for i, dd in ipairs(dropdowns) do
-            dropdownData[i] = dd.button.text:GetText() or "None"
-        end
-    
+
         isRenamePopupOpen = true
-        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "",
-            function(newName)
-                if newName and newName:trim() ~= "" then
-                    local presetName = newName
-                    table.insert(VACT.BossPresets[bossID], { name = presetName, data = data, dropdowns = dropdownData })
-                    UpdatePresetDropdown()
-                    presetDropdown.button.text:SetText(presetName)
-                end
-                isRenamePopupOpen = false
-            end,
-            function()
-                isRenamePopupOpen = false
-            end)
+        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
+            if newName and newName:trim() ~= "" then
+                table.insert(VACT.BossPresets[bossID], {
+                    name = newName,
+                    data = assignmentState.data,
+                    dropdowns = assignmentState.dropdowns
+                })
+                _G["Update" .. bossID .. "PresetDropdown"]()
+                presetDropdown.button.text:SetText(newName)
+            end
+            isRenamePopupOpen = false
+        end, function()
+            isRenamePopupOpen = false
+        end)
         popup:Show()
     end)
-    savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)    
+    savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)
 
     local clearUIButton = UI:CreateButton(parentFrame, "Clear UI", 100, 25, function()
         if AssignmentModule.currentSlots then
@@ -311,6 +344,6 @@ AssignmentBossUI["onearmedbandit"] = function(parentFrame, rosterList)
             dd.button.text:SetText("None")
         end
     end)
-    
+
     clearUIButton:SetPoint("RIGHT", savePresetButton, "LEFT", -spacing, 0)
 end
