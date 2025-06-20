@@ -657,9 +657,6 @@ function AssignmentModule:CreateConfigPanel(parent)
         })
     end
     UI:SetDropdownOptions(raidDropdown, raidOptions)
-    if #raidOptions > 0 then
-        raidOptions[1].onClick()
-    end
 
     self.Presets = VACT.RaidGroupsPresets or {}
     function AssignmentModule:UpdatePresetsDropdown()
