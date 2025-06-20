@@ -867,26 +867,30 @@ end
 
 function NicknameModule:PromptPushReload_Default(sender)
     sender = sender or UnitName("player")
-    if not self.reloadPopupNormal_Default then
-        self.reloadPopupNormal_Default = UI:CreateTextPopup("Reload UI", sender ..
-            " has pushed a new DEFAULT nickname update, please reload your UI.", "Reload Now", "Later", function()
-            ReloadUI()
-        end, function()
-        end)
-        self.reloadPopupNormal_Default:SetScript("OnHide", function()
-            self.reloadPopupNormal_Default = nil
-        end)
-    else
-        self.reloadPopupNormal_Default:Hide()
-        self.reloadPopupNormal_Default = UI:CreateTextPopup("Reload UI", sender ..
-            " has pushed a new DEFAULT nickname update, please reload your UI.", "Reload Now", "Later", function()
-            ReloadUI()
-        end, function()
-        end)
-        self.reloadPopupNormal_Default:SetScript("OnHide", function()
-            self.reloadPopupNormal_Default = nil
-        end)
+
+    local title = "Reload UI"
+    local text = sender .. " has pushed a new DEFAULT nickname update, please reload your UI."
+    local acceptText = "|TInterface\\AddOns\\ACT\\media\\roiben.tga:16:16:0:0|t Brick Now"
+    local cancelText = "Later"
+
+    local onAccept = function()
+        ReloadUI()
     end
+    
+    local onCancel = function()
+    end
+
+    if self.reloadPopupNormal_Default then
+        self.reloadPopupNormal_Default:Hide()
+        self.reloadPopupNormal_Default = nil
+    end
+
+    self.reloadPopupNormal_Default = UI:CreateTextPopup(title, text, acceptText, cancelText, onAccept, onCancel)
+    
+    self.reloadPopupNormal_Default:SetScript("OnHide", function()
+        self.reloadPopupNormal_Default = nil
+    end)
+    
     self.reloadPopupNormal_Default:Show()
 end
 

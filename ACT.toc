@@ -1,9 +1,9 @@
-## Interface: 110107
+## Interface: 110107, 110200
 ## Title: Advance Custom Tools
 ## Author: Isogi, Jaf
 ## Notes: Advance Custom Tools
 ## SavedVariables: ACTDB, VACT
-## Version: 4.6
+## Version: 4.7
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
 ## OptionalDeps: ElvUI, WeakAuras, Grid2, MRT
 ## Category: Advance

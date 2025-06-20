@@ -1,6 +1,16 @@
+local AceComm = LibStub("AceComm-3.0")
+local LibSerialize = LibStub("LibSerialize")
+local LibDeflate = LibStub("LibDeflate")
+local SHARE_PREFIX = "ACT_ASSIGNMENT"
+
 AssignmentModule = {}
 AssignmentModule.rosterLoaded = false
 AssignmentModule.title = "Assignments"
+AssignmentModule.GetAssignmentState = nil
+
+function AssignmentModule:RegisterGetStateFunction(func)
+    AssignmentModule.GetAssignmentState = func
+end
 
 VACT = VACT or {}
 VACT.BossPresets = VACT.BossPresets or {}
@@ -314,6 +324,7 @@ function AssignmentModule:LoadBossUI(bossId)
             child:SetParent(nil)
         end
     end
+    AssignmentModule.GetAssignmentState = nil
     self.currentSlots = nil
     self.selectedBoss = bossId
     if AssignmentBossUI and AssignmentBossUI[bossId] then
@@ -522,6 +533,122 @@ function AssignmentModule:GetConfigSize()
     return 1200, 600
 end
 
+function AssignmentModule:ShareAssignment()
+    if not self.selectedBoss then
+        print("Please select a boss first.")
+        return
+    end
+
+    if not self.GetAssignmentState then
+        print("Boss does not support assignment sharing.")
+        return
+    end
+
+    local assignmentState = self:GetAssignmentState()
+    if not assignmentState then
+        print("Cannot share an empty assignment.")
+        return
+    end
+
+    local payload = {
+        bossId = self.selectedBoss,
+        state = assignmentState
+    }
+
+    local serialized = LibSerialize:Serialize(payload)
+    local compressed = LibDeflate:CompressDeflate(serialized)
+    local encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
+
+    local channel = IsInRaid() and "RAID" or (IsInGroup() and "PARTY" or nil)
+    if channel then
+        AceComm:SendCommMessage(SHARE_PREFIX, encoded, channel)
+        print("Assignment shared.")
+    else
+        print("You must be in a party or raid to share assignments.")
+    end
+end
+
+AceComm:RegisterComm(SHARE_PREFIX, function(prefix, message, distribution, sender)
+    if sender == UnitName("player") then
+        return
+    end
+
+    local decoded = LibDeflate:DecodeForWoWAddonChannel(message)
+    if not decoded then
+        return
+    end
+
+    local decompressed = LibDeflate:DecompressDeflate(decoded)
+    if not decompressed then
+        return
+    end
+
+    local success, payload = LibSerialize:Deserialize(decompressed)
+    if not success or type(payload) ~= "table" or not payload.bossId or not payload.state then
+        return
+    end
+
+    local bossId = payload.bossId
+    local assignmentState = payload.state
+
+    local bossName
+    for _, raid in ipairs(AssignmentData) do
+        for _, boss in ipairs(raid.bosses) do
+            if boss.id == bossId then
+                bossName = boss.name
+                break
+            end
+        end
+        if bossName then
+            break
+        end
+    end
+
+    if not bossName then
+        return
+    end
+
+    local popup = UI:CreateTextPopup("Incoming Assignment", string.format(
+        "%s is sharing an assignment for %s.\nDo you want to import it?", sender, bossName), "Import", "Cancel",
+        function()
+            VACT.BossPresets = VACT.BossPresets or {}
+            VACT.BossPresets[bossId] = VACT.BossPresets[bossId] or {}
+
+            local baseName = bossName .. " Import"
+            local presetName = baseName
+            local i = 1
+            while true do
+                local nameExists = false
+                for _, preset in ipairs(VACT.BossPresets[bossId]) do
+                    if preset.name == presetName then
+                        nameExists = true
+                        break
+                    end
+                end
+                if not nameExists then
+                    break
+                end
+                i = i + 1
+                presetName = string.format("%s (%d)", baseName, i)
+            end
+
+            table.insert(VACT.BossPresets[bossId], {
+                name = presetName,
+                data = assignmentState.data,
+                dropdowns = assignmentState.dropdowns
+            })
+
+            local updateFunc = _G["Update" .. bossId .. "PresetDropdown"]
+            if type(updateFunc) == "function" then
+                updateFunc()
+            end
+
+            print(string.format("Assignment for %s imported as preset '%s'.", bossName, presetName))
+        end, function()
+        end)
+    popup:Show()
+end)
+
 function AssignmentModule:CreateConfigPanel(parent)
     if self.configPanel then
         self.configPanel:SetParent(parent)
@@ -591,6 +718,12 @@ function AssignmentModule:CreateConfigPanel(parent)
         AssignmentModule:UpdateRosterList()
     end)
 
+    local shareButton = UI:CreateButton(configPanel, "Share Assignments", 120, 30)
+    shareButton:SetPoint("LEFT", clearButton, "RIGHT", 20, 0)
+    shareButton:SetScript("OnClick", function()
+        AssignmentModule:ShareAssignment()
+    end)
+
     local applyButton = UI:CreateButton(configPanel, "Apply Roster", 120, 30)
     applyButton:SetPoint("LEFT", grabButton, "RIGHT", 20, 0)
     applyButton:SetScript("OnClick", function()
@@ -657,12 +790,9 @@ function AssignmentModule:CreateConfigPanel(parent)
         })
     end
     UI:SetDropdownOptions(raidDropdown, raidOptions)
-    if #raidOptions > 0 then
-        raidOptions[1].onClick()
-    end
 
     self.Presets = VACT.RaidGroupsPresets or {}
-    function AssignmentModule:UpdatePresetsDropdown()
+    function self:UpdatePresetsDropdown()
         local options = {}
         for idx, preset in ipairs(AssignmentModule.Presets or {}) do
             table.insert(options, {
