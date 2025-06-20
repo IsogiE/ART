@@ -1,8 +1,8 @@
 # ACT
 
-### For friends of Advance
+### For friends of Advance & Advance
 
-This addon is designed for use within your guild. It’s **strongly advised** that **only officers** download ACT directly and then redistribute it **locally** (e.g., via Discord) to the rest of their guild.  
+This addon is designed for use within a single guild. It’s **strongly advised** that **only officers** download ACT directly and then redistribute it **locally** (e.g., via Discord) to the rest of their guild.  
 **Why?** Because some small configuration is required for officer access control.
 
 ---
