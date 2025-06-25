@@ -7,25 +7,29 @@ local function IsIntegrationEnabled()
     return act and act.db and act.db.profile and act.db.profile.useNicknameIntegration
 end
 
-local function GetNicknamesMap()
+local function GetPlayersDB()
     local act = GetACT()
-    if not act or not act.db or not act.db.profile then
+    if not act or not act.db or not act.db.profile or not act.db.profile.players then
         return {}
     end
-    return act.db.profile.nicknames or {}
+    return act.db.profile.players
 end
 
-local function FindNicknameEntry(nicknamesMap, nickname)
-    if not nickname then
-        return nil
+local function _GetAllRawCharactersByNickname(nickname)
+    if not nickname or type(nickname) ~= "string" then
+        return {}
     end
-    nickname = nickname:lower()
-    for key, data in pairs(nicknamesMap) do
-        if key:lower() == nickname then
-            return data
+    local characters = {}
+    local playersDB = GetPlayersDB()
+    local lowerNickname = nickname:lower()
+    for _, pData in pairs(playersDB) do
+        if pData.nickname and pData.nickname:lower() == lowerNickname and pData.characters then
+            for char, _ in pairs(pData.characters) do
+                table.insert(characters, char)
+            end
         end
     end
-    return nil
+    return characters
 end
 
 -- Nickname API
@@ -35,14 +39,19 @@ local NicknameAPI = {
             return nil
         end
 
-        characterName = characterName:lower()
-        local nicknamesMap = GetNicknamesMap()
+        local lowerCharName = characterName:lower()
+        local playersDB = GetPlayersDB()
 
-        for nickname, data in pairs(nicknamesMap) do
-            if data.characters then
-                for _, charData in ipairs(data.characters) do
-                    if charData.character and charData.character:lower() == characterName then
-                        return nickname
+        for _, pData in pairs(playersDB) do
+            if pData.nickname and pData.nickname ~= "" and pData.characters then
+                for dbChar, _ in pairs(pData.characters) do
+                    local lowerDbChar = dbChar:lower()
+                    local simpleDbName = lowerDbChar:match("^([^-]+)")
+                    local simpleInputName = lowerCharName:match("^([^-]+)")
+
+                    if lowerDbChar == lowerCharName or
+                        (simpleDbName and simpleInputName and simpleDbName == simpleInputName) then
+                        return pData.nickname
                     end
                 end
             end
@@ -55,12 +64,21 @@ local NicknameAPI = {
             return false
         end
 
-        characterName = characterName:lower()
-        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
-        if entry and entry.characters then
-            for _, charData in ipairs(entry.characters) do
-                if charData.character and charData.character:lower() == characterName then
-                    return true
+        local lowerCharName = characterName:lower()
+        local lowerNickname = nickname:lower()
+        local playersDB = GetPlayersDB()
+
+        for _, pData in pairs(playersDB) do
+            if pData.nickname and pData.nickname:lower() == lowerNickname and pData.characters then
+                for dbChar, _ in pairs(pData.characters) do
+                    local lowerDbChar = dbChar:lower()
+                    local simpleDbName = lowerDbChar:match("^([^-]+)")
+                    local simpleInputName = lowerCharName:match("^([^-]+)")
+
+                    if lowerDbChar == lowerCharName or
+                        (simpleDbName and simpleInputName and simpleDbName == simpleInputName) then
+                        return true
+                    end
                 end
             end
         end
@@ -72,31 +90,80 @@ local NicknameAPI = {
             return nil
         end
 
-        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
-        if entry and entry.characters and #entry.characters > 0 then
-            return entry.characters[1].character
+        local playersDB = GetPlayersDB()
+        local lowerNickname = nickname:lower()
+        local act = GetACT()
+
+        for _, pData in pairs(playersDB) do
+            if pData.nickname and pData.nickname:lower() == lowerNickname and pData.characters and
+                next(pData.characters) then
+                for char, _ in pairs(pData.characters) do
+                    if act and act.GetFormattedCharacterName then
+                        return act:GetFormattedCharacterName(char)
+                    end
+                    return char
+                end
+            end
         end
         return nil
     end,
 
     GetAllCharactersByNickname = function(_, nickname)
-        if not nickname or type(nickname) ~= "string" then
+        local rawChars = _GetAllRawCharactersByNickname(nickname)
+        if #rawChars == 0 then
             return {}
         end
 
-        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
-        if entry and entry.characters then
-            local characters = {}
-            for _, charData in ipairs(entry.characters) do
-                table.insert(characters, charData.character)
-            end
-            return characters
+        local formattedChars = {}
+        local act = GetACT()
+        if not act or not act.GetFormattedCharacterName then
+            return rawChars
         end
-        return {}
+
+        for _, charName in ipairs(rawChars) do
+            table.insert(formattedChars, act:GetFormattedCharacterName(charName))
+        end
+        return formattedChars
     end,
 
     GetAllNicknames = function(_)
-        return GetNicknamesMap()
+        local nicknames = {}
+        local playersDB = GetPlayersDB()
+        local act = GetACT()
+
+        for btag, pData in pairs(playersDB) do
+            if pData.nickname and pData.nickname ~= "" then
+                nicknames[pData.nickname] = {
+                    characters = {},
+                    btag = btag
+                }
+                if pData.characters then
+                    for char, _ in pairs(pData.characters) do
+                        local charNameToInsert = char
+                        if act and act.GetFormattedCharacterName then
+                            charNameToInsert = act:GetFormattedCharacterName(char)
+                        end
+                        table.insert(nicknames[pData.nickname].characters, {
+                            character = charNameToInsert
+                        })
+                    end
+                end
+            end
+        end
+        return nicknames
+    end,
+
+    RefreshAllIntegrations = function()
+        UpdateCellNicknames()
+        if ElvUF and ElvUF.UpdateAll then
+            ElvUF:UpdateAll()
+        end
+        if Grid2 and Grid2.UpdateAll then
+            Grid2:UpdateAllUnits()
+        end
+        if GMRT and GMRT.F and GMRT.F.RefreshRaidCooldowns then
+            GMRT.F:RefreshRaidCooldowns()
+        end
     end
 }
 
@@ -192,19 +259,48 @@ local LiquidAPI = {
         if not nickname then
             return nil
         end
-        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
-        if entry and entry.characters then
-            for _, charData in ipairs(entry.characters) do
-                local charNameLower = charData.character:lower()
-                if UnitExists(charNameLower) then
-                    local guid = UnitGUID(charNameLower)
-                    local classFileName = UnitClassBase(charNameLower)
-                    return charData.character, string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr),
-                        guid
+        local characters = _GetAllRawCharactersByNickname(nickname)
+        if #characters == 0 then
+            return nil
+        end
+
+        local characterSet = {}
+        for _, charName in ipairs(characters) do
+            characterSet[charName] = true
+        end
+
+        local function checkUnit(unitId)
+            if UnitExists(unitId) and UnitIsPlayer(unitId) then
+                local name, realm = UnitFullName(unitId)
+                if name and realm and realm ~= "" then
+                    local fullName = name .. "-" .. realm
+                    if characterSet[fullName] then
+                        local classFileName = UnitClassBase(unitId)
+                        local color = RAID_CLASS_COLORS[classFileName]
+                        return fullName, color and string.format("|c%s%%s|r", color.colorStr) or "%s", UnitGUID(unitId)
+                    end
+                end
+            end
+            return nil
+        end
+
+        if IsInRaid() then
+            for i = 1, 40 do
+                local result = checkUnit("raid" .. i)
+                if result then
+                    return result
+                end
+            end
+        elseif IsInGroup() then
+            for i = 1, 4 do
+                local result = checkUnit("party" .. i)
+                if result then
+                    return result
                 end
             end
         end
-        return nil
+
+        return checkUnit("player")
     end,
 
     GetCharacters = function(_, nickname)
@@ -213,15 +309,12 @@ local LiquidAPI = {
             return
         end
 
-        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
-        if entry and entry.characters then
-            local chars = {}
-            for _, charData in ipairs(entry.characters) do
-                chars[charData.character] = true
-            end
-            return chars
+        local chars = {}
+        local characters = _GetAllRawCharactersByNickname(nickname)
+        for _, charName in ipairs(characters) do
+            chars[charName] = true
         end
-        return nil
+        return #characters > 0 and chars or nil
     end
 }
 
@@ -299,9 +392,9 @@ local function SetupElvUITags()
         return
     end
     elvInitialized = true
-    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Events['nickname:Short'] = 'UNIT_NAME_UPDATE'
-    ElvUF.Tags.Events['nickname:Medium'] = 'UNIT_NAME_UPDATE'
+    ElvUF.Tags.Events['nickname'] = 'UNIT_NAME_UPDATE PLAYER_ENTERING_WORLD'
+    ElvUF.Tags.Events['nickname:Short'] = 'UNIT_NAME_UPDATE PLAYER_ENTERING_WORLD'
+    ElvUF.Tags.Events['nickname:Medium'] = 'UNIT_NAME_UPDATE PLAYER_ENTERING_WORLD'
 
     local function makeGetter(max)
         return function(unit)
@@ -366,15 +459,22 @@ function UpdateCellNicknames()
     local integrationEnabled = IsIntegrationEnabled()
     local wanted, wantedSet = {}, {}
     if integrationEnabled then
-        local nickMap = (ACT and ACT.db and ACT.db.profile and ACT.db.profile.nicknames) or {}
-        for nick, data in pairs(nickMap) do
-            if data.characters then
-                for _, c in ipairs(data.characters) do
-                    local char = (type(c) == "table") and c.character or c
-                    if char and char ~= "" then
-                        local entry = char .. ":" .. nick
-                        wantedSet[entry] = true
-                        table.insert(wanted, entry)
+        local playersDB = GetPlayersDB()
+        for _, pData in pairs(playersDB) do
+            if pData.characters and pData.nickname and pData.nickname ~= "" then
+                for char, _ in pairs(pData.characters) do
+                    local fullEntry = char .. ":" .. pData.nickname
+                    if not wantedSet[fullEntry] then
+                        table.insert(wanted, fullEntry)
+                        wantedSet[fullEntry] = true
+                    end
+                    local namePart = char:match("^([^-]+)")
+                    if namePart and namePart ~= char then
+                        local shortEntry = namePart .. ":" .. pData.nickname
+                        if not wantedSet[shortEntry] then
+                            table.insert(wanted, shortEntry)
+                            wantedSet[shortEntry] = true
+                        end
                     end
                 end
             end
