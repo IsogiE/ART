@@ -109,8 +109,7 @@ end
 local addonAbbreviations = {
     AuraUpdater = "AU",
     BigWigs = "BW",
-    LibOpenRaid = "LOR",
-    NorthernSkyMedia = "NSM",
+    NorthernSkyRaidTools = "NSR",
     RCLootCouncil = "RCLC",
     SharedMedia_Causese = "SMC",
     TimelineReminders = "TR",
@@ -119,7 +118,7 @@ local addonAbbreviations = {
 
 local AddonCheckerModule = {}
 AddonCheckerModule.title = "Addon Checker"
-AddonCheckerModule.addonsToCheck = {"AuraUpdater", "BigWigs", "LibOpenRaid", "NorthernSkyMedia", "RCLootCouncil",
+AddonCheckerModule.addonsToCheck = {"AuraUpdater", "BigWigs", "NorthernSkyRaidTools", "RCLootCouncil",
                                     "SharedMedia_Causese", "TimelineReminders", "WeakAuras"}
 AddonCheckerModule.responses = {}
 AddonCheckerModule.horizontalOffset = 0
