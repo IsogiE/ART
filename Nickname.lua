@@ -2,7 +2,7 @@ local NicknameModule = {}
 NicknameModule.title = "Nicknames"
 NicknameModule.lastUpdateMessageTime = 0
 NicknameModule.defaultNicknames = {}
-
+NicknameModule.hasReceivedWAData = false
 NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
 
@@ -92,26 +92,32 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
     newDefaults = newDefaults or {}
     EnsureDB()
     local hasChanged = false
+    local playersDB = ACT.db.profile.players
+    local keysToDelete = {}
 
-    for oldDefaultBtag, _ in pairs(self.defaultNicknames) do
-        if not newDefaults[oldDefaultBtag] then
-            if ACT.db.profile.players[oldDefaultBtag] then
-                ACT.db.profile.players[oldDefaultBtag] = nil
-                hasChanged = true
-            end
+    for btag, _ in pairs(playersDB) do
+        if not newDefaults[btag] then
+            table.insert(keysToDelete, btag)
         end
     end
 
+    if #keysToDelete > 0 then
+        for _, btag in ipairs(keysToDelete) do
+            playersDB[btag] = nil
+        end
+        hasChanged = true
+    end
+
     for btag, defaultNick in pairs(newDefaults) do
-        if not ACT.db.profile.players[btag] then
-            ACT.db.profile.players[btag] = {
+        if not playersDB[btag] then
+            playersDB[btag] = {
                 nickname = defaultNick,
                 characters = {}
             }
             hasChanged = true
         else
-            if ACT.db.profile.players[btag].nickname ~= defaultNick then
-                ACT.db.profile.players[btag].nickname = defaultNick
+            if playersDB[btag].nickname ~= defaultNick then
+                playersDB[btag].nickname = defaultNick
                 hasChanged = true
             end
         end
@@ -199,11 +205,15 @@ local function ReceiveWAComm(prefix, message, channel, sender)
             for entry in string.gmatch(fullMessage, "([^;]+)") do
                 local btag, nick = strsplit(":", entry, 2)
                 if btag and nick and btag ~= "" and nick ~= "" then
-                    defaults[strtrim(btag)] = strtrim(nick)
+                    local cleanBtag = strtrim(btag)
+                    if cleanBtag:match("^[^#]+#%d+$") then
+                        defaults[cleanBtag] = strtrim(nick)
+                    end
                 end
             end
             if next(defaults) then
                 NicknameModule:SetDefaultNicknames(defaults)
+                NicknameModule.hasReceivedWAData = true
             end
         end
         NicknameModule.waMessageAccumulator[sender] = nil
@@ -265,7 +275,7 @@ function NicknameModule:EventHandler(event, sender, channel, data)
             end
             if #parts >= 2 then
                 local btag, nickname, charStr = parts[1], parts[2], parts[3]
-                if type(btag) == "string" and string.find(btag, "#") and type(nickname) == "string" then
+                if type(btag) == "string" and btag:match("^[^#]+#%d+$") and type(nickname) == "string" then
                     playersData[btag] = {
                         nickname = nickname,
                         characters = {}
@@ -310,35 +320,40 @@ function NicknameModule:MergeData(incomingPlayers)
     local hasChanged = false
     EnsureDB()
     local myBattleTag = GetPlayerBattleTag()
+
     for btag, incomingData in pairs(incomingPlayers) do
-        if not ACT.db.profile.players[btag] then
-            ACT.db.profile.players[btag] = {
-                nickname = incomingData.nickname or "",
-                characters = {}
-            }
-            hasChanged = true
-        end
+        local shouldProcess = not NicknameModule.hasReceivedWAData or self.defaultNicknames[btag]
 
-        local localData = ACT.db.profile.players[btag]
-        local defaultNick = self.defaultNicknames[btag]
-
-        if defaultNick then
-            if localData.nickname ~= defaultNick then
-                localData.nickname = defaultNick
+        if shouldProcess then
+            if not ACT.db.profile.players[btag] then
+                ACT.db.profile.players[btag] = {
+                    nickname = incomingData.nickname or "",
+                    characters = {}
+                }
                 hasChanged = true
             end
-        elseif incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
-            if btag ~= myBattleTag then
-                localData.nickname = incomingData.nickname
-                hasChanged = true
-            end
-        end
 
-        if incomingData.characters then
-            for charFullName, _ in pairs(incomingData.characters) do
-                if not localData.characters[charFullName] then
-                    localData.characters[charFullName] = true
+            local localData = ACT.db.profile.players[btag]
+            local defaultNick = self.defaultNicknames[btag]
+
+            if defaultNick then
+                if localData.nickname ~= defaultNick then
+                    localData.nickname = defaultNick
                     hasChanged = true
+                end
+            elseif incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
+                if btag ~= myBattleTag then
+                    localData.nickname = incomingData.nickname
+                    hasChanged = true
+                end
+            end
+
+            if incomingData.characters then
+                for charFullName, _ in pairs(incomingData.characters) do
+                    if not localData.characters[charFullName] then
+                        localData.characters[charFullName] = true
+                        hasChanged = true
+                    end
                 end
             end
         end
@@ -359,8 +374,37 @@ function NicknameModule:MergeData(incomingPlayers)
     end
 end
 
+-- Temp function for now since I didn't have data validation so there's some corrupted data on PTR clients due to server crash
+function NicknameModule:CleanBrick()
+    EnsureDB()
+    local players = ACT.db.profile.players
+    if not players then
+        return
+    end
+
+    local cleanedCount = 0
+    local corruptedKeys = {}
+
+    for btag, _ in pairs(players) do
+        if type(btag) ~= "string" or not btag:match("^[^#]+#%d+$") then
+            table.insert(corruptedKeys, btag)
+        end
+    end
+
+    if #corruptedKeys > 0 then
+        for _, key in ipairs(corruptedKeys) do
+            players[key] = nil
+        end
+
+        if self.configPanel and self.configPanel:IsShown() then
+            self:RefreshContent()
+        end
+    end
+end
+
 function NicknameModule:OnPlayerLogin()
     C_Timer.After(2, function()
+        self:CleanBrick()
         GetMyRealm()
         local myBattleTag = GetPlayerBattleTag()
         if not myBattleTag then
