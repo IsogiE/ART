@@ -6,6 +6,8 @@ NicknameModule.hasReceivedWAData = false
 NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
 
+NicknameModule.rowPool = {}
+
 local AceComm = LibStub("AceComm-3.0")
 local LibSerialize = LibStub("LibSerialize")
 local LibDeflate = LibStub("LibDeflate")
@@ -300,6 +302,9 @@ function NicknameModule:EventHandler(event, sender, channel, data)
         if tonumber(versionStr) and payloadStr then
             incomingVersion = tonumber(versionStr)
             payload = payloadStr
+        else
+            -- Fallback for older versions that don't send version
+            payload = data
         end
 
         local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(payload))
@@ -344,7 +349,10 @@ function NicknameModule:EventHandler(event, sender, channel, data)
             self:RefreshContent()
         end
         if not self.killswitchPopup then
-            self.killswitchPopup = UI:CreateTextPopup("Killswitch Activated", sender ..
+            if not _G.UI then
+                return
+            end
+            self.killswitchPopup = _G.UI:CreateTextPopup("Killswitch Activated", sender ..
                 " has triggered a killswitch! All nicknames have been wiped.", "Reload Now", "Later", function()
                 ReloadUI()
             end, function()
@@ -367,49 +375,52 @@ function NicknameModule:MergeData(incomingPlayers, incomingVersion)
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            if incomingVersion >= localVersion and
-                (not NicknameModule.hasReceivedWAData or NicknameModule.defaultNicknames[btag]) then
-                ACT.db.profile.players[btag] = {
-                    nickname = incomingData.nickname or "",
-                    characters = {}
-                }
+            -- If we don't have this player at all, add them if the data is from a reliable source.
+            if incomingVersion >= localVersion and (not self.hasReceivedWAData or self.defaultNicknames[btag]) then
+                ACT.db.profile.players[btag] = incomingData
                 hasChanged = true
             end
         else
+            -- We already have this player, merge data carefully.
             local defaultNick = self.defaultNicknames[btag]
+            local hasLocalChange = false
 
             if defaultNick then
+                -- Default nicknames from WAs always take precedence.
                 if localData.nickname ~= defaultNick then
                     localData.nickname = defaultNick
-                    hasChanged = true
+                    hasLocalChange = true
                 end
-            elseif incomingVersion >= localVersion then
-                if btag ~= myBattleTag and incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~=
-                    incomingData.nickname then
-                    localData.nickname = incomingData.nickname
-                    hasChanged = true
-                end
+            elseif incomingVersion >= localVersion and btag ~= myBattleTag and incomingData.nickname and
+                incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
+                -- Update nickname if incoming data is newer and it's not our own btag.
+                localData.nickname = incomingData.nickname
+                hasLocalChange = true
             end
 
+            -- Merge character lists.
             if incomingData.characters then
+                if not localData.characters then
+                    localData.characters = {}
+                end
                 for charFullName, _ in pairs(incomingData.characters) do
                     if not localData.characters[charFullName] then
                         localData.characters[charFullName] = true
-                        hasChanged = true
+                        hasLocalChange = true
                     end
                 end
+            end
+
+            if hasLocalChange then
+                hasChanged = true
             end
         end
     end
 
     if hasChanged then
+        -- Only update our version if the incoming version was higher.
         if incomingVersion > localVersion then
             ACT.db.profile.dataVersion = incomingVersion
-        end
-        local currentTime = GetTime()
-        if currentTime - (self.lastUpdateMessageTime or 0) > 10 then
-            print("|cff00aaff[ACT]|r Nicknames updated. Consider reloading in the future if needed.")
-            self.lastUpdateMessageTime = currentTime
         end
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
@@ -418,6 +429,18 @@ function NicknameModule:MergeData(incomingPlayers, incomingVersion)
             self:RefreshContent()
         end
     end
+end
+
+function NicknameModule:CompareCharacterTables(t1, t2)
+    if #t1 ~= #t2 then
+        return false
+    end
+    for k, v in pairs(t1) do
+        if not t2[k] then
+            return false
+        end
+    end
+    return true
 end
 
 function NicknameModule:CleanBrick()
@@ -473,7 +496,10 @@ function NicknameModule:OnPlayerLogin()
                     [myFullName] = true
                 }
             }
-        elseif not playerRecord.characters[myFullName] then
+        elseif not playerRecord.characters or not playerRecord.characters[myFullName] then
+            if not playerRecord.characters then
+                playerRecord.characters = {}
+            end
             playerRecord.characters[myFullName] = true
         end
 
@@ -516,7 +542,51 @@ function NicknameModule:GetConfigSize()
     return 800, 600
 end
 
+function NicknameModule:OnSaveNickname()
+    local myBattleTag = GetPlayerBattleTag()
+    if not myBattleTag then
+        return
+    end
+
+    if self.defaultNicknames[myBattleTag] then
+        print("|cffFF0000[ACT]|r Your nickname is managed by the default list and cannot be changed here.")
+        self.myNickBoxEdit:SetText(self.defaultNicknames[myBattleTag])
+        return
+    end
+
+    local newNick = self.myNickBoxEdit:GetText()
+    EnsureDB()
+    if not ACT.db.profile.players[myBattleTag] then
+        ACT.db.profile.players[myBattleTag] = {
+            nickname = newNick,
+            characters = {}
+        }
+    else
+        ACT.db.profile.players[myBattleTag].nickname = newNick
+    end
+    ACT.db.profile.dataVersion = (ACT.db.profile.dataVersion or 0) + 1
+    self:BroadcastMyDatabaseToAll()
+    if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+        NicknameAPI.RefreshAllIntegrations()
+    end
+    self:RefreshContent()
+end
+
+function NicknameModule:OnIntegrationCheckboxClick(checkbox)
+    ACT.db.profile.useNicknameIntegration = checkbox:GetChecked()
+    self:PromptReloadNormal()
+end
+
+function NicknameModule:OnStreamerCheckboxClick(checkbox)
+    ACT.db.profile.streamerMode = checkbox:GetChecked()
+    self:RefreshContent()
+end
+
 function NicknameModule:CreateConfigPanel(parent)
+    if not _G.UI then
+        return
+    end
+
     if self.configPanel then
         self.configPanel:SetParent(parent)
         self.configPanel:ClearAllPoints()
@@ -539,73 +609,40 @@ function NicknameModule:CreateConfigPanel(parent)
     myNickLabel:SetPoint("TOPLEFT", titleLabel, "BOTTOMLEFT", 0, -20)
     myNickLabel:SetText("My Nickname")
 
-    local myNickBoxFrame, myNickBoxEdit = UI:CreateMultilineEditBox(configPanel, 250, 30, "")
+    local myNickBoxFrame, myNickBoxEdit = _G.UI:CreateMultilineEditBox(configPanel, 250, 30, "")
     myNickBoxFrame:SetPoint("TOPLEFT", myNickLabel, "BOTTOMLEFT", 0, -5)
     self.myNickBoxEdit = myNickBoxEdit
 
-    local saveNickButton = UI:CreateButton(configPanel, "Save", 100, 30, function()
-        local myBattleTag = GetPlayerBattleTag()
-        if not myBattleTag then
-            return
-        end
-
-        if self.defaultNicknames[myBattleTag] then
-            print("|cffFF0000[ACT]|r Your nickname is managed by the default list and cannot be changed here.")
-            self.myNickBoxEdit:SetText(self.defaultNicknames[myBattleTag])
-            return
-        end
-
-        local newNick = self.myNickBoxEdit:GetText()
-        EnsureDB()
-        if not ACT.db.profile.players[myBattleTag] then
-            ACT.db.profile.players[myBattleTag] = {
-                nickname = newNick,
-                characters = {}
-            }
-        else
-            ACT.db.profile.players[myBattleTag].nickname = newNick
-        end
-        self:BroadcastMyDatabaseToAll()
-        if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-            NicknameAPI.RefreshAllIntegrations()
-        end
-        self:RefreshContent()
+    local saveNickButton = _G.UI:CreateButton(configPanel, "Save", 100, 30, function()
+        self:OnSaveNickname()
     end)
     saveNickButton:SetPoint("LEFT", myNickBoxFrame, "RIGHT", 10, 0)
 
     local integrationCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     integrationCheckbox:SetPoint("TOPLEFT", myNickBoxFrame, "BOTTOMLEFT", 0, -15)
-    integrationCheckbox:SetSize(22, 22)
-    integrationCheckbox:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
-    integrationCheckbox:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
-    integrationCheckbox:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight", "ADD")
-    integrationCheckbox:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
-    integrationCheckbox.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-    integrationCheckbox.Text:SetText("Show Nicknames on Raid Frames")
-    integrationCheckbox.Text:ClearAllPoints()
-    integrationCheckbox.Text:SetPoint("LEFT", integrationCheckbox, "RIGHT", 5, 0)
-    integrationCheckbox:SetChecked(ACT.db.profile.useNicknameIntegration)
     integrationCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.useNicknameIntegration = self:GetChecked()
-        NicknameModule:PromptReloadNormal()
+        NicknameModule:OnIntegrationCheckboxClick(self)
     end)
+    integrationCheckbox.Text:SetText("Show Nicknames on Raid Frames")
 
     local streamerCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     streamerCheckbox:SetPoint("TOP", integrationCheckbox, "BOTTOM", 0, -5)
-    streamerCheckbox:SetSize(22, 22)
-    streamerCheckbox:SetNormalTexture("Interface\\Buttons\\UI-CheckBox-Up")
-    streamerCheckbox:SetPushedTexture("Interface\\Buttons\\UI-CheckBox-Down")
-    streamerCheckbox:SetHighlightTexture("Interface\\Buttons\\UI-CheckBox-Highlight", "ADD")
-    streamerCheckbox:SetCheckedTexture("Interface\\Buttons\\UI-CheckBox-Check")
-    streamerCheckbox.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    streamerCheckbox:SetScript("OnClick", function(self)
+        NicknameModule:OnStreamerCheckboxClick(self)
+    end)
     streamerCheckbox.Text:SetText("Streamer Mode")
+
+    integrationCheckbox:SetSize(22, 22)
+    integrationCheckbox.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+    integrationCheckbox.Text:ClearAllPoints()
+    integrationCheckbox.Text:SetPoint("LEFT", integrationCheckbox, "RIGHT", 5, 0)
+    integrationCheckbox:SetChecked(ACT.db.profile.useNicknameIntegration)
+
+    streamerCheckbox:SetSize(22, 22)
+    streamerCheckbox.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
     streamerCheckbox.Text:ClearAllPoints()
     streamerCheckbox.Text:SetPoint("LEFT", streamerCheckbox, "RIGHT", 5, 0)
     streamerCheckbox:SetChecked(ACT.db.profile.streamerMode)
-    streamerCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.streamerMode = self:GetChecked()
-        NicknameModule:RefreshContent()
-    end)
 
     local headerFrame = CreateFrame("Frame", nil, configPanel)
     headerFrame:SetSize(520, 20)
@@ -649,12 +686,12 @@ function NicknameModule:CreateConfigPanel(parent)
         local title = debugFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         title:SetPoint("TOP", 0, -10)
         title:SetText("DEBUG TOOLS")
-        local nukeLocalBtn = UI:CreateButton(debugFrame, "Nuke Local", 135, 30, function()
+        local nukeLocalBtn = _G.UI:CreateButton(debugFrame, "Nuke Local", 135, 30, function()
             SlashCmdList["WIPENICKNAMES"]("")
         end)
 
         nukeLocalBtn:SetPoint("TOP", title, "BOTTOM", 0, -5)
-        local nukeAllBtn = UI:CreateButton(debugFrame, "Nuke ALL", 135, 30, function()
+        local nukeAllBtn = _G.UI:CreateButton(debugFrame, "Nuke ALL", 135, 30, function()
             SlashCmdList["ACTKILLSWITCH"]("")
         end)
 
@@ -666,6 +703,10 @@ function NicknameModule:CreateConfigPanel(parent)
 end
 
 function NicknameModule:PromptReloadNormal()
+    local UI = _G.UI
+    if not UI then
+        return
+    end
     if not self.reloadPopupNormal then
         self.reloadPopupNormal = UI:CreateTextPopup("Reload UI", "Please reload your UI to apply the changes.",
             "Reload Now", "Later", function()
@@ -683,11 +724,17 @@ function NicknameModule:RefreshContent()
     if not self.scrollChild then
         return
     end
-    EnsureDB()
-    for _, child in ipairs({self.scrollChild:GetChildren()}) do
-        child:Hide();
-        child:SetParent(nil)
+
+    local UI = _G.UI
+    if not UI then
+        return
     end
+
+    for _, child in ipairs({self.scrollChild:GetChildren()}) do
+        child:Hide()
+        table.insert(self.rowPool, child)
+    end
+    self.scrollChild:SetHeight(0)
 
     local myBattleTag = GetPlayerBattleTag()
     if myBattleTag and ACT.db.profile.players[myBattleTag] and self.myNickBoxEdit then
@@ -704,84 +751,82 @@ function NicknameModule:RefreshContent()
     end
 
     local sortedPlayers = {}
-    for btag, data in pairs(ACT.db.profile.players) do
-        if data then
-            table.insert(sortedPlayers, {
-                btag = btag,
-                nick = data.nickname or btag
-            })
+    if ACT.db.profile.players then
+        for btag, data in pairs(ACT.db.profile.players) do
+            if data then
+                table.insert(sortedPlayers, {
+                    btag = btag,
+                    nick = data.nickname or btag
+                })
+            end
         end
+        table.sort(sortedPlayers, function(a, b)
+            return a.nick:lower() < b.nick:lower()
+        end)
     end
-    table.sort(sortedPlayers, function(a, b)
-        return a.nick:lower() < b.nick:lower()
-    end)
 
     local yOffset = -10
     local isStreamerMode = ACT.db.profile.streamerMode
     for _, playerData in ipairs(sortedPlayers) do
         local btag = playerData.btag
         local data = ACT.db.profile.players[btag]
-        local row = CreateFrame("Frame", nil, self.scrollChild, "BackdropTemplate")
-        row:SetSize(470, 30)
+
+        local row = table.remove(self.rowPool)
+        if not row then
+            row = CreateFrame("Frame", nil, self.scrollChild, "BackdropTemplate")
+            row:SetSize(470, 30)
+            row:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1
+            })
+            row:SetBackdropColor(0.15, 0.15, 0.15, 1)
+            row:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+
+            row.deletePlayerBtn = UI:CreateButton(row, "X", 20, 20)
+
+            row.nickLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            row.nickLabel:SetPoint("LEFT", 5, 8)
+            row.nickLabel:SetSize(200, 15)
+            row.nickLabel:SetJustifyH("LEFT")
+
+            row.btagLabel = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            row.btagLabel:SetPoint("TOPLEFT", row.nickLabel, "BOTTOMLEFT", 0, -2)
+            row.btagLabel:SetSize(200, 10)
+            row.btagLabel:SetJustifyH("LEFT")
+
+            row.dropdown = UI:CreateDropdown(row, 200, 30)
+            row.dropdown:SetPoint("LEFT", row.nickLabel, "RIGHT", -50, -8)
+
+            row.deleteCharBtn = UI:CreateButton(row, "Delete Character", 100, 20)
+            row.deleteCharBtn:SetPoint("LEFT", row.dropdown, "RIGHT", 5, 0)
+        end
+
+        row:SetParent(self.scrollChild)
         row:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", 25, yOffset)
-        row:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8x8",
-            edgeFile = "Interface\\Buttons\\WHITE8x8",
-            edgeSize = 1
-        })
-        row:SetBackdropColor(0.15, 0.15, 0.15, 1)
-        row:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+        row:Show()
 
-        local deletePlayerBtn = UI:CreateButton(self.scrollChild, "X", 20, 20, function()
-            if NicknameModule.deleteConfirmationPopup and NicknameModule.deleteConfirmationPopup:IsShown() then
-                return
-            end
-            local displayName = isStreamerMode and (data.nickname or "this player") or btag
-            local popup = UI:CreateTextPopup("Confirm Delete", "Delete all data for " .. displayName .. "?", "Delete",
-                "Cancel", function()
-                    ACT.db.profile.players[btag] = nil
-                    if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-                        NicknameAPI.RefreshAllIntegrations()
-                    end
-                    self:RefreshContent()
-                    NicknameModule.deleteConfirmationPopup = nil
-                end, function()
-                    NicknameModule.deleteConfirmationPopup = nil
-                end)
-            popup:SetScript("OnHide", function()
-                NicknameModule.deleteConfirmationPopup = nil
-            end)
-            NicknameModule.deleteConfirmationPopup = popup
-            popup:Show()
+        row.deletePlayerBtn:ClearAllPoints()
+        row.deletePlayerBtn:SetPoint("LEFT", row, "LEFT", -25, 0)
+
+        row.deletePlayerBtn:SetScript("OnClick", function()
+            self:HandleDeletePlayer(btag, isStreamerMode, data)
         end)
-        deletePlayerBtn:SetPoint("RIGHT", row, "LEFT", -5, 0)
-
-        local nickLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        nickLabel:SetPoint("LEFT", 5, 8)
-        nickLabel:SetSize(200, 15)
-        nickLabel:SetJustifyH("LEFT")
-
-        local btagLabel = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        btagLabel:SetPoint("TOPLEFT", nickLabel, "BOTTOMLEFT", 0, -2)
-        btagLabel:SetSize(200, 10)
-        btagLabel:SetJustifyH("LEFT")
 
         if self.defaultNicknames[btag] then
-            nickLabel:SetTextColor(0.8, 0.6, 0.1)
+            row.nickLabel:SetTextColor(0.8, 0.6, 0.1)
         else
-            nickLabel:SetTextColor(1, 1, 1)
+            row.nickLabel:SetTextColor(1, 1, 1)
         end
 
         if isStreamerMode then
-            nickLabel:SetText(data.nickname or "Please Subscribe!")
-            btagLabel:SetText("Please Subscribe!")
+            row.nickLabel:SetText(data.nickname or "Please Subscribe!")
+            row.btagLabel:SetText("Please Subscribe!")
         else
-            nickLabel:SetText(data.nickname or btag)
-            btagLabel:SetText(btag)
+            row.nickLabel:SetText(data.nickname or btag)
+            row.btagLabel:SetText(btag)
         end
 
-        local dropdown = UI:CreateDropdown(row, 200, 30)
-        dropdown:SetPoint("LEFT", nickLabel, "RIGHT", -50, -8)
         local options = {}
         if data.characters then
             for fullName, _ in pairs(data.characters) do
@@ -791,23 +836,55 @@ function NicknameModule:RefreshContent()
                 })
             end
         end
-        UI:SetDropdownOptions(dropdown, options)
-        dropdown.button.text:SetText("Select Character")
-        local deleteCharBtn = UI:CreateButton(row, "Delete Character", 100, 20, function()
-            if dropdown.selectedValue and data.characters[dropdown.selectedValue] then
-                data.characters[dropdown.selectedValue] = nil
-                if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-                    NicknameAPI.RefreshAllIntegrations()
-                end
-                self:RefreshContent()
-                self:BroadcastMyDatabaseToAll()
-            end
+        UI:SetDropdownOptions(row.dropdown, options)
+        row.dropdown.button.text:SetText("Select Character")
+
+        row.deleteCharBtn:SetScript("OnClick", function()
+            self:HandleDeleteCharacter(row.dropdown, data)
         end)
-        deleteCharBtn:SetPoint("LEFT", dropdown, "RIGHT", 5, 0)
 
         yOffset = yOffset - 40
     end
     self.scrollChild:SetHeight(math.abs(yOffset) + 10)
+end
+
+function NicknameModule:HandleDeletePlayer(btag, isStreamerMode, data)
+    local UI = _G.UI
+    if not UI then
+        return
+    end
+    if self.deleteConfirmationPopup and self.deleteConfirmationPopup:IsShown() then
+        return
+    end
+
+    local displayName = isStreamerMode and (data.nickname or "this player") or btag
+    local popup = UI:CreateTextPopup("Confirm Delete", "Delete all data for " .. displayName .. "?", "Delete", "Cancel",
+        function()
+            ACT.db.profile.players[btag] = nil
+            if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+                NicknameAPI.RefreshAllIntegrations()
+            end
+            self:RefreshContent()
+            self.deleteConfirmationPopup = nil
+        end, function()
+            self.deleteConfirmationPopup = nil
+        end)
+    popup:SetScript("OnHide", function()
+        self.deleteConfirmationPopup = nil
+    end)
+    self.deleteConfirmationPopup = popup
+    popup:Show()
+end
+
+function NicknameModule:HandleDeleteCharacter(dropdown, data)
+    if dropdown.selectedValue and data.characters and data.characters[dropdown.selectedValue] then
+        data.characters[dropdown.selectedValue] = nil
+        if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+            NicknameAPI.RefreshAllIntegrations()
+        end
+        self:RefreshContent()
+        self:BroadcastMyDatabaseToAll()
+    end
 end
 
 function IsPrivilegedUser()
@@ -829,12 +906,17 @@ SlashCmdList["WIPENICKNAMES"] = function()
     if not IsPrivilegedUser() then
         return
     end
+    local UI = _G.UI
+    if not UI then
+        return
+    end
     if not NicknameModule.wipePopup then
         NicknameModule.wipePopup = UI:CreateTextPopup("Confirm Wipe",
             "Are you sure you want to wipe all your local nicknames? This cannot be undone.", "Yes, Wipe", "Cancel",
             function()
                 EnsureDB()
                 ACT.db.profile.players = {}
+                ACT.db.profile.dataVersion = 0
                 if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
                     NicknameAPI.RefreshAllIntegrations()
                 end
@@ -850,6 +932,10 @@ end
 SLASH_ACTKILLSWITCH1 = "/actkillswitch"
 SlashCmdList["ACTKILLSWITCH"] = function()
     if not IsPrivilegedUser() then
+        return
+    end
+    local UI = _G.UI
+    if not UI then
         return
     end
     if not NicknameModule.killConfirmPopup then
