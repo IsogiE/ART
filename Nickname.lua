@@ -5,6 +5,7 @@ NicknameModule.defaultNicknames = {}
 NicknameModule.hasReceivedWAData = false
 NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
+NicknameModule.waMessageVersion = {}
 
 local AceComm = LibStub("AceComm-3.0")
 local LibSerialize = LibStub("LibSerialize")
@@ -32,6 +33,9 @@ local function EnsureDB()
     end
     if ACT.db.profile.useNicknameIntegration == nil then
         ACT.db.profile.useNicknameIntegration = true
+    end
+    if ACT.db.profile.dataVersion == nil then
+        ACT.db.profile.dataVersion = 0
     end
 end
 EnsureDB()
@@ -88,7 +92,7 @@ local function GetPlayerBattleTag()
     return nil
 end
 
-function NicknameModule:SetDefaultNicknames(newDefaults)
+function NicknameModule:SetDefaultNicknames(newDefaults, fromVersion)
     newDefaults = newDefaults or {}
     EnsureDB()
     local hasChanged = false
@@ -126,6 +130,10 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
     self.defaultNicknames = newDefaults
 
     if hasChanged then
+        if fromVersion and fromVersion > (ACT.db.profile.dataVersion or 0) then
+            ACT.db.profile.dataVersion = fromVersion
+        end
+
         self:BroadcastMyDatabaseToAll()
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
@@ -167,7 +175,12 @@ function NicknameModule:Broadcast(event, channel, data)
         if not serializedData then
             return
         end
-        message = event .. DELIMITER .. serializedData
+        if event == "NICK_UPDATE" then
+            local currentVersion = ACT.db.profile.dataVersion or 0
+            message = event .. DELIMITER .. tostring(currentVersion) .. DELIMITER .. serializedData
+        else
+            message = event .. DELIMITER .. serializedData
+        end
     else
         message = event
     end
@@ -194,13 +207,35 @@ local function ReceiveWAComm(prefix, message, channel, sender)
     NicknameModule.waMessageTimer[sender] = C_Timer.After(5, function()
         NicknameModule.waMessageAccumulator[sender] = nil
         NicknameModule.waMessageTimer[sender] = nil
+        NicknameModule.waMessageVersion[sender] = nil
     end)
 
-    if message == "START" then
-        NicknameModule.waMessageAccumulator[sender] = ""
+    if string.sub(message, 1, 6) == "START:" then
+        local _, versionStr = strsplit(":", message)
+        local incomingVersion = tonumber(versionStr)
+        local localVersion = ACT.db.profile.dataVersion or 0
+
+        if incomingVersion and incomingVersion > localVersion then
+            NicknameModule.waMessageAccumulator[sender] = ""
+            NicknameModule.waMessageVersion[sender] = incomingVersion
+        else
+            NicknameModule.waMessageAccumulator[sender] = nil
+            NicknameModule.waMessageVersion[sender] = nil
+        end
+    elseif message == "START" then
+        local localVersion = ACT.db.profile.dataVersion or 0
+        if localVersion > 0 then
+            NicknameModule.waMessageAccumulator[sender] = nil
+            NicknameModule.waMessageVersion[sender] = nil
+        else
+            NicknameModule.waMessageAccumulator[sender] = ""
+            NicknameModule.waMessageVersion[sender] = 0
+        end
     elseif message == "END" then
         local fullMessage = NicknameModule.waMessageAccumulator[sender]
-        if fullMessage and fullMessage ~= "" then
+        local incomingVersion = NicknameModule.waMessageVersion[sender]
+
+        if fullMessage and fullMessage ~= "" and incomingVersion then
             local defaults = {}
             for entry in string.gmatch(fullMessage, "([^;]+)") do
                 local btag, nick = strsplit(":", entry, 2)
@@ -212,11 +247,12 @@ local function ReceiveWAComm(prefix, message, channel, sender)
                 end
             end
             if next(defaults) then
-                NicknameModule:SetDefaultNicknames(defaults)
+                NicknameModule:SetDefaultNicknames(defaults, incomingVersion)
                 NicknameModule.hasReceivedWAData = true
             end
         end
         NicknameModule.waMessageAccumulator[sender] = nil
+        NicknameModule.waMessageVersion[sender] = nil
         if NicknameModule.waMessageTimer[sender] then
             C_Timer.Cancel(NicknameModule.waMessageTimer[sender])
             NicknameModule.waMessageTimer[sender] = nil
@@ -263,7 +299,20 @@ function NicknameModule:EventHandler(event, sender, channel, data)
         if type(data) ~= "string" then
             return
         end
-        local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(data))
+
+        local versionStr, payload = strsplit(DELIMITER, data, 2)
+        local incomingVersion = tonumber(versionStr)
+
+        if not incomingVersion then
+            payload = data
+            incomingVersion = 0
+        end
+
+        if not payload then
+            return
+        end
+
+        local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(payload))
         if not decompressed then
             return
         end
@@ -289,13 +338,14 @@ function NicknameModule:EventHandler(event, sender, channel, data)
             end
         end
         if next(playersData) then
-            self:MergeData(playersData)
+            self:MergeData(playersData, incomingVersion)
         end
     elseif event == "NICK_REQUEST" then
         self:BroadcastMyDatabase(channel)
     elseif event == "NICK_KILLSWITCH" then
         EnsureDB()
         ACT.db.profile.players = {}
+        ACT.db.profile.dataVersion = 0
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             NicknameAPI.RefreshAllIntegrations()
         end
@@ -316,35 +366,36 @@ function NicknameModule:EventHandler(event, sender, channel, data)
     end
 end
 
-function NicknameModule:MergeData(incomingPlayers)
+function NicknameModule:MergeData(incomingPlayers, incomingVersion)
     local hasChanged = false
     EnsureDB()
     local myBattleTag = GetPlayerBattleTag()
+    local localVersion = ACT.db.profile.dataVersion or 0
 
     for btag, incomingData in pairs(incomingPlayers) do
-        local shouldProcess = not NicknameModule.hasReceivedWAData or self.defaultNicknames[btag]
+        local localData = ACT.db.profile.players[btag]
+        local defaultNick = self.defaultNicknames[btag]
+        local playerHasChanged = false
 
-        if shouldProcess then
-            if not ACT.db.profile.players[btag] then
-                ACT.db.profile.players[btag] = {
-                    nickname = incomingData.nickname or "",
-                    characters = {}
-                }
-                hasChanged = true
-            end
-
-            local localData = ACT.db.profile.players[btag]
-            local defaultNick = self.defaultNicknames[btag]
-
+        if not localData then
+            ACT.db.profile.players[btag] = {
+                nickname = incomingData.nickname or "",
+                characters = incomingData.characters or {}
+            }
+            playerHasChanged = true
+        else
             if defaultNick then
                 if localData.nickname ~= defaultNick then
                     localData.nickname = defaultNick
-                    hasChanged = true
+                    playerHasChanged = true
                 end
-            elseif incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
+            elseif incomingVersion >= localVersion then
                 if btag ~= myBattleTag then
-                    localData.nickname = incomingData.nickname
-                    hasChanged = true
+                    if incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~=
+                        incomingData.nickname then
+                        localData.nickname = incomingData.nickname
+                        playerHasChanged = true
+                    end
                 end
             end
 
@@ -352,14 +403,22 @@ function NicknameModule:MergeData(incomingPlayers)
                 for charFullName, _ in pairs(incomingData.characters) do
                     if not localData.characters[charFullName] then
                         localData.characters[charFullName] = true
-                        hasChanged = true
+                        playerHasChanged = true
                     end
                 end
             end
         end
+
+        if playerHasChanged then
+            hasChanged = true
+        end
     end
 
     if hasChanged then
+        if incomingVersion > localVersion then
+            ACT.db.profile.dataVersion = incomingVersion
+        end
+
         local currentTime = GetTime()
         if currentTime - (self.lastUpdateMessageTime or 0) > 10 then
             print("|cff00aaff[ACT]|r Nicknames updated. Consider reloading in the future if needed.")
@@ -374,7 +433,6 @@ function NicknameModule:MergeData(incomingPlayers)
     end
 end
 
--- Temp function for now since I didn't have data validation so there's some corrupted data on PTR clients due to server crash
 function NicknameModule:CleanBrick()
     EnsureDB()
     local players = ACT.db.profile.players
@@ -791,6 +849,7 @@ SlashCmdList["WIPENICKNAMES"] = function()
             function()
                 EnsureDB()
                 ACT.db.profile.players = {}
+                ACT.db.profile.dataVersion = 0
                 if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
                     NicknameAPI.RefreshAllIntegrations()
                 end
