@@ -303,7 +303,6 @@ function NicknameModule:EventHandler(event, sender, channel, data)
             incomingVersion = tonumber(versionStr)
             payload = payloadStr
         else
-            -- Fallback for older versions that don't send version
             payload = data
         end
 
@@ -375,30 +374,25 @@ function NicknameModule:MergeData(incomingPlayers, incomingVersion)
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            -- If we don't have this player at all, add them if the data is from a reliable source.
             if incomingVersion >= localVersion and (not self.hasReceivedWAData or self.defaultNicknames[btag]) then
                 ACT.db.profile.players[btag] = incomingData
                 hasChanged = true
             end
         else
-            -- We already have this player, merge data carefully.
             local defaultNick = self.defaultNicknames[btag]
             local hasLocalChange = false
 
             if defaultNick then
-                -- Default nicknames from WAs always take precedence.
                 if localData.nickname ~= defaultNick then
                     localData.nickname = defaultNick
                     hasLocalChange = true
                 end
             elseif incomingVersion >= localVersion and btag ~= myBattleTag and incomingData.nickname and
                 incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
-                -- Update nickname if incoming data is newer and it's not our own btag.
                 localData.nickname = incomingData.nickname
                 hasLocalChange = true
             end
 
-            -- Merge character lists.
             if incomingData.characters then
                 if not localData.characters then
                     localData.characters = {}
@@ -418,7 +412,6 @@ function NicknameModule:MergeData(incomingPlayers, incomingVersion)
     end
 
     if hasChanged then
-        -- Only update our version if the incoming version was higher.
         if incomingVersion > localVersion then
             ACT.db.profile.dataVersion = incomingVersion
         end
