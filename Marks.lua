@@ -119,13 +119,46 @@ function RaidMarksModule:OnUpdate(elapsed)
     self.tmr = 0
 
     local function resolveUnit(nameText)
-        if UnitName(nameText) then
+        if UnitExists(nameText) then
             return nameText
         end
-        local resolved, _, _ = LiquidAPI:GetCharacterInGroup(nameText)
-        if resolved and UnitName(resolved) then
-            return resolved
+
+        local characters = LiquidAPI:GetCharacters(nameText)
+        if not characters then
+            return nil
         end
+
+        local function findUnitInGroup(unitId)
+            if UnitExists(unitId) then
+                local name, realm = UnitFullName(unitId)
+                if name and realm and characters[name .. "-" .. realm] then
+                    return unitId
+                end
+            end
+            return nil
+        end
+
+        if IsInRaid() then
+            for i = 1, 40 do
+                local unit = findUnitInGroup("raid" .. i)
+                if unit then
+                    return unit
+                end
+            end
+        elseif IsInGroup() then
+            for i = 1, 4 do
+                local unit = findUnitInGroup("party" .. i)
+                if unit then
+                    return unit
+                end
+            end
+        end
+
+        local unit = findUnitInGroup("player")
+        if unit then
+            return unit
+        end
+
         return nil
     end
 
