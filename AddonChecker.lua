@@ -77,27 +77,27 @@ end
 
 local function GetRoster()
     local roster = {}
-    local playerName = Ambiguate(UnitName("player"), "short")
-    table.insert(roster, playerName)
-    if IsInRaid() then
+    local myShortName = Ambiguate(UnitName("player"), "short")
+    table.insert(roster, myShortName)
+
+    local group = IsInRaid() and "raid" or (IsInGroup() and "party" or nil)
+    if group then
         for i = 1, GetNumGroupMembers() do
-            local unit = "raid" .. i
-            local name = UnitName(unit)
-            if name then
-                local shortName = Ambiguate(name, "short")
-                if shortName ~= playerName then
-                    table.insert(roster, shortName)
-                end
-            end
-        end
-    elseif IsInGroup() then
-        for i = 1, GetNumSubgroupMembers() do
-            local unit = "party" .. i
-            local name = UnitName(unit)
-            if name then
-                local shortName = Ambiguate(name, "short")
-                if shortName ~= playerName then
-                    table.insert(roster, shortName)
+            local unit = group .. i
+            if UnitExists(unit) then
+                local name = UnitName(unit)
+                if name then
+                    local shortName = Ambiguate(name, "short")
+                    local found = false
+                    for _, existingName in ipairs(roster) do
+                        if existingName == shortName then
+                            found = true
+                            break
+                        end
+                    end
+                    if not found then
+                        table.insert(roster, shortName)
+                    end
                 end
             end
         end
@@ -121,7 +121,8 @@ AddonCheckerModule.title = "Addon Checker"
 AddonCheckerModule.addonsToCheck = {"AuraUpdater", "BigWigs", "NorthernSkyRaidTools", "RCLootCouncil",
                                     "SharedMedia_Causese", "TimelineReminders", "WeakAuras"}
 AddonCheckerModule.responses = {}
-AddonCheckerModule.horizontalOffset = 0
+AddonCheckerModule.rowFramePool = {}
+AddonCheckerModule.rowFrames = {}
 
 function AddonCheckerModule:GetConfigSize()
     return 800, 600
@@ -131,7 +132,7 @@ function AddonCheckerModule:GetUnitClassColor(playerName)
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
-            if Ambiguate(UnitName(unit), "short") == playerName then
+            if UnitExists(unit) and Ambiguate(UnitName(unit), "short") == playerName then
                 local _, class = UnitClass(unit)
                 return RAID_CLASS_COLORS[class] or {
                     r = 1,
@@ -149,9 +150,9 @@ function AddonCheckerModule:GetUnitClassColor(playerName)
                 b = 1
             }
         end
-        for i = 1, GetNumSubgroupMembers() do
+        for i = 1, GetNumGroupMembers() do
             local unit = "party" .. i
-            if Ambiguate(UnitName(unit), "short") == playerName then
+            if UnitExists(unit) and Ambiguate(UnitName(unit), "short") == playerName then
                 local _, class = UnitClass(unit)
                 return RAID_CLASS_COLORS[class] or {
                     r = 1,
@@ -237,7 +238,7 @@ function AddonCheckerModule:CreateConfigPanel(parent)
     end
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, configPanel, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetSize(gridWidth, 405)
+    scrollFrame:SetSize(gridWidth + 20, 405)
     scrollFrame:SetPoint("TOPLEFT", headerFrame, "BOTTOMLEFT", 0, -10)
     self.scrollFrame = scrollFrame
 
@@ -252,7 +253,6 @@ function AddonCheckerModule:CreateConfigPanel(parent)
         self:SendReq()
     end)
 
-    self:BuildGrid()
     self:UpdateGrid()
 
     self.configPanel = configPanel
@@ -260,11 +260,9 @@ function AddonCheckerModule:CreateConfigPanel(parent)
 end
 
 function AddonCheckerModule:BuildGrid()
-    if self.rowFrames then
-        for _, row in ipairs(self.rowFrames) do
-            row:Hide()
-            row:SetParent(nil)
-        end
+    for _, row in ipairs(self.rowFrames) do
+        row:Hide()
+        table.insert(self.rowFramePool, row)
     end
     self.rowFrames = {}
 
@@ -276,50 +274,54 @@ function AddonCheckerModule:BuildGrid()
     local yOffset = -5
 
     for _, playerName in ipairs(roster) do
-        local row = CreateFrame("Frame", nil, self.scrollChild, "BackdropTemplate")
-        row:SetSize(gridWidth, 20)
-        row:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", 0, yOffset)
-        row:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8x8",
-            edgeFile = "Interface\\Buttons\\WHITE8x8",
-            edgeSize = 1
-        })
-        row:SetBackdropColor(0.15, 0.15, 0.15, 1)
-        row:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+        local row = table.remove(self.rowFramePool)
+        if not row then
+            row = CreateFrame("Frame", nil, self.scrollChild, "BackdropTemplate")
+            row:SetSize(gridWidth, 20)
+            row:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1
+            })
+            row:SetBackdropColor(0.15, 0.15, 0.15, 1)
+            row:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
-        local classColor = self:GetUnitClassColor(playerName) or {
-            r = 1,
-            g = 1,
-            b = 1
-        }
-        local label = UI:CreateLabel(row, playerName, 10, {classColor.r, classColor.g, classColor.b})
-        label:SetPoint("LEFT", row, "LEFT", 5, 0)
-        label:SetSize(nameColumnWidth, 20)
-        label:SetJustifyH("LEFT")
+            row.label = UI:CreateLabel(row, "", 10, {1, 1, 1})
+            row.label:SetPoint("LEFT", row, "LEFT", 5, 0)
+            row.label:SetSize(nameColumnWidth, 20)
+            row.label:SetJustifyH("LEFT")
 
-        local rowDividerLeft = row:CreateTexture(nil, "OVERLAY")
-        rowDividerLeft:SetColorTexture(0.3, 0.3, 0.3, 1)
-        rowDividerLeft:SetPoint("LEFT", row, "LEFT", nameColumnWidth, 0)
-        rowDividerLeft:SetSize(1, 20)
-        rowDividerLeft:Show()
+            local rowDividerLeft = row:CreateTexture(nil, "OVERLAY")
+            rowDividerLeft:SetColorTexture(0.3, 0.3, 0.3, 1)
+            rowDividerLeft:SetPoint("LEFT", row, "LEFT", nameColumnWidth, 0)
+            rowDividerLeft:SetSize(1, 20)
 
-        row.icons = {}
-        for i = 1, numAddons do
-            local iconX = nameColumnWidth + (i - 1) * addonColumnWidth + (addonColumnWidth - 20) / 2
-            local icon = row:CreateTexture(nil, "ARTWORK")
-            icon:SetSize(20, 20)
-            icon:SetPoint("LEFT", row, "LEFT", iconX, 0)
-            AttachTooltip(icon)
-            icon:Hide()
-            row.icons[i] = icon
+            row.icons = {}
+            for i = 1, numAddons do
+                local iconX = nameColumnWidth + (i - 1) * addonColumnWidth + (addonColumnWidth - 20) / 2
+                local icon = row:CreateTexture(nil, "ARTWORK")
+                icon:SetSize(20, 20)
+                icon:SetPoint("LEFT", row, "LEFT", iconX, 0)
+                AttachTooltip(icon)
+                icon:Hide()
+                row.icons[i] = icon
 
-            local divider = row:CreateTexture(nil, "OVERLAY")
-            divider:SetColorTexture(0.3, 0.3, 0.3, 1)
-            divider:SetPoint("LEFT", row, "LEFT", nameColumnWidth + i * addonColumnWidth, 0)
-            divider:SetSize(1, 20)
-            divider:Show()
+                local divider = row:CreateTexture(nil, "OVERLAY")
+                divider:SetColorTexture(0.3, 0.3, 0.3, 1)
+                divider:SetPoint("LEFT", row, "LEFT", nameColumnWidth + i * addonColumnWidth, 0)
+                divider:SetSize(1, 20)
+            end
         end
 
+        row:SetParent(self.scrollChild)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", self.scrollChild, "TOPLEFT", 0, yOffset)
+
+        local classColor = self:GetUnitClassColor(playerName)
+        row.label:SetText(playerName)
+        row.label:SetTextColor(classColor.r, classColor.g, classColor.b)
+
+        row:Show()
         table.insert(self.rowFrames, row)
         yOffset = yOffset - 22
     end
@@ -328,6 +330,7 @@ end
 
 function AddonCheckerModule:UpdateGrid()
     self:BuildGrid()
+
     local roster = GetRoster()
     local numAddons = #self.addonsToCheck
 
@@ -353,7 +356,6 @@ function AddonCheckerModule:UpdateGrid()
                         SetIconTexture(icon, 1)
                     end
                 end
-                icon:Show()
             end
         end
     end
@@ -370,26 +372,36 @@ function AddonCheckerModule:UpdateGrid()
 end
 
 function AddonCheckerModule:NormalizeVersion(version)
-    local normalized = version:gsub("[^0-9]", "")
+    local normalized = version:gsub("[^0-9%.]", "")
     return normalized ~= "" and normalized or "0"
 end
 
-function AddonCheckerModule:CompareVersions(v1, v2)
-    if not v1 or not v2 or v1 == "" or v2 == "" then
+function AddonCheckerModule:CompareVersions(v1_str, v2_str)
+    if not v1_str or not v2_str or v1_str == "" or v2_str == "" or v1_str == "-" or v2_str == "-" then
         return true
     end
-    local n1 = self:NormalizeVersion(v1)
-    local n2 = self:NormalizeVersion(v2)
-    return tonumber(n1) >= tonumber(n2)
+    local v1_parts = {strsplit(".", self:NormalizeVersion(v1_str))}
+    local v2_parts = {strsplit(".", self:NormalizeVersion(v2_str))}
+    for i = 1, math.max(#v1_parts, #v2_parts) do
+        local p1 = tonumber(v1_parts[i]) or 0
+        local p2 = tonumber(v2_parts[i]) or 0
+        if p1 < p2 then
+            return false
+        end
+        if p1 > p2 then
+            return true
+        end
+    end
+    return true
 end
 
 function AddonCheckerModule:GetLatestAddonVersion(addonName)
     local latest = "0"
-    for playerName, data in pairs(self.responses) do
+    for _, data in pairs(self.responses) do
         local info = data[addonName]
-        if info and info.loaded then
-            if not info.version or self:CompareVersions(info.version, latest) then
-                latest = info.version or "0"
+        if info and info.loaded and info.version and info.version ~= "-" then
+            if not self:CompareVersions(latest, info.version) then
+                latest = info.version
             end
         end
     end
@@ -420,18 +432,14 @@ function AddonCheckerModule:OnEnable()
         end
 
         if message == "CHECK_REQUEST" then
-            local addonInfoTable = {}
-            for _, addonName in ipairs(self.addonsToCheck) do
-                local name = C_AddOns.GetAddOnInfo(addonName)
-                if name and C_AddOns.IsAddOnLoaded(addonName) then
-                    local version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "-"
-                    table.insert(addonInfoTable, addonName .. "=" .. version)
+            local myResponse = self:CheckResponse()
+            local responseTable = {}
+            for addonName, data in pairs(myResponse) do
+                if data.loaded then
+                    table.insert(responseTable, addonName .. "=" .. data.version)
                 end
             end
-            local responseStr = (#addonInfoTable > 0) and table.concat(addonInfoTable, ",") or "NONE"
-            if responseStr == "" then
-                responseStr = "NONE"
-            end
+            local responseStr = #responseTable > 0 and table.concat(responseTable, ",") or "NONE"
             AceComm:SendCommMessage("ART_AddonChecker", "STATUS:" .. responseStr, "WHISPER", sender)
 
         elseif message:find("^STATUS:") then
@@ -456,9 +464,7 @@ function AddonCheckerModule:OnEnable()
                     }
                 end
             end
-
-            local shortName = Ambiguate(sender, "short")
-            self.responses[shortName] = response
+            self.responses[Ambiguate(sender, "short")] = response
             if self.UpdateGrid then
                 self:UpdateGrid()
             end
@@ -474,7 +480,7 @@ function AddonCheckerModule:SendReq()
     self.responses[me] = myInfo
 
     if IsInRaid() or IsInGroup() then
-        AceComm:SendCommMessage("ART_AddonChecker", "CHECK_REQUEST", "RAID")
+        AceComm:SendCommMessage("ART_AddonChecker", "CHECK_REQUEST", IsInRaid() and "RAID" or "PARTY")
     end
 
     if self.UpdateGrid then
@@ -486,7 +492,6 @@ if ACT and ACT.RegisterModule then
     ACT:RegisterModule(AddonCheckerModule)
 end
 
--- for myself, need to fix this at some point, too lazy, so this'll do for now
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:SetScript("OnEvent", function(self, event, addon)
