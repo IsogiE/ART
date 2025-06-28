@@ -1,11 +1,11 @@
 local NicknameModule = {}
 NicknameModule.title = "Nicknames"
+NicknameModule.isInitialized = false
 NicknameModule.lastUpdateMessageTime = 0
 NicknameModule.defaultNicknames = {}
 NicknameModule.hasReceivedWAData = false
 NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
-
 NicknameModule.rowPool = {}
 
 local AceComm = LibStub("AceComm-3.0")
@@ -188,6 +188,9 @@ function NicknameModule:Broadcast(event, channel, data)
 end
 
 local function ReceiveRegularComm(prefix, message, channel, sender)
+    if not NicknameModule.isInitialized then
+        return
+    end
     if prefix == COMM_PREFIX then
         local event, data = strsplit(DELIMITER, message, 2)
         NicknameModule:EventHandler(event, sender, channel, data)
@@ -195,6 +198,9 @@ local function ReceiveRegularComm(prefix, message, channel, sender)
 end
 
 local function ReceiveWAComm(prefix, message, channel, sender)
+    if not NicknameModule.isInitialized and message ~= "END" then
+        return
+    end
     if prefix ~= COMM_PREFIX_WA or type(message) ~= "string" then
         return
     end
@@ -211,22 +217,23 @@ local function ReceiveWAComm(prefix, message, channel, sender)
         local _, versionStr = strsplit(":", message, 2)
         local incomingVersion = tonumber(versionStr) or 0
         NicknameModule.waMessageAccumulator[sender] = {
-            data = "",
+            data = {},
             version = incomingVersion
         }
 
     elseif message == "START" then
         NicknameModule.waMessageAccumulator[sender] = {
-            data = "",
+            data = {},
             version = 0
         }
 
     elseif message == "END" then
         local accumulation = NicknameModule.waMessageAccumulator[sender]
 
-        if accumulation and accumulation.data and accumulation.data ~= "" then
+        if accumulation and accumulation.data and #accumulation.data > 0 then
+            local completeData = table.concat(accumulation.data)
             local defaults = {}
-            for entry in string.gmatch(accumulation.data, "([^;]+)") do
+            for entry in string.gmatch(completeData, "([^;]+)") do
                 local btag, nick = strsplit(":", entry, 2)
                 if btag and nick and btag ~= "" and nick ~= "" then
                     local cleanBtag = strtrim(btag)
@@ -256,7 +263,7 @@ local function ReceiveWAComm(prefix, message, channel, sender)
         local accumulation = NicknameModule.waMessageAccumulator[sender]
         if accumulation then
             local chunk = string.sub(message, 6)
-            accumulation.data = accumulation.data .. chunk
+            table.insert(accumulation.data, chunk)
         end
     end
 end
@@ -348,10 +355,10 @@ function NicknameModule:EventHandler(event, sender, channel, data)
             self:RefreshContent()
         end
         if not self.killswitchPopup then
-            if not _G.UI then
+            if not UI then
                 return
             end
-            self.killswitchPopup = _G.UI:CreateTextPopup("Killswitch Activated", sender ..
+            self.killswitchPopup = UI:CreateTextPopup("Killswitch Activated", sender ..
                 " has triggered a killswitch! All nicknames have been wiped.", "Reload Now", "Later", function()
                 ReloadUI()
             end, function()
@@ -507,6 +514,7 @@ function NicknameModule:OnPlayerLogin()
                 self:Broadcast("NICK_REQUEST", distribution)
             end
         end)
+        self.isInitialized = true
     end)
 end
 
@@ -576,7 +584,7 @@ function NicknameModule:OnStreamerCheckboxClick(checkbox)
 end
 
 function NicknameModule:CreateConfigPanel(parent)
-    if not _G.UI then
+    if not UI then
         return
     end
 
@@ -602,11 +610,11 @@ function NicknameModule:CreateConfigPanel(parent)
     myNickLabel:SetPoint("TOPLEFT", titleLabel, "BOTTOMLEFT", 0, -20)
     myNickLabel:SetText("My Nickname")
 
-    local myNickBoxFrame, myNickBoxEdit = _G.UI:CreateMultilineEditBox(configPanel, 250, 30, "")
+    local myNickBoxFrame, myNickBoxEdit = UI:CreateMultilineEditBox(configPanel, 250, 30, "")
     myNickBoxFrame:SetPoint("TOPLEFT", myNickLabel, "BOTTOMLEFT", 0, -5)
     self.myNickBoxEdit = myNickBoxEdit
 
-    local saveNickButton = _G.UI:CreateButton(configPanel, "Save", 100, 30, function()
+    local saveNickButton = UI:CreateButton(configPanel, "Save", 100, 30, function()
         self:OnSaveNickname()
     end)
     saveNickButton:SetPoint("LEFT", myNickBoxFrame, "RIGHT", 10, 0)
@@ -679,12 +687,12 @@ function NicknameModule:CreateConfigPanel(parent)
         local title = debugFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         title:SetPoint("TOP", 0, -10)
         title:SetText("DEBUG TOOLS")
-        local nukeLocalBtn = _G.UI:CreateButton(debugFrame, "Nuke Local", 135, 30, function()
+        local nukeLocalBtn = UI:CreateButton(debugFrame, "Nuke Local", 135, 30, function()
             SlashCmdList["WIPENICKNAMES"]("")
         end)
 
         nukeLocalBtn:SetPoint("TOP", title, "BOTTOM", 0, -5)
-        local nukeAllBtn = _G.UI:CreateButton(debugFrame, "Nuke ALL", 135, 30, function()
+        local nukeAllBtn = UI:CreateButton(debugFrame, "Nuke ALL", 135, 30, function()
             SlashCmdList["ACTKILLSWITCH"]("")
         end)
 
@@ -696,7 +704,7 @@ function NicknameModule:CreateConfigPanel(parent)
 end
 
 function NicknameModule:PromptReloadNormal()
-    local UI = _G.UI
+    local UI = UI
     if not UI then
         return
     end
@@ -718,7 +726,7 @@ function NicknameModule:RefreshContent()
         return
     end
 
-    local UI = _G.UI
+    local UI = UI
     if not UI then
         return
     end
@@ -842,7 +850,7 @@ function NicknameModule:RefreshContent()
 end
 
 function NicknameModule:HandleDeletePlayer(btag, isStreamerMode, data)
-    local UI = _G.UI
+    local UI = UI
     if not UI then
         return
     end
@@ -899,7 +907,7 @@ SlashCmdList["WIPENICKNAMES"] = function()
     if not IsPrivilegedUser() then
         return
     end
-    local UI = _G.UI
+    local UI = UI
     if not UI then
         return
     end
@@ -927,7 +935,7 @@ SlashCmdList["ACTKILLSWITCH"] = function()
     if not IsPrivilegedUser() then
         return
     end
-    local UI = _G.UI
+    local UI = UI
     if not UI then
         return
     end
