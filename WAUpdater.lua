@@ -1,46 +1,50 @@
 local AceComm = LibStub("AceComm-3.0")
-local AceTimer = LibStub("AceTimer-3.0")
 local LibDeflate = LibStub("LibDeflate")
+local LibSerialize = LibStub("LibSerialize")
 
 local WeakAuraUpdaterModule = {}
 WeakAuraUpdaterModule.title = "WeakAura Updater"
+WeakAuraUpdaterModule.importPopup = nil
+WeakAuraUpdaterModule.chunkBuffers = {}
+WeakAuraUpdaterModule.receiveStatus = {}
 
 function WeakAuraUpdaterModule:GetConfigSize()
     return 800, 600
 end
 
 function WeakAuraUpdaterModule:EnsureDB()
+    if not ACT or not ACT.db or not ACT.db.profile then
+        return {}
+    end
     ACT.db.profile.weakauraUpdater = ACT.db.profile.weakauraUpdater or {}
     return ACT.db.profile.weakauraUpdater
 end
 
-WeakAuraUpdaterModule.weakAurasLoaded = false
+local COMM_PREFIX = "ACT_WA_UPDATER"
+local WA_SYNC_EVENT = "ACT_DISTRIBUTE"
+local del = ":"
 
-local function OnAddonLoaded(_, _, addon)
-    if addon == "WeakAuras" then
-        WeakAuraUpdaterModule.weakAurasLoaded = true
+function WeakAuraUpdaterModule:FormatMessage(event, ...)
+    local argTable = {...}
+    local message = event
+    local unitID = UnitInRaid("player") and "raid" .. UnitInRaid("player") or UnitName("player")
+    message = string.format("%s" .. del .. "%s(%s)", message, unitID, "string")
+
+    for i = 1, #argTable do
+        local funcArg = argTable[i]
+        local argType = type(funcArg)
+        if argType == "table" then
+            funcArg = LibSerialize:Serialize(funcArg)
+            funcArg = LibDeflate:CompressDeflate(funcArg)
+            funcArg = LibDeflate:EncodeForWoWAddonChannel(funcArg)
+        end
+        message = string.format("%s" .. del .. "%s(%s)", message, tostring(funcArg), argType)
     end
+    return message
 end
 
-local addonLoadedFrame = CreateFrame("Frame")
-addonLoadedFrame:RegisterEvent("ADDON_LOADED")
-addonLoadedFrame:SetScript("OnEvent", OnAddonLoaded)
-
-function WeakAuraUpdaterModule:CheckWeakAurasLoaded()
-    if WeakAuras then
-        self.weakAurasLoaded = true
-    end
-end
-
-C_Timer.After(5, function()
-    WeakAuraUpdaterModule:CheckWeakAurasLoaded()
-end)
-
-local sendTimeoutFrame = nil
-function WeakAuraUpdaterModule:DistributeWeakAura(weakAuraData, description)
-    local messagePrefix = "WEAKAURA_UPDATE:"
-    local originalMsg = messagePrefix .. weakAuraData .. "|DESC:" .. (description or "")
-    local compressed = LibDeflate:CompressDeflate(originalMsg, {
+function WeakAuraUpdaterModule:DistributeFormattedMessage(message)
+    local compressed = LibDeflate:CompressDeflate(message, {
         level = 9
     })
     local encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
@@ -48,41 +52,30 @@ function WeakAuraUpdaterModule:DistributeWeakAura(weakAuraData, description)
     local chunkSize = 245
     local totalParts = math.ceil(#fullMsg / chunkSize)
 
-    AceComm:SendCommMessage("ADVANCEWEAKAURA", "START:" .. totalParts, "RAID")
+    AceComm:SendCommMessage(COMM_PREFIX, "START:" .. totalParts, "RAID")
 
     local currentChunk = 1
     local function sendNextChunk()
         if currentChunk > totalParts then
-            self:SetMessage("WeakAura pushed to raid (complete).")
+            self:SetMessage("WeakAura sent to raid.", false)
             return
         end
-
         local chunk = fullMsg:sub((currentChunk - 1) * chunkSize + 1, currentChunk * chunkSize)
-        AceComm:SendCommMessage("ADVANCEWEAKAURA", chunk, "RAID")
-        self:SetMessage(string.format("Sending WeakAura... %d/%d", currentChunk, totalParts))
-
+        AceComm:SendCommMessage(COMM_PREFIX, chunk, "RAID")
+        self:SetMessage(string.format("Sending WeakAura... %d/%d", currentChunk, totalParts), true)
         currentChunk = currentChunk + 1
-        C_Timer.After(0.1, sendNextChunk)
+        C_Timer.After(0.05, sendNextChunk)
     end
-
     sendNextChunk()
-
-    if sendTimeoutFrame then
-        sendTimeoutFrame:Cancel()
-    end
-    sendTimeoutFrame = C_Timer.NewTimer(60, function()
-    end)
 end
 
-function WeakAuraUpdaterModule:HandleIncomingWeakAura(prefix, msg, distribution, sender)
-    if prefix ~= "ADVANCEWEAKAURA" then
+function WeakAuraUpdaterModule:HandleIncomingChunks(prefix, msg, _, sender)
+    if prefix ~= COMM_PREFIX then
         return
     end
-
-    self.chunkBuffers = self.chunkBuffers or {}
-    self.receiveStatus = self.receiveStatus or {}
-
-    local actPrefix = "|cff00aaff[ACT]|r "
+    if sender == GetUnitName("player", true) then
+        return
+    end
 
     if msg:sub(1, 6) == "START:" then
         local total = tonumber(msg:sub(7))
@@ -92,7 +85,7 @@ function WeakAuraUpdaterModule:HandleIncomingWeakAura(prefix, msg, distribution,
                 received = 0
             }
             self.chunkBuffers[sender] = ""
-            DEFAULT_CHAT_FRAME:AddMessage(string.format("%sReceiving from %s: 0/%d chunks", actPrefix, sender, total))
+            self:ShowImportPopup(sender, nil, total, 0)
         end
         return
     end
@@ -101,51 +94,177 @@ function WeakAuraUpdaterModule:HandleIncomingWeakAura(prefix, msg, distribution,
         return
     end
 
-    self.chunkBuffers[sender] = self.chunkBuffers[sender] .. msg
+    self.chunkBuffers[sender] = (self.chunkBuffers[sender] or "") .. msg
     self.receiveStatus[sender].received = self.receiveStatus[sender].received + 1
 
-    DEFAULT_CHAT_FRAME:AddMessage(string.format("%sReceiving from %s: %d/%d chunks", actPrefix, sender,
-        self.receiveStatus[sender].received, self.receiveStatus[sender].expected))
+    local status = self.receiveStatus[sender]
+    self:ShowImportPopup(sender, nil, status.expected, status.received)
 
     if self.chunkBuffers[sender]:sub(-5) == "##F##" then
-        local completeMsg = self.chunkBuffers[sender]:sub(1, -6)
+        local completeMsg = self.chunkBuffers[sender]:sub(2, -6)
+        local decoded = LibDeflate:DecodeForWoWAddonChannel(completeMsg)
+        local decompressed, _, err = LibDeflate:DecompressDeflate(decoded)
+
+        if decompressed and not err then
+            self:ReceiveComm(decompressed, sender)
+        end
+
         self.chunkBuffers[sender] = nil
         self.receiveStatus[sender] = nil
-
-        if completeMsg:sub(1, 1) == "C" then
-            completeMsg = completeMsg:sub(2)
-            local decoded = LibDeflate:DecodeForWoWAddonChannel(completeMsg)
-            local decompressed = LibDeflate:DecompressDeflate(decoded)
-            completeMsg = decompressed
-        end
-
-        local messagePrefix = "WEAKAURA_UPDATE:"
-        local descPrefix = "|DESC:"
-        local data, description = completeMsg:match("^" .. messagePrefix .. "(.*)" .. descPrefix .. "(.*)$")
-        if data then
-            local db = self:EnsureDB()
-            db.pendingWeakAuraData = data
-            self:ShowWeakAuraImportScreen(data, sender, description or "No Description")
-
-            DEFAULT_CHAT_FRAME:AddMessage(string.format("%sReceived WeakAura from %s (complete)", actPrefix, sender))
-        end
     end
 end
 
-AceComm:RegisterComm("ADVANCEWEAKAURA", function(...)
-    WeakAuraUpdaterModule:HandleIncomingWeakAura(...)
+AceComm:RegisterComm(COMM_PREFIX, function(...)
+    WeakAuraUpdaterModule:HandleIncomingChunks(...)
 end)
 
-function WeakAuraUpdaterModule:ShowWeakAuraImportScreen(data, senderName, description)
-    if self.weakAurasLoaded and WeakAuras and WeakAuras.Import then
-        WeakAuras.Import(data)
-        local db = self:EnsureDB()
-        db.pendingWeakAuraData = nil
-    else
-        local db = self:EnsureDB()
-        db.pendingWeakAuraData = data
+function WeakAuraUpdaterModule:ReceiveComm(text, sender)
+    local strsplit = function(delimiter, str)
+        local list = {}
+        if not str or str == "" then
+            return list
+        end
+        local pos = 1
+        while true do
+            local first, last = string.find(str, delimiter, pos)
+            if first then
+                list[#list + 1] = str:sub(pos, first - 1);
+                pos = last + 1
+            else
+                list[#list + 1] = str:sub(pos);
+                break
+            end
+        end
+        return list
+    end
+
+    local argTable = strsplit(del, text)
+    local event = table.remove(argTable, 1)
+    if not event then
+        return
+    end
+
+    local formattedArgs = {}
+    local tonext
+    for _, funcArg in ipairs(argTable) do
+        local val, argType = funcArg:match("(.*)%((%a+)%)")
+        if tonext and val then
+            val = tonext .. val
+        end
+        if val and argType then
+            tonext = nil
+            if argType == "table" then
+                val = LibDeflate:DecodeForWoWAddonChannel(val)
+                val = LibDeflate:DecompressDeflate(val)
+                local success, tbl = LibSerialize:Deserialize(val)
+                val = success and tbl or nil
+            elseif argType == "number" then
+                val = tonumber(val)
+            elseif argType == "boolean" then
+                val = val == "true"
+            end
+            table.insert(formattedArgs, val)
+        else
+            tonext = (tonext or "") .. funcArg .. del
+        end
+    end
+
+    if #formattedArgs > 0 then
+        self:EventHandler(event, sender, unpack(formattedArgs))
     end
 end
+
+function WeakAuraUpdaterModule:ShowImportPopup(senderFullName, waString, totalChunks, receivedChunks)
+    local senderUnit
+    for i = 1, GetNumGroupMembers() do
+        if GetUnitName("raid" .. i, true) == senderFullName then
+            senderUnit = "raid" .. i
+            break
+        end
+    end
+
+    local displayName
+    if _G.NicknameAPI and NicknameAPI.GetNicknameByCharacter then
+        displayName = NicknameAPI:GetNicknameByCharacter(senderFullName)
+    end
+    if not displayName then
+        displayName = senderFullName:match("([^-]+)") or senderFullName
+    end
+
+    local _, class = senderUnit and UnitClass(senderUnit) or nil
+    local color = class and RAID_CLASS_COLORS[class] or {
+        r = 1,
+        g = 1,
+        b = 1
+    }
+    local colorHex = string.format("%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
+    local coloredDisplayName = string.format("|cff%s%s|r", colorHex, displayName)
+
+    if not self.importPopup or not self.importPopup:IsShown() then
+        local onAccept = function(popup)
+            if popup and popup.waString and WeakAuras and WeakAuras.Import then
+                WeakAuras.Import(popup.waString)
+            end
+        end
+        self.importPopup = UI:CreateTextPopup("WeakAura Import", "", "Accept", "Decline", function()
+            onAccept(self.importPopup)
+        end, nil, self.importPopup)
+        self.importPopup:Show()
+    end
+
+    local message
+    if waString then
+        self.importPopup.waString = waString
+        message = string.format("Import ready from %s.", coloredDisplayName)
+        self.importPopup.acceptButton:Enable()
+    else
+        message = string.format("Receiving from %s... (%d/%d)", coloredDisplayName, receivedChunks or 0, totalChunks)
+        self.importPopup.acceptButton:Disable()
+    end
+
+    self.importPopup.messageLabel:SetText(message)
+    if self.importPopup.titleLabel and self.importPopup.messageLabel then
+        C_Timer.After(0, function()
+            if self.importPopup and self.importPopup:IsShown() then
+                local newHeight = self.importPopup.titleLabel:GetStringHeight() + 10 +
+                                      self.importPopup.messageLabel:GetStringHeight() + 10 + 35 + 20
+                self.importPopup:SetHeight(newHeight)
+            end
+        end)
+    end
+end
+
+function WeakAuraUpdaterModule:EventHandler(event, sender, ...)
+    if event == WA_SYNC_EVENT then
+        local _, waString = ...
+        if not waString or not sender then
+            return
+        end
+
+        if UnitAffectingCombat("player") or (WeakAuras and WeakAuras.CurrentEncounter) then
+            self.pendingWeakAura = {
+                sender = sender,
+                data = waString
+            }
+            self:SetMessage("WA from " .. sender .. " received. Import will show after combat.")
+        else
+            self:ShowImportPopup(sender, waString)
+        end
+    end
+end
+
+local combatEventFrame = CreateFrame("Frame")
+combatEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+combatEventFrame:RegisterEvent("ENCOUNTER_END")
+combatEventFrame:SetScript("OnEvent", function()
+    if WeakAuraUpdaterModule.pendingWeakAura then
+        local weakaura = WeakAuraUpdaterModule.pendingWeakAura
+        WeakAuraUpdaterModule.pendingWeakAura = nil
+        C_Timer.After(1, function()
+            WeakAuraUpdaterModule:ShowImportPopup(weakaura.sender, weakaura.data)
+        end)
+    end
+end)
 
 function WeakAuraUpdaterModule:CreateConfigPanel(parent)
     if self.configPanel then
@@ -157,57 +276,45 @@ function WeakAuraUpdaterModule:CreateConfigPanel(parent)
     end
 
     local configPanel = CreateFrame("Frame", nil, parent)
-    configPanel:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
-    configPanel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
+    configPanel:SetAllPoints(parent)
 
     local importLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    importLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, 16)
+    importLabel:SetPoint("TOPLEFT", 20, -16)
     importLabel:SetText("WeakAura Updater")
 
     local importBoxFrame, importBoxEdit = UI:CreateMultilineEditBox(configPanel, 520, 200, "")
     importBoxFrame:SetPoint("TOPLEFT", importLabel, "BOTTOMLEFT", 0, -10)
-    self.importBoxFrame = importBoxFrame
     self.importBoxEdit = importBoxEdit
 
     local sendButton = UI:CreateButton(configPanel, "Send", 120, 30)
     sendButton:SetPoint("TOPLEFT", importBoxFrame, "BOTTOMLEFT", 0, -10)
     sendButton:SetScript("OnClick", function()
-        local text = importBoxEdit:GetText()
-        local description = ""
-        local cleaned = tostring(text):match("^%s*(.-)%s*$")
-        if not cleaned or string.sub(cleaned, 1, 6) ~= "!WA:2!" then
-            importBoxEdit:SetText("")
-            self:SetMessage("Please paste a valid WeakAura string (must begin with !WA:2!)")
+        local text = self.importBoxEdit:GetText()
+        local cleaned = text and text:match("^%s*(.-)%s*$")
+        if not cleaned or cleaned == "" or string.sub(cleaned, 1, 1) ~= "!" then
+            self:SetMessage("Please paste a valid WeakAura string.")
             return
         end
-        if text and text:trim() ~= "" then
-            if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
-                self:DistributeWeakAura(text, description)
-                importBoxEdit:SetText("")
-                self:SetMessage("WeakAura pushed to the raid.")
-            else
-                importBoxEdit:SetText("")
-                self:SetMessage("You must be raid leader or assist to use this feature.")
-            end
+        if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
+            local message = self:FormatMessage(WA_SYNC_EVENT, cleaned)
+            self:DistributeFormattedMessage(message)
+            self.importBoxEdit:SetText("")
         else
-            importBoxEdit:SetText("")
-            self:SetMessage("Please paste a valid WeakAura string.")
+            self:SetMessage("You must be raid leader or assist to send WeakAuras.")
         end
     end)
 
     local clearButton = UI:CreateButton(configPanel, "Clear", 120, 30)
     clearButton:SetPoint("LEFT", sendButton, "RIGHT", 10, 0)
     clearButton:SetScript("OnClick", function()
-        local db = self:EnsureDB()
-        db.pendingWeakAuraData = nil
-        importBoxEdit:SetText("")
+        self.importBoxEdit:SetText("")
+        self.pendingWeakAura = nil
         self:SetMessage("")
     end)
 
     local messageLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     messageLabel:SetPoint("TOPLEFT", sendButton, "BOTTOMLEFT", 0, -10)
     messageLabel:SetWidth(540)
-    messageLabel:SetHeight(30)
     messageLabel:SetJustifyH("LEFT")
     self.messageLabel = messageLabel
 
@@ -215,9 +322,20 @@ function WeakAuraUpdaterModule:CreateConfigPanel(parent)
     return self.configPanel
 end
 
-function WeakAuraUpdaterModule:SetMessage(msg)
+function WeakAuraUpdaterModule:SetMessage(msg, sending)
     if self.messageLabel then
         self.messageLabel:SetText(msg or "")
+        if self.messageClearTimer then
+            self.messageClearTimer:Cancel()
+            self.messageClearTimer = nil
+        end
+        if not sending then
+            self.messageClearTimer = C_Timer.After(5, function()
+                if self.messageLabel:GetText() == msg then
+                    self.messageLabel:SetText("")
+                end
+            end)
+        end
     end
 end
 
