@@ -1,4 +1,6 @@
 local RaidGroups = {}
+local classColorCache = {}
+
 RaidGroups.title = "Raid Groups"
 RaidGroups.currentListType = nil
 RaidGroups.listPopulated = false
@@ -9,19 +11,33 @@ RaidGroups.selectedPresetIndex = nil
 RaidGroups.isClassic = false
 RaidGroups.keepPosInGroup = true
 RaidGroups.nameFrames = {}
+RaidGroups.nameFramePool = {}
 RaidGroups.massImportPopup = nil
 RaidGroups.massDeletePopup = nil
 RaidGroups.massDeletePopupCheckboxes = {}
+RaidGroups.massDeleteCheckboxPool = {}
+RaidGroups.availablePlayerList = {}
 
 local function GetClassColor(class)
+    if class and classColorCache[class] then
+        return classColorCache[class]
+    end
+
     local colors = CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS
     if colors and class and type(class) == "string" then
         local token = tostring(class):upper()
         if colors[token] then
-            return {colors[token].r, colors[token].g, colors[token].b, 1}
+            local c = colors[token]
+            local colorTable = {c.r, c.g, c.b, 1}
+            classColorCache[class] = colorTable
+            return colorTable
         end
     end
-    return {1, 1, 1, 1}
+
+    if not classColorCache["default"] then
+        classColorCache["default"] = {1, 1, 1, 1}
+    end
+    return classColorCache["default"]
 end
 
 local function GetPlayerClassColorByName(playerName)
@@ -47,7 +63,8 @@ local function GetPlayerClassColorByName(playerName)
             end
         end
     end
-    return {1, 1, 1, 1}
+
+    return GetClassColor(nil)
 end
 
 function RaidGroups:NormalizeCharacterName(name)
@@ -230,17 +247,12 @@ local function NameFrame_OnMouseUp(self, button)
     if button == "LeftButton" then
         self:StopMovingOrSizing()
         local dropped = false
+        local dropTargetBox = nil
+
         for _, group in ipairs(RaidGroups.groupSlots or {}) do
             for _, editBox in ipairs(group) do
                 if editBox and IsCursorInEditBox(editBox, 8, 15) then
-                    local r, g, b = unpack(self.classColor or {1, 1, 1, 1})
-                    local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
-                    local name = self.playerName or (self.nameText and self.nameText:GetText()) or ""
-                    editBox:SetText("|cff" .. hexColor .. name .. "|r")
-                    editBox:SetJustifyH("LEFT")
-                    editBox:SetCursorPosition(0)
-                    editBox.usedName = name
-                    self:Hide()
+                    dropTargetBox = editBox
                     dropped = true
                     break
                 end
@@ -249,15 +261,27 @@ local function NameFrame_OnMouseUp(self, button)
                 break
             end
         end
-        if not dropped then
+
+        self:SetParent(self.originalParent)
+
+        if dropped then
+            local r, g, b = unpack(self.classColor or {1, 1, 1, 1})
+            local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
+            local name = self.playerName or (self.nameText and self.nameText:GetText()) or ""
+            dropTargetBox:SetText("|cff" .. hexColor .. name .. "|r")
+            dropTargetBox:SetJustifyH("LEFT")
+            dropTargetBox:SetCursorPosition(0)
+            dropTargetBox.usedName = name
+
+            self:Hide()
+            RaidGroups:UpdateNameList(RaidGroups.currentListType or "raid")
+        else
             if self.originalPoint and self.originalRelPoint then
-                self:SetParent(self.originalParent)
                 self:ClearAllPoints()
                 self:SetPoint(self.originalPoint, self.originalParent, self.originalRelPoint, self.originalX,
                     self.originalY)
             end
-        else
-            RaidGroups:UpdateNameList(RaidGroups.currentListType or "raid")
+            self:Show()
         end
     end
 end
@@ -430,8 +454,209 @@ function RaidGroups:GetConfigSize()
     return 1100, 600
 end
 
+function RaidGroups:CreateMassDeletePopup(parent)
+    if self.massDeletePopup then
+        return
+    end
+
+    local popup = CreateFrame("Frame", "RaidGroupsMassDeletePopupFrame", parent, "BackdropTemplate")
+    popup:SetSize(420, 480)
+    popup:SetPoint("CENTER")
+    popup:SetFrameStrata("HIGH")
+    popup:SetFrameLevel(249)
+    popup:SetMovable(true)
+    popup:EnableMouse(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    popup:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+    end)
+    popup:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1
+    })
+    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    popup:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    self.massDeletePopup = popup
+
+    local title = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOP", popup, "TOP", 0, -12)
+    title:SetText("Select Presets to Delete")
+
+    local closeButton = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeButton:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -5, -5)
+    closeButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+
+    local scrollFrame = CreateFrame("ScrollFrame", "RaidGroupsMassDeleteListScrollFrame", popup,
+        "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", 20, -45)
+    scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -35, 70)
+    popup.scrollFrame = scrollFrame
+
+    local scrollChild = CreateFrame("Frame", "RaidGroupsMassDeleteListScrollChild", scrollFrame)
+    scrollChild:SetWidth(scrollFrame:GetWidth() - 15)
+    scrollFrame:SetScrollChild(scrollChild)
+    popup.scrollChild = scrollChild
+
+    local cancelMassDeleteButton = UI:CreateButton(popup, "Cancel", 100, 25)
+    cancelMassDeleteButton:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 20, 20)
+    cancelMassDeleteButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+
+    local deleteAllButton = UI:CreateButton(popup, "Delete All", 100, 25)
+    deleteAllButton:SetPoint("LEFT", cancelMassDeleteButton, "RIGHT", 10, 0)
+    deleteAllButton:SetScript("OnClick", function()
+        if RaidGroups.confirmDeleteAllPopupInstance and RaidGroups.confirmDeleteAllPopupInstance:IsShown() then
+            return
+        end
+        RaidGroups.confirmDeleteAllPopupInstance = UI:CreateTextPopup("Confirm Delete All",
+            "Are you sure you want to delete ALL presets? This action cannot be undone.", "Delete All", "Cancel",
+            function()
+                RaidGroups.Presets = {}
+                VACT.RaidGroupsPresets = RaidGroups.Presets
+                RaidGroups.selectedPresetIndex = nil
+                if RaidGroups.presetsDropdown and RaidGroups.presetsDropdown.button then
+                    RaidGroups.presetsDropdown.button.text:SetText("Select Preset")
+                end
+                RaidGroups:UpdatePresetsDropdown()
+                if RaidGroups.massDeletePopup then
+                    RaidGroups.massDeletePopup:Hide()
+                end
+                local reportPopup = UI:CreateTextPopup("Mass Delete", "All presets have been deleted.", "OK", "Close")
+                reportPopup:SetFrameStrata("HIGH");
+                reportPopup:SetFrameLevel(255);
+                reportPopup:Show()
+                RaidGroups.confirmDeleteAllPopupInstance = nil
+            end, function()
+                RaidGroups.confirmDeleteAllPopupInstance = nil
+            end)
+        RaidGroups.confirmDeleteAllPopupInstance:SetFrameStrata("HIGH")
+        RaidGroups.confirmDeleteAllPopupInstance:SetFrameLevel(450)
+        RaidGroups.confirmDeleteAllPopupInstance:SetScript("OnHide", function()
+            RaidGroups.confirmDeleteAllPopupInstance = nil
+        end)
+        RaidGroups.confirmDeleteAllPopupInstance:Show()
+    end)
+
+    local deleteSelectedButton = UI:CreateButton(popup, "Delete Selected", 120, 25)
+    deleteSelectedButton:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 20)
+    deleteSelectedButton:SetScript("OnClick", function()
+        if RaidGroups.confirmDeleteSelectedPopupInstance and RaidGroups.confirmDeleteSelectedPopupInstance:IsShown() then
+            return
+        end
+        local presetsToDeleteNames = {}
+        for _, cb in ipairs(RaidGroups.massDeletePopupCheckboxes) do
+            if cb:GetChecked() then
+                table.insert(presetsToDeleteNames, cb.presetName)
+            end
+        end
+        if #presetsToDeleteNames == 0 then
+            return
+        end
+        RaidGroups.confirmDeleteSelectedPopupInstance = UI:CreateTextPopup("Confirm Deletion",
+            "Are you sure you want to delete " .. #presetsToDeleteNames .. " preset(s)? This cannot be undone.",
+            "Delete", "Cancel", function()
+                local currentSelectedPresetName = (RaidGroups.selectedPresetIndex and
+                                                      RaidGroups.Presets[RaidGroups.selectedPresetIndex]) and
+                                                      RaidGroups.Presets[RaidGroups.selectedPresetIndex].name or nil
+                local newPresetsList = {}
+                local currentSelectionStillExists = false
+                for _, presetData in ipairs(RaidGroups.Presets) do
+                    local deleteThis = false
+                    for _, nameToDelete in ipairs(presetsToDeleteNames) do
+                        if presetData.name == nameToDelete then
+                            deleteThis = true;
+                            break
+                        end
+                    end
+                    if not deleteThis then
+                        table.insert(newPresetsList, presetData)
+                        if currentSelectedPresetName and presetData.name == currentSelectedPresetName then
+                            currentSelectionStillExists = true
+                        end
+                    end
+                end
+                RaidGroups.Presets = newPresetsList
+                VACT.RaidGroupsPresets = RaidGroups.Presets
+                if not currentSelectionStillExists then
+                    RaidGroups.selectedPresetIndex = nil
+                    if RaidGroups.presetsDropdown and RaidGroups.presetsDropdown.button then
+                        RaidGroups.presetsDropdown.button.text:SetText("Select Preset")
+                    end
+                end
+                RaidGroups:UpdatePresetsDropdown()
+                if RaidGroups.massDeletePopup then
+                    RaidGroups.massDeletePopup:Hide()
+                end
+                local reportPopup = UI:CreateTextPopup("Mass Delete", #presetsToDeleteNames .. " preset(s) deleted.",
+                    "OK", "Close")
+                reportPopup:SetFrameStrata("HIGH");
+                reportPopup:SetFrameLevel(450);
+                reportPopup:Show()
+                RaidGroups.confirmDeleteSelectedPopupInstance = nil
+            end, function()
+                RaidGroups.confirmDeleteSelectedPopupInstance = nil
+            end)
+        RaidGroups.confirmDeleteSelectedPopupInstance:SetFrameStrata("HIGH");
+        RaidGroups.confirmDeleteSelectedPopupInstance:SetFrameLevel(450)
+        RaidGroups.confirmDeleteSelectedPopupInstance:SetScript("OnHide", function()
+            RaidGroups.confirmDeleteSelectedPopupInstance = nil
+        end)
+        RaidGroups.confirmDeleteSelectedPopupInstance:Show()
+    end)
+    popup:Hide()
+end
+
+function RaidGroups:ShowMassDeletePopup()
+    if not self.massDeletePopup or not self.massDeletePopup.scrollChild then
+        return
+    end
+    if #self.Presets == 0 then
+        return
+    end
+
+    for _, cb in ipairs(self.massDeletePopupCheckboxes) do
+        cb:Hide()
+        table.insert(self.massDeleteCheckboxPool, cb)
+    end
+    self.massDeletePopupCheckboxes = {}
+
+    local scrollChild = self.massDeletePopup.scrollChild
+    local yOffset = -10
+    local checkboxSize = 32
+    local checkboxSpacing = 5
+
+    for index, preset in ipairs(self.Presets) do
+        local cb = table.remove(self.massDeleteCheckboxPool)
+        if not cb then
+            cb = CreateFrame("CheckButton", "RaidGroupsMassDeleteCB" .. index, scrollChild, "UICheckButtonTemplate")
+            cb:SetSize(checkboxSize, checkboxSize)
+            cb.text:SetFontObject(GameFontNormal)
+            cb.text:SetJustifyH("LEFT")
+            cb.text:ClearAllPoints()
+            cb.text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
+        end
+        cb:SetPoint("TOPLEFT", 5, yOffset)
+        cb.text:SetText(preset.name)
+        cb.presetName = preset.name
+        cb:SetChecked(false)
+        cb:Show()
+        table.insert(self.massDeletePopupCheckboxes, cb)
+        yOffset = yOffset - checkboxSize - checkboxSpacing
+    end
+    scrollChild:SetHeight(math.max(self.massDeletePopup.scrollFrame:GetHeight() + 10, -yOffset + checkboxSpacing))
+    self.massDeletePopup:Show()
+end
+
 function RaidGroups:CreateConfigPanel(parent)
     if self.configPanel then
+        self.fullPlayerList = {}
         self.configPanel:SetParent(parent)
         self.configPanel:ClearAllPoints()
         self.configPanel:SetAllPoints(parent)
@@ -512,6 +737,10 @@ function RaidGroups:CreateConfigPanel(parent)
     end)
 
     local listScroll = CreateFrame("ScrollFrame", nil, part1Frame, "UIPanelScrollFrameTemplate")
+    self.listScroll = listScroll
+    listScroll:SetScript("OnVerticalScroll", function(self, offset)
+        RaidGroups:RefreshVisibleNames()
+    end)
     listScroll:SetSize(210, 420)
     listScroll:SetPoint("TOPLEFT", raidCheck, "BOTTOMLEFT", 0, -10)
 
@@ -982,253 +1211,7 @@ function RaidGroups:CreateConfigPanel(parent)
     deletePresetButton:SetPoint("LEFT", renamePresetButton, "RIGHT", 20, 0)
     deletePresetButton:SetScript("OnClick", function()
         if IsShiftKeyDown() then
-            if RaidGroups.massDeletePopup and RaidGroups.massDeletePopup:IsShown() then
-                return
-            end
-            if #RaidGroups.Presets == 0 then
-                if RaidGroups.noPresetsInfoPopupInstance and RaidGroups.noPresetsInfoPopupInstance:IsShown() then
-                    return
-                end
-                RaidGroups.noPresetsInfoPopupInstance = UI:CreateTextPopup("Mass Delete",
-                    "No presets available to delete.", "OK", "Close", function()
-                        if RaidGroups.noPresetsInfoPopupInstance then
-                            RaidGroups.noPresetsInfoPopupInstance:Hide()
-                        end
-                    end, function()
-                        if RaidGroups.noPresetsInfoPopupInstance then
-                            RaidGroups.noPresetsInfoPopupInstance:Hide()
-                        end
-                    end)
-                RaidGroups.noPresetsInfoPopupInstance:SetFrameStrata("HIGH")
-                RaidGroups.noPresetsInfoPopupInstance:SetFrameLevel(450)
-                RaidGroups.noPresetsInfoPopupInstance:SetScript("OnHide", function()
-                    RaidGroups.noPresetsInfoPopupInstance = nil
-                end)
-                RaidGroups.noPresetsInfoPopupInstance:Show()
-                return
-            end
-
-            local popup = CreateFrame("Frame", "RaidGroupsMassDeletePopupFrame", RaidGroups.configPanel,
-                "BackdropTemplate")
-            popup:SetSize(420, 480)
-            popup:SetPoint("CENTER")
-            popup:SetFrameStrata("HIGH")
-            popup:SetFrameLevel(249)
-            popup:SetMovable(true)
-            popup:EnableMouse(true)
-            popup:RegisterForDrag("LeftButton")
-            popup:SetScript("OnDragStart", function(self)
-                self:StartMoving()
-            end)
-            popup:SetScript("OnDragStop", function(self)
-                self:StopMovingOrSizing()
-            end)
-            popup:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8x8",
-                edgeFile = "Interface\\Buttons\\WHITE8x8",
-                edgeSize = 1
-            })
-            popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
-            popup:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-            RaidGroups.massDeletePopup = popup
-
-            local title = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-            title:SetPoint("TOP", popup, "TOP", 0, -12)
-            title:SetText("Select Presets to Delete")
-
-            local closeButton = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
-            closeButton:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -5, -5)
-            closeButton:SetScript("OnClick", function()
-                popup:Hide()
-            end)
-
-            local scrollFrame = CreateFrame("ScrollFrame", "RaidGroupsMassDeleteListScrollFrame", popup,
-                "UIPanelScrollFrameTemplate")
-            scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", 20, -45)
-            scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -35, 70)
-            RaidGroups.massDeletePopup.scrollFrame = scrollFrame
-
-            local scrollChild = CreateFrame("Frame", "RaidGroupsMassDeleteListScrollChild", scrollFrame)
-            scrollChild:SetWidth(scrollFrame:GetWidth() - 15)
-            scrollFrame:SetScrollChild(scrollChild)
-            RaidGroups.massDeletePopup.scrollChild = scrollChild
-
-            RaidGroups.massDeletePopupCheckboxes = {}
-
-            local yOffset = -10
-            local checkboxSize = 32
-            local checkboxSpacing = 5
-
-            for index, preset in ipairs(RaidGroups.Presets) do
-                local cb = CreateFrame("CheckButton", "RaidGroupsMassDeleteCB" .. index, scrollChild,
-                    "UICheckButtonTemplate")
-                cb:SetSize(checkboxSize, checkboxSize)
-                cb:SetPoint("TOPLEFT", 5, yOffset)
-
-                cb.text:SetText(preset.name)
-                cb.text:SetFontObject(GameFontNormal)
-                cb.text:SetJustifyH("LEFT")
-                cb.text:ClearAllPoints()
-                cb.text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
-
-                cb.presetName = preset.name
-                table.insert(RaidGroups.massDeletePopupCheckboxes, cb)
-                yOffset = yOffset - checkboxSize - checkboxSpacing
-            end
-            scrollChild:SetHeight(math.max(scrollFrame:GetHeight() + 10, -yOffset + checkboxSpacing))
-
-            local cancelMassDeleteButton = UI:CreateButton(popup, "Cancel", 100, 25)
-            cancelMassDeleteButton:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 20, 20)
-            cancelMassDeleteButton:SetScript("OnClick", function()
-                popup:Hide()
-            end)
-
-            local deleteAllButton = UI:CreateButton(popup, "Delete All", 100, 25)
-            deleteAllButton:SetPoint("LEFT", cancelMassDeleteButton, "RIGHT", 10, 0)
-            deleteAllButton:SetScript("OnClick", function()
-                if RaidGroups.confirmDeleteAllPopupInstance and RaidGroups.confirmDeleteAllPopupInstance:IsShown() then
-                    return
-                end
-                RaidGroups.confirmDeleteAllPopupInstance = true
-
-                RaidGroups.confirmDeleteAllPopupInstance = UI:CreateTextPopup("Confirm Delete All",
-                    "Are you sure you want to delete ALL presets? This action cannot be undone.", "Delete All",
-                    "Cancel", function()
-                        RaidGroups.Presets = {}
-                        VACT.RaidGroupsPresets = RaidGroups.Presets
-                        RaidGroups.selectedPresetIndex = nil
-                        if RaidGroups.presetsDropdown and RaidGroups.presetsDropdown.button then
-                            RaidGroups.presetsDropdown.button.text:SetText("Select Preset")
-                        end
-                        RaidGroups:UpdatePresetsDropdown()
-
-                        if RaidGroups.massDeletePopup then
-                            RaidGroups.massDeletePopup:Hide()
-                        end
-                        local reportPopup = UI:CreateTextPopup("Mass Delete", "All presets have been deleted.", "OK",
-                            "Close", function()
-                            end, function()
-                            end)
-                        reportPopup:SetFrameStrata("HIGH")
-                        reportPopup:SetFrameLevel(255)
-                        reportPopup:Show()
-                        RaidGroups.confirmDeleteAllPopupInstance = nil
-                    end, function()
-                        RaidGroups.confirmDeleteAllPopupInstance = nil
-                    end)
-                RaidGroups.confirmDeleteAllPopupInstance:SetFrameStrata("HIGH")
-                RaidGroups.confirmDeleteAllPopupInstance:SetFrameLevel(450)
-                RaidGroups.confirmDeleteAllPopupInstance:SetScript("OnHide", function()
-                    RaidGroups.confirmDeleteAllPopupInstance = nil
-                end)
-                RaidGroups.confirmDeleteAllPopupInstance:Show()
-            end)
-
-            local deleteSelectedButton = UI:CreateButton(popup, "Delete Selected", 120, 25)
-            deleteSelectedButton:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 20)
-            deleteSelectedButton:SetScript("OnClick", function()
-                if RaidGroups.confirmDeleteSelectedPopupInstance and
-                    RaidGroups.confirmDeleteSelectedPopupInstance:IsShown() then
-                    return
-                end
-
-                local presetsToDeleteNames = {}
-                for _, cb in ipairs(RaidGroups.massDeletePopupCheckboxes) do
-                    if cb:GetChecked() then
-                        table.insert(presetsToDeleteNames, cb.presetName)
-                    end
-                end
-
-                if #presetsToDeleteNames == 0 then
-                    if RaidGroups.noPresetsInfoPopupInstance and RaidGroups.noPresetsInfoPopupInstance:IsShown() then
-                        return
-                    end
-                    RaidGroups.noPresetsInfoPopupInstance = UI:CreateTextPopup("Mass Delete",
-                        "No presets selected for deletion.", "OK", "Close", function()
-                            if RaidGroups.noPresetsInfoPopupInstance then
-                                RaidGroups.noPresetsInfoPopupInstance:Hide()
-                            end
-                        end, function()
-                            if RaidGroups.noPresetsInfoPopupInstance then
-                                RaidGroups.noPresetsInfoPopupInstance:Hide()
-                            end
-                        end)
-                    RaidGroups.noPresetsInfoPopupInstance:SetFrameStrata("HIGH")
-                    RaidGroups.noPresetsInfoPopupInstance:SetFrameLevel(450)
-                    RaidGroups.noPresetsInfoPopupInstance:SetScript("OnHide", function()
-                        RaidGroups.noPresetsInfoPopupInstance = nil
-                    end)
-                    RaidGroups.noPresetsInfoPopupInstance:Show()
-                    return
-                end
-
-                RaidGroups.confirmDeleteSelectedPopupInstance = true
-
-                RaidGroups.confirmDeleteSelectedPopupInstance =
-                    UI:CreateTextPopup("Confirm Deletion", "Are you sure you want to delete " .. #presetsToDeleteNames ..
-                        " preset(s)? This cannot be undone.", "Delete", "Cancel", function()
-                        local currentSelectedPresetName = nil
-                        if RaidGroups.selectedPresetIndex and RaidGroups.Presets[RaidGroups.selectedPresetIndex] then
-                            currentSelectedPresetName = RaidGroups.Presets[RaidGroups.selectedPresetIndex].name
-                        end
-
-                        local newPresetsList = {}
-                        local currentSelectionStillExists = false
-                        for _, presetData in ipairs(RaidGroups.Presets) do
-                            local deleteThis = false
-                            for _, nameToDelete in ipairs(presetsToDeleteNames) do
-                                if presetData.name == nameToDelete then
-                                    deleteThis = true
-                                    break
-                                end
-                            end
-                            if not deleteThis then
-                                table.insert(newPresetsList, presetData)
-                                if currentSelectedPresetName and presetData.name == currentSelectedPresetName then
-                                    currentSelectionStillExists = true
-                                end
-                            end
-                        end
-                        RaidGroups.Presets = newPresetsList
-                        VACT.RaidGroupsPresets = RaidGroups.Presets
-
-                        if not currentSelectionStillExists then
-                            RaidGroups.selectedPresetIndex = nil
-                            if RaidGroups.presetsDropdown and RaidGroups.presetsDropdown.button then
-                                RaidGroups.presetsDropdown.button.text:SetText("Select Preset")
-                            end
-                        end
-                        RaidGroups:UpdatePresetsDropdown()
-
-                        if RaidGroups.massDeletePopup then
-                            RaidGroups.massDeletePopup:Hide()
-                        end
-
-                        local reportPopup = UI:CreateTextPopup("Mass Delete",
-                            #presetsToDeleteNames .. " preset(s) deleted.", "OK", "Close", function()
-                            end, function()
-                            end)
-                        reportPopup:SetFrameStrata("HIGH")
-                        reportPopup:SetFrameLevel(450)
-                        reportPopup:Show()
-                        RaidGroups.confirmDeleteSelectedPopupInstance = nil
-                    end, function()
-                        RaidGroups.confirmDeleteSelectedPopupInstance = nil
-                    end)
-                RaidGroups.confirmDeleteSelectedPopupInstance:SetFrameStrata("HIGH")
-                RaidGroups.confirmDeleteSelectedPopupInstance:SetFrameLevel(450)
-                RaidGroups.confirmDeleteSelectedPopupInstance:SetScript("OnHide", function()
-                    RaidGroups.confirmDeleteSelectedPopupInstance = nil
-                end)
-                RaidGroups.confirmDeleteSelectedPopupInstance:Show()
-            end)
-
-            popup:SetScript("OnHide", function()
-                RaidGroups.massDeletePopup = nil
-                RaidGroups.massDeletePopupCheckboxes = {}
-            end)
-            popup:Show()
-
+            RaidGroups:ShowMassDeletePopup()
         else
             if RaidGroups.confirmSingleDeletePopupInstance and RaidGroups.confirmSingleDeletePopupInstance:IsShown() then
                 return
@@ -1299,6 +1282,8 @@ function RaidGroups:CreateConfigPanel(parent)
         end
     end)
 
+    self:CreateMassDeletePopup(configPanel)
+
     self.configPanel = configPanel
     return configPanel
 end
@@ -1319,10 +1304,14 @@ function RaidGroups:UpdatePresetsDropdown()
 end
 
 function RaidGroups:ClearNameList()
+    self.fullPlayerList = {}
+    self.availablePlayerList = {}
+    for _, frame in ipairs(self.nameFrames or {}) do
+        frame:Hide()
+        table.insert(self.nameFramePool, frame)
+    end
+    self.nameFrames = {}
     if self.nameListContent then
-        for _, frame in ipairs(self.nameFrames or {}) do
-            frame:Hide()
-        end
         self.nameListContent:SetHeight(420)
     end
 end
@@ -1339,75 +1328,81 @@ function RaidGroups:GetUsedNames()
     return used
 end
 
-function RaidGroups:UpdateNameList(listType)
-    self.rosterMapping = {}
-    local playerSubgroups = {}
-    local raidMemberNames = {}
-    local currentRealm = GetRealmName()
-    local namesForList = {}
+function RaidGroups:RefreshVisibleNames()
+    if not self.listScroll or not self.nameListContent then
+        return
+    end
 
-    if IsInRaid() then
+    local scrollOffset = self.listScroll:GetVerticalScroll()
+    local viewHeight = self.listScroll:GetHeight()
+    local lineHeight = 22
+
+    local firstVisibleIndex = math.floor(scrollOffset / lineHeight) + 1
+    local lastVisibleIndex = math.ceil((scrollOffset + viewHeight) / lineHeight)
+
+    for _, frame in ipairs(self.nameFrames or {}) do
+        frame:Hide()
+        table.insert(self.nameFramePool, frame)
+    end
+    self.nameFrames = {}
+
+    firstVisibleIndex = math.max(1, firstVisibleIndex)
+    lastVisibleIndex = math.min(#self.availablePlayerList, lastVisibleIndex)
+
+    for i = firstVisibleIndex, lastVisibleIndex do
+        local player = self.availablePlayerList[i]
+        if player then
+            local frame = table.remove(self.nameFramePool)
+            if not frame then
+                frame = self:CreateDraggableNameFrame(self.nameListContent, "", {1, 1, 1, 1}, "")
+            end
+
+            local color = GetClassColor(player.class)
+            frame.playerName = player.name
+            frame.classColor = color or {1, 1, 1, 1}
+            frame.class = player.class
+            frame.nameText:SetText(player.name)
+            frame.nameText:SetTextColor(unpack(color or {1, 1, 1, 1}))
+            frame.originalParent = self.nameListContent
+
+            frame:ClearAllPoints()
+            frame:SetPoint("TOPLEFT", self.nameListContent, "TOPLEFT", 0, -(i - 1) * lineHeight)
+            frame.originalPoint = "TOPLEFT"
+            frame.originalRelPoint = "TOPLEFT"
+            frame.originalX = 0
+            frame.originalY = -(i - 1) * lineHeight
+
+            frame:SetParent(self.nameListContent)
+            frame:Show()
+            table.insert(self.nameFrames, frame)
+        end
+    end
+end
+
+function RaidGroups:UpdateNameList(listType)
+    local namesForList = {}
+    self.rosterMapping = {}
+    local currentRealm = GetRealmName()
+
+    if listType == "raid" and IsInRaid() or IsInGroup() then
         local numRaid = GetNumGroupMembers() or 0
         for i = 1, numRaid do
-            local name, _, subgroup, _, _, class = GetRaidRosterInfo(i)
+            local name, _, _, _, _, class = GetRaidRosterInfo(i)
             if name then
                 local baseName, realmName = name:match("^(.-)%-(.+)$")
                 local displayName = (baseName and realmName) and
                                         ((realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)) or
                                         name
-
-                playerSubgroups[displayName] = subgroup
-                raidMemberNames[displayName] = true
+                table.insert(namesForList, {
+                    name = displayName,
+                    class = class,
+                    order = i
+                })
                 self.rosterMapping[displayName] = GetClassColor(class)
-
-                if listType == "raid" then
-                    table.insert(namesForList, {
-                        name = displayName,
-                        class = class,
-                        order = i
-                    })
-                end
             end
         end
-    end
-
-    local redColor = {1.0, 0.2, 0.2, 0.5}
-    local yellowColor = {1.0, 1.0, 0.0, 0.5}
-    local defaultColor = {0.1, 0.1, 0.1, 1}
-
-    if self.groupSlots then
-        for _, group in ipairs(self.groupSlots) do
-            for _, editBox in ipairs(group) do
-                local container = editBox:GetParent()
-                if editBox.usedName and editBox.usedName ~= "" then
-                    local playerName = editBox.usedName
-                    local subgroup = playerSubgroups[playerName]
-
-                    if not raidMemberNames[playerName] then
-                        container:SetBackdropColor(unpack(redColor))
-                    elseif subgroup and subgroup >= 7 then
-                        container:SetBackdropColor(unpack(yellowColor))
-                    else
-                        container:SetBackdropColor(unpack(defaultColor))
-                    end
-                else
-                    container:SetBackdropColor(unpack(defaultColor))
-                end
-            end
-        end
-    end
-
-    if not listType then
-        self:ClearNameList()
-        return
-    end
-
-    if not self.nameListContent then
-        return
-    end
-
-    if listType == "guild" then
-        if not self.guildCache or (GetTime() - self.lastGuildUpdate) > 15 then
+    elseif listType == "guild" then
+        if not self.guildCache or (GetTime() - self.lastGuildUpdate) > 300 then
             self.guildCache = {}
             local numGuild = GetNumGuildMembers() or 0
             for i = 1, numGuild do
@@ -1436,47 +1431,34 @@ function RaidGroups:UpdateNameList(listType)
         namesForList = self.guildCache
     end
 
+    self.fullPlayerList = namesForList
+
     local used = self:GetUsedNames()
-    local yOffset = -2
-    local index = 0
-    for _, player in ipairs(namesForList) do
+    self.availablePlayerList = {}
+    for _, player in ipairs(self.fullPlayerList) do
         if not used[player.name] then
-            index = index + 1
-            local color = GetClassColor(player.class)
-            local frame = self.nameFrames[index]
-            if frame then
-                frame.playerName = player.name
-                frame.classColor = color or {1, 1, 1, 1}
-                frame.class = player.class
-                frame.nameText:SetText(player.name)
-                frame.nameText:SetTextColor(unpack(color or {1, 1, 1, 1}))
-                frame.originalParent = self.nameListContent
-            else
-                frame = self:CreateDraggableNameFrame(self.nameListContent, player.name, color, player.class)
-                self.nameFrames[index] = frame
-            end
-            frame:SetParent(self.nameListContent)
-            frame:ClearAllPoints()
-            frame:SetPoint("TOPLEFT", self.nameListContent, "TOPLEFT", 0, yOffset)
-            frame.originalPoint = "TOPLEFT"
-            frame.originalRelPoint = "TOPLEFT"
-            frame.originalX = 0
-            frame.originalY = yOffset
-            frame:Show()
-            yOffset = yOffset - 22
+            table.insert(self.availablePlayerList, player)
         end
     end
 
-    local activeCount = index
-    for i = activeCount + 1, #self.nameFrames do
-        self.nameFrames[i]:Hide()
+    if not self.nameListContent then return end
+
+    local totalEntries = #self.availablePlayerList
+    local lineHeight = 22
+    self.nameListContent:SetHeight(totalEntries * lineHeight)
+
+    if self.currentListType ~= listType then
+        self.listScroll:SetVerticalScroll(0)
     end
-    self.nameListContent:SetHeight(math.max(420, activeCount * 22))
+
+    self:RefreshVisibleNames()
     self.listPopulated = true
+    self.currentListType = listType
 end
 
 function RaidGroups:CreateDraggableNameFrame(parent, playerName, classColor, class)
     local frame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    frame.isNameFrame = true
     frame:SetSize(200, 20)
     frame:SetFrameStrata("HIGH")
     frame:SetBackdrop({
@@ -1489,17 +1471,18 @@ function RaidGroups:CreateDraggableNameFrame(parent, playerName, classColor, cla
     frame:SetMovable(true)
     frame.nameText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frame.nameText:SetPoint("CENTER")
-    frame.nameText:SetText(playerName)
-    frame.nameText:SetTextColor(unpack(classColor or {1, 1, 1, 1}))
+
+    if playerName and playerName ~= "" then
+        frame.nameText:SetText(playerName)
+        frame.nameText:SetTextColor(unpack(classColor or {1, 1, 1, 1}))
+    end
+
     frame.class = class
     frame.playerName = playerName
     frame.classColor = classColor or {1, 1, 1, 1}
-
     frame.originalParent = parent
-    frame.originalPoint = nil
-    frame.originalRelPoint = nil
-    frame.originalX = nil
-    frame.originalY = nil
+    frame.originalPoint, frame.originalRelPoint = nil, nil
+    frame.originalX, frame.originalY = nil, nil
 
     frame:SetScript("OnMouseDown", NameFrame_OnMouseDown)
     frame:SetScript("OnMouseUp", NameFrame_OnMouseUp)
