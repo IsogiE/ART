@@ -154,7 +154,6 @@ function ACT:ShowModule(mod)
 
     for _, child in ipairs({content:GetChildren()}) do
         child:Hide()
-        child:SetParent(nil)
     end
 
     self.configFrame:SetSize(800, 600)
