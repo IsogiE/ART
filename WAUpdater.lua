@@ -279,7 +279,7 @@ function WeakAuraUpdaterModule:CreateConfigPanel(parent)
     configPanel:SetAllPoints(parent)
 
     local importLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    importLabel:SetPoint("TOPLEFT", 20, -16)
+    importLabel:SetPoint("TOPLEFT", 20, 16)
     importLabel:SetText("WeakAura Updater")
 
     local importBoxFrame, importBoxEdit = UI:CreateMultilineEditBox(configPanel, 520, 200, "")
