@@ -1,0 +1,27 @@
+name: Create GitHub Release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      GITHUB_OAUTH: ${{ secrets.OAUTH_TOKEN }}
+      TOC_NAME: ACT
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package and Release
+        uses: BigWigsMods/packager@v2
