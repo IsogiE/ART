@@ -41,25 +41,35 @@ local function GetClassColor(class)
 end
 
 local function GetPlayerClassColorByName(playerName)
-    if RaidGroups.rosterMapping[playerName] then
-        return RaidGroups.rosterMapping[playerName]
+    local normalizedPlayerName = RaidGroups:NormalizeCharacterName(playerName)
+    if RaidGroups.rosterMapping and RaidGroups.rosterMapping[normalizedPlayerName] then
+        return RaidGroups.rosterMapping[normalizedPlayerName]
     end
+
     local currentRealm = GetRealmName()
-    local numGuild = GetNumGuildMembers() or 0
-    for i = 1, numGuild do
-        local name, _, _, _, _, _, _, _, _, _, classToken = GetGuildRosterInfo(i)
-        if name then
-            local baseName, realmName = name:match("^(.-)%-(.+)$")
-            local displayName
-            if baseName and realmName then
-                displayName = (realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)
-            else
-                displayName = name
+    local lowerInput = normalizedPlayerName:lower()
+
+    if IsInGroup() then
+        for i = 1, GetNumGroupMembers() do
+            local name, _, _, _, _, classToken = GetRaidRosterInfo(i)
+            if name then
+                local normalizedAPIName = RaidGroups:NormalizeCharacterName(name)
+                if normalizedAPIName:lower() == lowerInput then
+                    return GetClassColor(classToken)
+                end
             end
-            local lowerInput = playerName:lower()
-            if lowerInput == name:lower() or lowerInput == displayName:lower() or
-                (baseName and lowerInput == baseName:lower()) then
-                return GetClassColor(classToken)
+        end
+    end
+
+    local numGuild = GetNumGuildMembers() or 0
+    if numGuild > 0 then
+        for i = 1, numGuild do
+            local name, _, _, _, _, _, _, _, _, _, classToken = GetGuildRosterInfo(i)
+            if name then
+                local normalizedAPIName = RaidGroups:NormalizeCharacterName(name)
+                if normalizedAPIName:lower() == lowerInput then
+                    return GetClassColor(classToken)
+                end
             end
         end
     end
@@ -227,9 +237,19 @@ local function IsCursorInFrame(frame, margin)
     margin = margin or 10
     local cx, cy = GetCursorPosition()
     local scale = frame:GetEffectiveScale()
+
+    if not scale or scale == 0 then
+        return false
+    end
+
     cx, cy = cx / scale, cy / scale
     local left, top = frame:GetLeft(), frame:GetTop()
     local right, bottom = frame:GetRight(), frame:GetBottom()
+
+    if not left or not top or not right or not bottom then
+        return false
+    end
+
     return (cx >= left - margin and cx <= right + margin and cy <= top + margin and cy >= bottom - margin)
 end
 
@@ -419,7 +439,7 @@ local function EnableGroupEditBoxDrag(editBox)
                     end
                 end
             else
-                if IsCursorInFrame(RaidGroups.nameListContent) then
+                if IsCursorInFrame(RaidGroups.listScroll) then
                     sourceEditBox:SetText("")
                     sourceEditBox:SetJustifyH("LEFT")
                     sourceEditBox:SetCursorPosition(0)
@@ -1384,7 +1404,7 @@ function RaidGroups:UpdateNameList(listType)
     self.rosterMapping = {}
     local currentRealm = GetRealmName()
 
-    if listType == "raid" and IsInRaid() or IsInGroup() then
+    if listType == "raid" and (IsInRaid() or IsInGroup()) then
         local numRaid = GetNumGroupMembers() or 0
         for i = 1, numRaid do
             local name, _, _, _, _, class = GetRaidRosterInfo(i)
@@ -1393,12 +1413,13 @@ function RaidGroups:UpdateNameList(listType)
                 local displayName = (baseName and realmName) and
                                         ((realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)) or
                                         name
+                local normalizedName = self:NormalizeCharacterName(displayName)
                 table.insert(namesForList, {
                     name = displayName,
                     class = class,
                     order = i
                 })
-                self.rosterMapping[displayName] = GetClassColor(class)
+                self.rosterMapping[normalizedName] = GetClassColor(class)
             end
         end
     elseif listType == "guild" then
@@ -1413,13 +1434,14 @@ function RaidGroups:UpdateNameList(listType)
                     local displayName = (baseName and realmName) and
                                             ((realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)) or
                                             name
+                    local normalizedName = self:NormalizeCharacterName(displayName)
                     table.insert(self.guildCache, {
                         name = displayName,
                         class = classToken,
                         rankIndex = rankIndex
                     })
-                    if not self.rosterMapping[displayName] then
-                        self.rosterMapping[displayName] = GetClassColor(classToken)
+                    if not self.rosterMapping[normalizedName] then
+                        self.rosterMapping[normalizedName] = GetClassColor(classToken)
                     end
                 end
             end
@@ -1441,7 +1463,9 @@ function RaidGroups:UpdateNameList(listType)
         end
     end
 
-    if not self.nameListContent then return end
+    if not self.nameListContent then
+        return
+    end
 
     local totalEntries = #self.availablePlayerList
     local lineHeight = 22
@@ -1558,14 +1582,8 @@ function RaidGroups:ApplyGroups(list)
 end
 
 function RaidGroups:ProcessRoster()
-    local UnitsInCombat = ""
-    for i = 1, 40 do
-        local unit = "raid" .. i
-        if UnitAffectingCombat(unit) then
-            UnitsInCombat = UnitsInCombat .. (UnitsInCombat ~= "" and "," or "") .. UnitName(unit)
-        end
-    end
-    if UnitsInCombat ~= "" then
+    if InCombatLockdown() then
+        self.db.needGroup = nil
         return
     end
 
@@ -1576,10 +1594,7 @@ function RaidGroups:ProcessRoster()
         return
     end
 
-    local currentGroup = {}
-    local currentPos = {}
-    local nameToID = {}
-    local groupSize = {}
+    local currentGroup, currentPos, nameToID, groupSize = {}, {}, {}, {}
     for i = 1, 8 do
         groupSize[i] = 0
     end
@@ -1587,11 +1602,9 @@ function RaidGroups:ProcessRoster()
     for i = 1, GetNumGroupMembers() do
         local name, _, subgroup = GetRaidRosterInfo(i)
         if name then
-            if not needGroup[name] then
-                local baseName = strsplit("-", name)
-                if baseName and needGroup[baseName] then
-                    name = baseName
-                end
+            local checkName = name
+            if not needGroup[checkName] and checkName:find("%-") and needGroup[strsplit("-", checkName)] then
+                checkName = strsplit("-", checkName)
             end
             currentGroup[name] = subgroup
             nameToID[name] = i
@@ -1600,91 +1613,89 @@ function RaidGroups:ProcessRoster()
         end
     end
 
-    local waitForGroup = false
-    for unit, desiredGroup in pairs(needGroup) do
-        local currentG = currentGroup[unit]
-        if currentG and currentG ~= desiredGroup then
-            if groupSize[desiredGroup] < 5 then
-                SetRaidSubgroup(nameToID[unit], desiredGroup)
-                groupSize[currentG] = groupSize[currentG] - 1
-                groupSize[desiredGroup] = groupSize[desiredGroup] + 1
-                waitForGroup = true
+    if not self.db.groupsReady then
+        local waitForGroup = false
+        for unit, group in pairs(needGroup) do
+            if currentGroup[unit] and currentGroup[unit] ~= group and nameToID[unit] then
+                if groupSize[group] < 5 then
+                    SetRaidSubgroup(nameToID[unit], group)
+                    waitForGroup = true
+                end
             end
         end
-    end
-    if waitForGroup then
-        C_Timer.After(0.5, function()
-            self:ProcessRoster()
-        end)
-        return
+        if waitForGroup then
+            return
+        end
+
+        local setToSwap, waitForSwap = {}, false
+        for unit, group in pairs(needGroup) do
+            if not setToSwap[unit] and currentGroup[unit] and currentGroup[unit] ~= group and nameToID[unit] then
+                local unitToSwap
+                for unit2, group2 in pairs(currentGroup) do
+                    if not setToSwap[unit2] and group2 == group and needGroup[unit2] ~= group2 and nameToID[unit2] then
+                        unitToSwap = unit2
+                        break
+                    end
+                end
+                if unitToSwap then
+                    SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwap])
+                    waitForSwap = true
+                    setToSwap[unit] = true
+                    setToSwap[unitToSwap] = true
+                end
+            end
+        end
+        if waitForSwap then
+            return
+        end
+
+        self.db.groupsReady = true
     end
 
-    local setToSwap = {}
-    local waitForSwap = false
-    for unit, desiredGroup in pairs(needGroup) do
-        if currentGroup[unit] and currentGroup[unit] ~= desiredGroup and not setToSwap[unit] then
-            local unitToSwap = nil
-            for unit2, group2 in pairs(currentGroup) do
-                if not setToSwap[unit2] and group2 == desiredGroup and needGroup[unit2] ~= group2 then
-                    unitToSwap = unit2
-                    break
-                end
-            end
-            if unitToSwap then
-                SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwap])
-                waitForSwap = true
-                setToSwap[unit] = true
-                setToSwap[unitToSwap] = true
-            end
-        end
-    end
-    if waitForSwap then
-        C_Timer.After(0.5, function()
-            self:ProcessRoster()
-        end)
-        return
-    end
+    do
+        local setToSwap, waitForSwap = {}, false
+        for unit, pos in pairs(needPosInGroup) do
+            if not lockedUnit[unit] and currentPos[unit] and currentPos[unit] ~= pos and nameToID[unit] and
+                nameToID[unit] ~= 1 and not setToSwap[unit] then
+                local unitToSwap, unitToSwapBridge
 
-    local setToSwap2 = {}
-    local waitForSwap2 = false
-    for unit, desiredPos in pairs(needPosInGroup) do
-        if currentPos[unit] and currentPos[unit] ~= desiredPos and nameToID[unit] ~= 1 and not setToSwap2[unit] then
-            local currentG = currentGroup[unit]
-            local unitToSwapBridge = nil
-            for unit2, group2 in pairs(currentGroup) do
-                if group2 ~= currentG and nameToID[unit2] ~= 1 and not setToSwap2[unit2] then
-                    unitToSwapBridge = unit2
-                    break
+                for unit2, pos2 in pairs(currentPos) do
+                    if currentGroup[unit2] == currentGroup[unit] and pos2 == pos and nameToID[unit2] and nameToID[unit2] ~=
+                        1 and not setToSwap[unit2] then
+                        unitToSwap = unit2
+                        break
+                    end
                 end
-            end
-            local unitToSwap = nil
-            for unit2, pos2 in pairs(currentPos) do
-                if currentGroup[unit2] == currentG and pos2 == desiredPos and nameToID[unit2] ~= 1 and
-                    not setToSwap2[unit2] then
-                    unitToSwap = unit2
-                    break
+
+                for unit2, group2 in pairs(currentGroup) do
+                    if group2 ~= currentGroup[unit] and nameToID[unit2] and nameToID[unit2] ~= 1 and
+                        not setToSwap[unit2] then
+                        unitToSwapBridge = unit2
+                        break
+                    end
                 end
-            end
-            if unitToSwap and unitToSwapBridge then
-                lockedUnit[unit] = true
-                SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwapBridge])
-                SwapRaidSubgroup(nameToID[unitToSwapBridge], nameToID[unitToSwap])
-                SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwapBridge])
-                waitForSwap2 = true
-                setToSwap2[unit] = true
-                setToSwap2[unitToSwap] = true
-                setToSwap2[unitToSwapBridge] = true
+
+                if unitToSwap and unitToSwapBridge then
+                    lockedUnit[unit] = true
+
+                    SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwapBridge])
+                    SwapRaidSubgroup(nameToID[unitToSwapBridge], nameToID[unitToSwap])
+                    SwapRaidSubgroup(nameToID[unit], nameToID[unitToSwapBridge])
+
+                    waitForSwap = true
+                    setToSwap[unit] = true
+                    setToSwap[unitToSwap] = true
+                    setToSwap[unitToSwapBridge] = true
+                end
             end
         end
-    end
-    if waitForSwap2 then
-        C_Timer.After(0.5, function()
-            self:ProcessRoster()
-        end)
-        return
+        if waitForSwap then
+            return
+        end
     end
 
     self.db.needGroup = nil
+    self.db.processTimer = nil
 end
 
 function RaidGroups:GeneratePresetString()
@@ -1745,7 +1756,19 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "GROUP_ROSTER_UPDATE" and RaidGroups then
-        RaidGroups:UpdateNameList(RaidGroups.currentListType)
+        if RaidGroups.configPanel and RaidGroups.configPanel:IsShown() and RaidGroups.currentListType then
+            RaidGroups:UpdateNameList(RaidGroups.currentListType)
+        end
+
+        if RaidGroups.db and RaidGroups.db.needGroup then
+            if RaidGroups.db.processTimer then
+                RaidGroups.db.processTimer:Cancel()
+            end
+            RaidGroups.db.processTimer = C_Timer.NewTimer(0.6, function()
+                RaidGroups.db.processTimer = nil
+                RaidGroups:ProcessRoster()
+            end)
+        end
     end
 end)
 
