@@ -7,7 +7,8 @@
 ## Version: @project-version@
 ## DefaultState: Enable
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
-## OptionalDeps: ElvUI, WeakAuras, Grid2, MRT, Cell, AuraUpdater
+## Dependencies: WeakAuras
+## OptionalDeps: ElvUI, Grid2, MRT, Cell
 ## Category: Advance
 
 embeds.xml
