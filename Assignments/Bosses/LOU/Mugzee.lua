@@ -1,8 +1,9 @@
 AssignmentBossUI = AssignmentBossUI or {}
-
 AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     local frame = CreateFrame("Frame", nil, parentFrame)
     frame:SetAllPoints(parentFrame)
+
+    AssignmentModule.allowDuplicates = true
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
     scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
@@ -18,6 +19,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     local mugzeeGripRows = {}
     local mugzeeGoblinGroups = {{}, {}}
     local mugzeeFrostRows = {}
+    local allSlots = {}
 
     local function CreateMugzeeEditBox(parent)
         local slot = CreateFrame("Frame", nil, parent, "BackdropTemplate")
@@ -39,205 +41,6 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             self:ClearFocus()
         end)
         editBox.usedName = nil
-
-        AssignmentModule = AssignmentModule or {}
-        AssignmentModule.allowDuplicates = true
-
-        editBox:SetScript("OnEditFocusLost", function(self)
-            local plain = self:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-            plain = plain:match("^%s*(.-)%s*$") or ""
-            if plain == "" then
-                self.usedName = nil
-            else
-                local filtered = AssignmentModule:GetDisplayName(plain)
-                local color = GetPlayerClassColorByName(filtered)
-                local r, g, b = color[1], color[2], color[3]
-                local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
-                self:SetText("|cff" .. hexColor .. filtered .. "|r")
-                self:SetCursorPosition(0)
-                self.usedName = filtered
-            end
-            AssignmentModule:UpdateRosterList()
-        end)
-
-        editBox:EnableMouse(true)
-        editBox:RegisterForDrag("LeftButton")
-        editBox:SetScript("OnDragStart", function(self)
-            if self:HasFocus() then
-                self:ClearFocus()
-                C_Timer.After(0.01, function()
-                    self.dragStartX, self.dragStartY = GetCursorPosition()
-                    self.isDragging = false
-                    self:SetScript("OnUpdate", function(self)
-                        if not IsCursorInEditBox(self, 0, 0) then
-                            self.isDragging = true
-                            self:SetScript("OnUpdate", nil)
-                            if self.usedName and self.usedName ~= "" then
-                                AssignmentModule.DragContainer =
-                                    AssignmentModule.DragContainer or
-                                        CreateFrame("Frame", "Assignment_DragContainer", UIParent)
-                                local dragLayer = AssignmentModule.DragContainer
-                                dragLayer:SetAllPoints(UIParent)
-                                dragLayer:SetFrameStrata("HIGH")
-                                dragLayer:SetFrameLevel(400)
-                                local dragFrame = CreateFrame("Frame", nil, dragLayer, "BackdropTemplate")
-                                dragFrame:SetSize(self:GetWidth(), self:GetHeight())
-                                dragFrame:SetFrameStrata("TOOLTIP")
-                                dragFrame:SetBackdrop({
-                                    bgFile = "Interface\\Buttons\\WHITE8x8",
-                                    edgeFile = "Interface\\Buttons\\WHITE8x8",
-                                    edgeSize = 1
-                                })
-                                dragFrame:SetBackdropBorderColor(1, 1, 1, 1)
-                                dragFrame.text = dragFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                                dragFrame.text:SetPoint("CENTER")
-                                dragFrame.text:SetText(self.usedName)
-                                dragFrame:EnableMouse(false)
-                                dragFrame:SetScript("OnUpdate", function(frame)
-                                    local cx, cy = GetCursorPosition()
-                                    local scale = UIParent:GetEffectiveScale()
-                                    frame:ClearAllPoints()
-                                    frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
-                                end)
-                                self.dragFrame = dragFrame
-                            end
-                        end
-                    end)
-                end)
-            else
-                self.dragStartX, self.dragStartY = GetCursorPosition()
-                self.isDragging = false
-                self:SetScript("OnUpdate", function(self)
-                    if not IsCursorInEditBox(self, 0, 0) then
-                        self.isDragging = true
-                        self:SetScript("OnUpdate", nil)
-                        if self.usedName and self.usedName ~= "" then
-                            AssignmentModule.DragContainer =
-                                AssignmentModule.DragContainer or
-                                    CreateFrame("Frame", "Assignment_DragContainer", UIParent)
-                            local dragLayer = AssignmentModule.DragContainer
-                            dragLayer:SetAllPoints(UIParent)
-                            dragLayer:SetFrameStrata("HIGH")
-                            dragLayer:SetFrameLevel(400)
-                            local dragFrame = CreateFrame("Frame", nil, dragLayer, "BackdropTemplate")
-                            dragFrame:SetSize(self:GetWidth(), self:GetHeight())
-                            dragFrame:SetFrameStrata("TOOLTIP")
-                            dragFrame:SetBackdrop({
-                                bgFile = "Interface\\Buttons\\WHITE8x8",
-                                edgeFile = "Interface\\Buttons\\WHITE8x8",
-                                edgeSize = 1
-                            })
-                            dragFrame:SetBackdropBorderColor(1, 1, 1, 1)
-                            dragFrame.text = dragFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-                            dragFrame.text:SetPoint("CENTER")
-                            dragFrame.text:SetText(self.usedName)
-                            dragFrame:EnableMouse(false)
-                            dragFrame:SetScript("OnUpdate", function(frame)
-                                local cx, cy = GetCursorPosition()
-                                local scale = UIParent:GetEffectiveScale()
-                                frame:ClearAllPoints()
-                                frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
-                            end)
-                            self.dragFrame = dragFrame
-                        end
-                    end
-                end)
-            end
-        end)
-        editBox:SetScript("OnDragStop", function(self)
-            self:SetScript("OnUpdate", nil)
-            if self.dragFrame then
-                local dragFrame = self.dragFrame
-                dragFrame:SetScript("OnUpdate", nil)
-                dragFrame:Hide()
-                local dropTarget = nil
-                if AssignmentModule.currentSlots then
-                    for _, group in ipairs(AssignmentModule.currentSlots) do
-                        for _, target in ipairs(group) do
-                            if target and target:IsVisible() and target:GetLeft() and target:GetRight() then
-                                local cx, cy = GetCursorPosition()
-                                local scale = target:GetEffectiveScale()
-                                cx, cy = cx / scale, cy / scale
-                                local left, right = target:GetLeft(), target:GetRight()
-                                local top, bottom = target:GetTop(), target:GetBottom()
-                                if cx >= left - 15 and cx <= right + 15 and cy >= bottom - 8 and cy <= top + 8 then
-                                    dropTarget = target
-                                    break
-                                end
-                            end
-                        end
-                        if dropTarget then
-                            break
-                        end
-                    end
-                end
-                local sourceEditBox = self
-                local sourceText = sourceEditBox.usedName or
-                                       (sourceEditBox:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-                sourceText = AssignmentModule:GetDisplayName(sourceText)
-                if dropTarget then
-                    if dropTarget ~= sourceEditBox then
-                        local targetText = dropTarget.usedName or
-                                               (dropTarget:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
-                        targetText = AssignmentModule:GetDisplayName(targetText)
-                        if targetText and targetText ~= "" then
-                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
-                            local targetColor = GetPlayerClassColorByName(targetText) or {1, 1, 1, 1}
-                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
-                                sourceColor[3] * 255)
-                            local targetHex = string.format("%02x%02x%02x", targetColor[1] * 255, targetColor[2] * 255,
-                                targetColor[3] * 255)
-                            sourceEditBox:SetText("|cff" .. targetHex .. targetText .. "|r")
-                            sourceEditBox:SetJustifyH("LEFT")
-                            sourceEditBox:SetCursorPosition(0)
-                            sourceEditBox.usedName = targetText
-                            dropTarget:SetText("|cff" .. sourceHex .. sourceText .. "|r")
-                            dropTarget:SetJustifyH("LEFT")
-                            dropTarget:SetCursorPosition(0)
-                            dropTarget.usedName = sourceText
-                        else
-                            local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
-                            local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
-                                sourceColor[3] * 255)
-                            dropTarget:SetText("|cff" .. sourceHex .. sourceText .. "|r")
-                            dropTarget:SetJustifyH("LEFT")
-                            dropTarget:SetCursorPosition(0)
-                            dropTarget.usedName = sourceText
-                            sourceEditBox:SetText("")
-                            sourceEditBox:SetJustifyH("LEFT")
-                            sourceEditBox:SetCursorPosition(0)
-                            sourceEditBox.usedName = nil
-                        end
-                    end
-                else
-                    if AssignmentModule.nameListContent and IsCursorInFrame(AssignmentModule.nameListContent) then
-                        sourceEditBox:SetText("")
-                        sourceEditBox:SetJustifyH("LEFT")
-                        sourceEditBox:SetCursorPosition(0)
-                        sourceEditBox.usedName = nil
-                        AssignmentModule:UpdateRosterList()
-                    else
-                        local plain = sourceText or ""
-                        if plain ~= "" then
-                            local color = GetPlayerClassColorByName(plain)
-                            if color then
-                                local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255,
-                                    color[3] * 255)
-                                sourceEditBox:SetText("|cff" .. hexColor .. plain .. "|r")
-                            else
-                                sourceEditBox:SetText(plain)
-                            end
-                        else
-                            sourceEditBox:SetText("")
-                        end
-                        sourceEditBox:SetJustifyH("LEFT")
-                        sourceEditBox:SetCursorPosition(0)
-                    end
-                end
-                self.dragFrame = nil
-            end
-        end)
-
         return editBox, slot
     end
 
@@ -260,6 +63,8 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         end
         return rowFrame, boxes
     end
+
+    AssignmentModule.allowDuplicates = true
 
     local boxWidth = 100
     local boxHeight = 20
@@ -316,6 +121,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             group = def.group,
             editBoxes = rowEditBoxes
         })
+        table.insert(allSlots, rowEditBoxes)
     end
 
     local gripTitle = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -338,6 +144,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             table.insert(rowEditBoxes, b.editBox)
         end
         table.insert(mugzeeGripRows, rowEditBoxes)
+        table.insert(allSlots, rowEditBoxes)
     end
 
     local rocketTitle = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -367,6 +174,8 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         end
         yOffset = yOffset - 10
     end
+    table.insert(allSlots, mugzeeGoblinGroups[1])
+    table.insert(allSlots, mugzeeGoblinGroups[2])
 
     local frostTitle = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     frostTitle:SetPoint("TOPLEFT", content, "TOPLEFT", 10, yOffset)
@@ -382,29 +191,15 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
             table.insert(mugzeeFrostRows, b.editBox)
         end
     end
+    table.insert(allSlots, mugzeeFrostRows)
 
     content:SetHeight(-yOffset + 20)
 
-    AssignmentModule.currentSlots = {}
-    for _, row in ipairs(mugzeeGaolRows) do
-        table.insert(AssignmentModule.currentSlots, row.editBoxes)
-    end
-    for _, row in ipairs(mugzeeGripRows) do
-        table.insert(AssignmentModule.currentSlots, row)
-    end
-    for _, group in ipairs(mugzeeGoblinGroups) do
-        table.insert(AssignmentModule.currentSlots, group)
-    end
-    table.insert(AssignmentModule.currentSlots, mugzeeFrostRows)
+    frame.bossSlots = allSlots
 
-    frame:SetScript("OnHide", function()
-        for _, group in ipairs(AssignmentModule.currentSlots) do
-            for _, editBox in ipairs(group) do
-                editBox:SetText("")
-                editBox.usedName = nil
-            end
-        end
-        if AssignmentModule and AssignmentModule.UpdateRosterList then
+    frame:SetScript("OnShow", function(self)
+        AssignmentModule.currentSlots = self.bossSlots
+        if AssignmentModule.UpdateRosterList then
             AssignmentModule:UpdateRosterList()
         end
     end)
@@ -438,8 +233,8 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     local function GetMugzeeAssignmentState()
         local hasData = false
         local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
+        if frame.bossSlots then
+            for i, group in ipairs(frame.bossSlots) do
                 data[i] = {}
                 for j, editBox in ipairs(group) do
                     local name = editBox.usedName or ""
@@ -467,7 +262,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         return str
     end
 
-    local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
+    local noteButton = UI:CreateButton(frame, "Generate Note", 120, 25, function()
         if isGenerateNotePopupOpen then
             return
         end
@@ -570,16 +365,16 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         popup:Show()
         editBox:ClearFocus()
     end)
-    noteButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -155, 35)
+    noteButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -155, 35)
 
     local spacing = 10
 
-    local loadPresetButton = UI:CreateButton(parentFrame, "Load Preset", 100, 25, function()
+    local loadPresetButton = UI:CreateButton(frame, "Load Preset", 100, 25, function()
         local selectedText = presetDropdown.button.text:GetText()
         for _, preset in ipairs(VACT.BossPresets[bossID]) do
             if preset.name == selectedText then
-                if preset.data and AssignmentModule.currentSlots then
-                    for i, group in ipairs(AssignmentModule.currentSlots) do
+                if preset.data and frame.bossSlots then
+                    for i, group in ipairs(frame.bossSlots) do
                         if preset.data[i] then
                             for j, presetName in ipairs(preset.data[i]) do
                                 local editBox = group[j]
@@ -608,7 +403,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     end)
     loadPresetButton:SetPoint("RIGHT", noteButton, "LEFT", -spacing, 0)
 
-    local deletePresetButton = UI:CreateButton(parentFrame, "Delete Preset", 100, 25, function()
+    local deletePresetButton = UI:CreateButton(frame, "Delete Preset", 100, 25, function()
         local selectedText = presetDropdown.button.text:GetText()
         local selectedIndex = nil
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -625,7 +420,7 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
-    local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
+    local renamePresetButton = UI:CreateButton(frame, "Rename Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
@@ -656,12 +451,12 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     end)
     renamePresetButton:SetPoint("RIGHT", deletePresetButton, "LEFT", -spacing, 0)
 
-    presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
+    presetDropdown = UI:CreateDropdown(frame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
     _G["Update" .. bossID .. "PresetDropdown"]()
 
-    local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
+    local savePresetButton = UI:CreateButton(frame, "Save Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
@@ -689,9 +484,9 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)
 
-    local clearUIButton = UI:CreateButton(parentFrame, "Clear UI", 100, 25, function()
-        if AssignmentModule.currentSlots then
-            for _, group in ipairs(AssignmentModule.currentSlots) do
+    local clearUIButton = UI:CreateButton(frame, "Clear UI", 100, 25, function()
+        if frame.bossSlots then
+            for _, group in ipairs(frame.bossSlots) do
                 for _, editBox in ipairs(group) do
                     editBox:SetText("")
                     editBox.usedName = nil
@@ -701,4 +496,5 @@ AssignmentBossUI["mugzee"] = function(parentFrame, rosterList)
         end
     end)
     clearUIButton:SetPoint("RIGHT", savePresetButton, "LEFT", -spacing, 0)
+    return frame
 end
