@@ -1,5 +1,4 @@
 AssignmentBossUI = AssignmentBossUI or {}
-
 AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     local frame = CreateFrame("Frame", nil, parentFrame)
     frame:SetAllPoints(parentFrame)
@@ -50,7 +49,6 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
         end
     end
 
-    AssignmentModule = AssignmentModule or {}
     AssignmentModule.allowDuplicates = true
 
     local labelTexts = {"1 M", "1 R", "2 M", "2 R", "3 M", "3 R", "4 M", "4 R", "5 M", "5 R", "6 M", "6 R", "7 M",
@@ -152,20 +150,16 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     end
     content:SetHeight(totalHeight)
 
-    AssignmentModule.currentSlots = AssignmentModule.currentSlots or {}
-    table.insert(AssignmentModule.currentSlots, topGroup)
+    local allSlots = {}
+    table.insert(allSlots, topGroup)
     for _, group in ipairs(rowGroups) do
-        table.insert(AssignmentModule.currentSlots, group)
+        table.insert(allSlots, group)
     end
+    frame.bossSlots = allSlots
 
-    frame:SetScript("OnHide", function()
-        for _, group in ipairs(AssignmentModule.currentSlots) do
-            for _, editBox in ipairs(group) do
-                editBox:SetText("")
-                editBox.usedName = nil
-            end
-        end
-        if AssignmentModule and AssignmentModule.UpdateRosterList then
+    frame:SetScript("OnShow", function(self)
+        AssignmentModule.currentSlots = self.bossSlots
+        if AssignmentModule.UpdateRosterList then
             AssignmentModule:UpdateRosterList()
         end
     end)
@@ -199,8 +193,8 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     local function GetSprocketAssignmentState()
         local hasData = false
         local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
+        if frame.bossSlots then
+            for i, group in ipairs(frame.bossSlots) do
                 data[i] = {}
                 for j, editBox in ipairs(group) do
                     local name = editBox.usedName or ""
@@ -228,7 +222,7 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
         return str
     end
 
-    local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
+    local noteButton = UI:CreateButton(frame, "Generate Note", 120, 25, function()
         if isGenerateNotePopupOpen then
             return
         end
@@ -282,16 +276,16 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
         popup:Show()
         editBox:ClearFocus()
     end)
-    noteButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -155, 35)
+    noteButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -155, 35)
 
     local spacing = 10
 
-    local loadPresetButton = UI:CreateButton(parentFrame, "Load Preset", 100, 25, function()
+    local loadPresetButton = UI:CreateButton(frame, "Load Preset", 100, 25, function()
         local selectedText = presetDropdown.button.text:GetText()
         for _, preset in ipairs(VACT.BossPresets[bossID]) do
             if preset.name == selectedText then
-                if preset.data and AssignmentModule.currentSlots then
-                    for i, group in ipairs(AssignmentModule.currentSlots) do
+                if preset.data and frame.bossSlots then
+                    for i, group in ipairs(frame.bossSlots) do
                         if preset.data[i] then
                             for j, presetName in ipairs(preset.data[i]) do
                                 local editBox = group[j]
@@ -320,7 +314,7 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     end)
     loadPresetButton:SetPoint("RIGHT", noteButton, "LEFT", -spacing, 0)
 
-    local deletePresetButton = UI:CreateButton(parentFrame, "Delete Preset", 100, 25, function()
+    local deletePresetButton = UI:CreateButton(frame, "Delete Preset", 100, 25, function()
         local selectedText = presetDropdown.button.text:GetText()
         local selectedIndex = nil
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -337,7 +331,7 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
-    local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
+    local renamePresetButton = UI:CreateButton(frame, "Rename Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
@@ -368,12 +362,12 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     end)
     renamePresetButton:SetPoint("RIGHT", deletePresetButton, "LEFT", -spacing, 0)
 
-    presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
+    presetDropdown = UI:CreateDropdown(frame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
     _G["Update" .. bossID .. "PresetDropdown"]()
 
-    local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
+    local savePresetButton = UI:CreateButton(frame, "Save Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
@@ -401,9 +395,9 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)
 
-    local clearUIButton = UI:CreateButton(parentFrame, "Clear UI", 100, 25, function()
-        if AssignmentModule.currentSlots then
-            for _, group in ipairs(AssignmentModule.currentSlots) do
+    local clearUIButton = UI:CreateButton(frame, "Clear UI", 100, 25, function()
+        if frame.bossSlots then
+            for _, group in ipairs(frame.bossSlots) do
                 for _, editBox in ipairs(group) do
                     editBox:SetText("")
                     editBox.usedName = nil
@@ -413,4 +407,5 @@ AssignmentBossUI["sprocketmonger"] = function(parentFrame, rosterList)
         end
     end)
     clearUIButton:SetPoint("RIGHT", savePresetButton, "LEFT", -spacing, 0)
+    return frame
 end
