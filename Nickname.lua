@@ -734,7 +734,7 @@ function NicknameModule:CreateConfigPanel(parent)
     integrationCheckbox:SetPoint("TOPLEFT", myNickBoxFrame, "BOTTOMLEFT", 0, -15)
     integrationCheckbox:SetScript("OnClick", function(self)
         ACT.db.profile.useNicknameIntegration = self:GetChecked();
-        self:PromptReloadNormal()
+        NicknameModule:PromptReloadNormal()
     end)
     integrationCheckbox.Text:SetText("Show Nicknames on Raid Frames")
 
@@ -742,7 +742,7 @@ function NicknameModule:CreateConfigPanel(parent)
     streamerCheckbox:SetPoint("TOP", integrationCheckbox, "BOTTOM", 0, -5)
     streamerCheckbox:SetScript("OnClick", function(self)
         ACT.db.profile.streamerMode = self:GetChecked();
-        self:RefreshContent()
+        NicknameModule:RefreshContent()
     end)
     streamerCheckbox.Text:SetText("Streamer Mode")
 
