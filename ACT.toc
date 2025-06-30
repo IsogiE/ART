@@ -36,3 +36,4 @@ SplitHelper.lua
 AddonChecker.lua
 WAUpdater.lua
 VersionChecker.lua
+Currency.lua
