@@ -2,28 +2,25 @@ AssignmentBossUI = AssignmentBossUI or {}
 AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     local frame = CreateFrame("Frame", nil, parentFrame)
     frame:SetAllPoints(parentFrame)
-
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 10, -10)
     title:SetText("Scatterblast Cannisters Frontal Assignments")
-
     local setLabel1 = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     setLabel1:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -15)
     setLabel1:SetText("Set 1, 3, 5")
 
-    local group1 = {}
+    local group1, group2 = {}, {}
+    frame.bossSlots = {group1, group2}
+
     local group1Container = CreateFrame("Frame", nil, frame)
     group1Container:SetPoint("TOPLEFT", setLabel1, "BOTTOMLEFT", 0, -5)
     group1Container:SetSize((100 + 10) * 5 - 10, (20 + 10) * 2 - 10)
-
+    group1Container:EnableMouse(false)
     for row = 1, 2 do
         for col = 1, 5 do
             local slot = CreateFrame("Frame", nil, group1Container, "BackdropTemplate")
             slot:SetSize(100, 20)
-            local xOffset = (col - 1) * (100 + 10)
-            local yOffset = -((row - 1) * (20 + 10))
-            slot:SetPoint("TOPLEFT", group1Container, "TOPLEFT", xOffset, yOffset)
-
+            slot:SetPoint("TOPLEFT", group1Container, "TOPLEFT", (col - 1) * (100 + 10), -((row - 1) * (20 + 10)))
             slot:SetBackdrop({
                 bgFile = "Interface\\Buttons\\WHITE8x8",
                 edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -31,7 +28,6 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
             })
             slot:SetBackdropColor(0.1, 0.1, 0.1, 1)
             slot:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-
             local editBox = CreateFrame("EditBox", nil, slot)
             editBox:SetAllPoints(slot)
             editBox:SetAutoFocus(false)
@@ -41,31 +37,24 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
                 self:ClearFocus()
             end)
             editBox.usedName = nil
-
             table.insert(group1, editBox)
         end
     end
 
-    AssignmentModule = AssignmentModule or {}
     AssignmentModule.allowDuplicates = false
-
     local setLabel2 = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     setLabel2:SetPoint("TOPLEFT", group1Container, "BOTTOMLEFT", 0, -30)
     setLabel2:SetText("Set 2, 4, 6")
 
-    local group2 = {}
     local group2Container = CreateFrame("Frame", nil, frame)
     group2Container:SetPoint("TOPLEFT", setLabel2, "BOTTOMLEFT", 0, -5)
     group2Container:SetSize((100 + 10) * 5 - 10, (20 + 10) * 2 - 10)
-
+    group2Container:EnableMouse(false)
     for row = 1, 2 do
         for col = 1, 5 do
             local slot = CreateFrame("Frame", nil, group2Container, "BackdropTemplate")
             slot:SetSize(100, 20)
-            local xOffset = (col - 1) * (100 + 10)
-            local yOffset = -((row - 1) * (20 + 10))
-            slot:SetPoint("TOPLEFT", group2Container, "TOPLEFT", xOffset, yOffset)
-
+            slot:SetPoint("TOPLEFT", group2Container, "TOPLEFT", (col - 1) * (100 + 10), -((row - 1) * (20 + 10)))
             slot:SetBackdrop({
                 bgFile = "Interface\\Buttons\\WHITE8x8",
                 edgeFile = "Interface\\Buttons\\WHITE8x8",
@@ -73,7 +62,6 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
             })
             slot:SetBackdropColor(0.1, 0.1, 0.1, 1)
             slot:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
-
             local editBox = CreateFrame("EditBox", nil, slot)
             editBox:SetAllPoints(slot)
             editBox:SetAutoFocus(false)
@@ -83,33 +71,22 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
                 self:ClearFocus()
             end)
             editBox.usedName = nil
-
             table.insert(group2, editBox)
         end
     end
 
-    AssignmentModule.currentSlots = {group1, group2}
-
-    frame:SetScript("OnHide", function()
-        for _, group in ipairs(AssignmentModule.currentSlots) do
-            for _, editBox in ipairs(group) do
-                editBox:SetText("")
-                editBox.usedName = nil
-            end
+    frame:SetScript("OnShow", function(self)
+        AssignmentModule.currentSlots = self.bossSlots
+        if AssignmentModule.UpdateRosterList then
+            AssignmentModule:UpdateRosterList()
         end
-        AssignmentModule:UpdateRosterList()
     end)
 
     local bossID = "gallywix"
     VACT = VACT or {}
     VACT.BossPresets = VACT.BossPresets or {}
     VACT.BossPresets[bossID] = VACT.BossPresets[bossID] or {}
-
-    local isRenamePopupOpen = false
-    local isGenerateNotePopupOpen = false
-
-    local presetDropdown
-
+    local isRenamePopupOpen, isGenerateNotePopupOpen, presetDropdown
     _G["Update" .. bossID .. "PresetDropdown"] = function()
         local options = {}
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
@@ -127,10 +104,9 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end
 
     local function GetGallywixAssignmentState()
-        local hasData = false
-        local data = {}
-        if AssignmentModule.currentSlots then
-            for i, group in ipairs(AssignmentModule.currentSlots) do
+        local hasData, data = false, {}
+        if frame.bossSlots then
+            for i, group in ipairs(frame.bossSlots) do
                 data[i] = {}
                 for j, editBox in ipairs(group) do
                     local name = editBox.usedName or ""
@@ -150,7 +126,6 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end
 
     AssignmentModule:RegisterGetStateFunction(GetGallywixAssignmentState)
-
     local function capFirst(str)
         if str and str ~= "" then
             return str:sub(1, 1):upper() .. str:sub(2)
@@ -158,13 +133,14 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
         return str
     end
 
-    local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
+    local noteButton = UI:CreateButton(frame, "Generate Note", 120, 25, function()
         if isGenerateNotePopupOpen then
             return
         end
         isGenerateNotePopupOpen = true
         local note = "liquidStart\n"
-        for _, group in ipairs(AssignmentModule.currentSlots) do
+        local allGroups = {group1, group2}
+        for _, group in ipairs(allGroups) do
             local assigned = {}
             for _, editBox in ipairs(group) do
                 if editBox.usedName then
@@ -193,25 +169,24 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
         popup:Show()
         editBox:ClearFocus()
     end)
-    noteButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -155, 35)
+    noteButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -155, 35)
 
     local spacing = 10
 
-    local loadPresetButton = UI:CreateButton(parentFrame, "Load Preset", 100, 25, function()
+    local loadPresetButton = UI:CreateButton(frame, "Load Preset", 100, 25, function()
         local selectedText = presetDropdown.button.text:GetText()
         for _, preset in ipairs(VACT.BossPresets[bossID]) do
             if preset.name == selectedText then
-                if preset.data and AssignmentModule.currentSlots then
-                    for i, group in ipairs(AssignmentModule.currentSlots) do
+                if preset.data and frame.bossSlots then
+                    for i, group in ipairs(frame.bossSlots) do
                         if preset.data[i] then
                             for j, presetName in ipairs(preset.data[i]) do
                                 local editBox = group[j]
                                 if editBox then
                                     if presetName and presetName ~= "" then
                                         local color = GetPlayerClassColorByName(presetName) or {1, 1, 1, 1}
-                                        local r, g, b = color[1], color[2], color[3]
-                                        local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
-                                        editBox:SetText("|cff" .. hexColor .. presetName .. "|r")
+                                        editBox:SetText(string.format("|cff%02x%02x%02x%s|r", color[1] * 255,
+                                            color[2] * 255, color[3] * 255, presetName))
                                         editBox.usedName = presetName
                                     else
                                         editBox:SetText("")
@@ -231,9 +206,8 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end)
     loadPresetButton:SetPoint("RIGHT", noteButton, "LEFT", -spacing, 0)
 
-    local deletePresetButton = UI:CreateButton(parentFrame, "Delete Preset", 100, 25, function()
-        local selectedText = presetDropdown.button.text:GetText()
-        local selectedIndex = nil
+    local deletePresetButton = UI:CreateButton(frame, "Delete Preset", 100, 25, function()
+        local selectedText, selectedIndex = presetDropdown.button.text:GetText()
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
             if preset.name == selectedText then
                 selectedIndex = idx
@@ -248,12 +222,11 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
-    local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
+    local renamePresetButton = UI:CreateButton(frame, "Rename Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
-        local selectedText = presetDropdown.button.text:GetText()
-        local selectedIndex = nil
+        local selectedText, selectedIndex = presetDropdown.button.text:GetText()
         for idx, preset in ipairs(VACT.BossPresets[bossID]) do
             if preset.name == selectedText then
                 selectedIndex = idx
@@ -263,7 +236,7 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
         if selectedIndex then
             isRenamePopupOpen = true
             local currentPreset = VACT.BossPresets[bossID][selectedIndex]
-            local popup, editBox = UI:CreatePopupWithEditBox("Rename Preset", 320, 150, currentPreset.name or "",
+            local popup = UI:CreatePopupWithEditBox("Rename Preset", 320, 150, currentPreset.name or "",
                 function(newName)
                     if newName and newName:trim() ~= "" then
                         currentPreset.name = newName
@@ -279,23 +252,20 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end)
     renamePresetButton:SetPoint("RIGHT", deletePresetButton, "LEFT", -spacing, 0)
 
-    presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
+    presetDropdown = UI:CreateDropdown(frame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
     _G["Update" .. bossID .. "PresetDropdown"]()
-
-    local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
+    local savePresetButton = UI:CreateButton(frame, "Save Preset", 100, 25, function()
         if isRenamePopupOpen then
             return
         end
-
         local assignmentState = GetGallywixAssignmentState()
         if not assignmentState then
             return
         end
-
         isRenamePopupOpen = true
-        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
+        local popup = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
             if newName and newName:trim() ~= "" then
                 table.insert(VACT.BossPresets[bossID], {
                     name = newName,
@@ -312,16 +282,15 @@ AssignmentBossUI["gallywix"] = function(parentFrame, rosterList)
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)
 
-    local clearUIButton = UI:CreateButton(parentFrame, "Clear UI", 100, 25, function()
-        if AssignmentModule.currentSlots then
-            for _, group in ipairs(AssignmentModule.currentSlots) do
-                for _, editBox in ipairs(group) do
-                    editBox:SetText("")
-                    editBox.usedName = nil
-                end
+    local clearUIButton = UI:CreateButton(frame, "Clear UI", 100, 25, function()
+        for _, group in ipairs(frame.bossSlots) do
+            for _, editBox in ipairs(group) do
+                editBox:SetText("")
+                editBox.usedName = nil
             end
-            AssignmentModule:UpdateRosterList()
         end
+        AssignmentModule:UpdateRosterList()
     end)
     clearUIButton:SetPoint("RIGHT", savePresetButton, "LEFT", -spacing, 0)
+    return frame
 end
