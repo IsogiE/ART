@@ -5,8 +5,9 @@ AssignmentBossUI["loomithar"] = function(parentFrame, rosterList)
 
     AssignmentModule = AssignmentModule or {}
     AssignmentModule.allowDuplicates = false
-    AssignmentModule.currentSlots = {} -- Placeholder stuff who knows what I need
+    AssignmentModule.currentSlots = {} -- Placeholder
 
+    -- Placeholder
     frame:SetScript("OnHide", function()
         AssignmentModule:UpdateRosterList()
     end)
@@ -22,115 +23,49 @@ AssignmentBossUI["loomithar"] = function(parentFrame, rosterList)
     local presetDropdown
 
     local function UpdatePresetDropdown()
-        local options = {}
-        for idx, preset in ipairs(VACT.BossPresets[bossID]) do
-            table.insert(options, {
-                text = preset.name,
-                value = idx,
-                onClick = function()
-                    presetDropdown.button.text:SetText(preset.name)
-                end
-            })
-        end
-        UI:SetDropdownOptions(presetDropdown, options)
     end
 
-    local noteButton = UI:CreateButton(parentFrame, "Generate Note", 120, 25, function()
+    local noteButton = UI:CreateButton(frame, "Generate Note", 120, 25, function()
         if isGenerateNotePopupOpen then
             return
         end
         isGenerateNotePopupOpen = true
-        -- function to be added later
+        -- to be added later
         isGenerateNotePopupOpen = false
     end)
-    noteButton:SetPoint("BOTTOMRIGHT", parentFrame, "BOTTOMRIGHT", -155, 35)
+    noteButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -155, 35)
 
     local spacing = 10
 
-    local loadPresetButton = UI:CreateButton(parentFrame, "Load Preset", 100, 25, function()
-        local selectedText = presetDropdown.button.text:GetText()
-        for _, preset in ipairs(VACT.BossPresets[bossID]) do
-            if preset.name == selectedText and preset.data then
-                if AssignmentModule.UpdateRosterList then
-                    AssignmentModule:UpdateRosterList()
-                end
-                break
-            end
-        end
+    local loadPresetButton = UI:CreateButton(frame, "Load Preset", 100, 25, function()
+        -- to be added later
     end)
     loadPresetButton:SetPoint("RIGHT", noteButton, "LEFT", -spacing, 0)
 
-    local deletePresetButton = UI:CreateButton(parentFrame, "Delete Preset", 100, 25, function()
-        local selectedText = presetDropdown.button.text:GetText()
-        for idx, preset in ipairs(VACT.BossPresets[bossID]) do
-            if preset.name == selectedText then
-                table.remove(VACT.BossPresets[bossID], idx)
-                UpdatePresetDropdown()
-                presetDropdown.button.text:SetText("Select Preset")
-                break
-            end
-        end
+    local deletePresetButton = UI:CreateButton(frame, "Delete Preset", 100, 25, function()
+        -- to be added later
     end)
     deletePresetButton:SetPoint("RIGHT", loadPresetButton, "LEFT", -spacing, 0)
 
-    local renamePresetButton = UI:CreateButton(parentFrame, "Rename Preset", 100, 25, function()
-        if isRenamePopupOpen then
-            return
-        end
-        local selectedText = presetDropdown.button.text:GetText()
-        for idx, preset in ipairs(VACT.BossPresets[bossID]) do
-            if preset.name == selectedText then
-                isRenamePopupOpen = true
-                local popup, editBox = UI:CreatePopupWithEditBox("Rename Preset", 320, 150, preset.name or "",
-                    function(newName)
-                        if newName and newName:trim() ~= "" then
-                            preset.name = newName
-                            UpdatePresetDropdown()
-                            presetDropdown.button.text:SetText(newName)
-                        end
-                        isRenamePopupOpen = false
-                    end, function()
-                        isRenamePopupOpen = false
-                    end)
-                popup:Show()
-                break
-            end
-        end
+    local renamePresetButton = UI:CreateButton(frame, "Rename Preset", 100, 25, function()
+        -- to be added later
     end)
     renamePresetButton:SetPoint("RIGHT", deletePresetButton, "LEFT", -spacing, 0)
 
-    presetDropdown = UI:CreateDropdown(parentFrame, 200, 25)
+    presetDropdown = UI:CreateDropdown(frame, 200, 25)
     presetDropdown:SetPoint("RIGHT", renamePresetButton, "LEFT", -spacing, 0)
     presetDropdown.button.text:SetText("Select Preset")
-    UpdatePresetDropdown()
+    -- to be added later
 
-    local savePresetButton = UI:CreateButton(parentFrame, "Save Preset", 100, 25, function()
-        if isRenamePopupOpen then
-            return
-        end
-        local data = {} -- Empty for now
-        isRenamePopupOpen = true
-        local popup, editBox = UI:CreatePopupWithEditBox("Save Preset", 320, 150, "", function(newName)
-            if newName and newName:trim() ~= "" then
-                table.insert(VACT.BossPresets[bossID], {
-                    name = newName,
-                    data = data
-                })
-                UpdatePresetDropdown()
-                presetDropdown.button.text:SetText(newName)
-            end
-            isRenamePopupOpen = false
-        end, function()
-            isRenamePopupOpen = false
-        end)
-        popup:Show()
+    local savePresetButton = UI:CreateButton(frame, "Save Preset", 100, 25, function()
+        -- to be added later
     end)
     savePresetButton:SetPoint("RIGHT", presetDropdown, "LEFT", -spacing, 0)
 
-    local clearUIButton = UI:CreateButton(parentFrame, "Clear UI", 100, 25, function()
-        if AssignmentModule.UpdateRosterList then
-            AssignmentModule:UpdateRosterList()
-        end
+    local clearUIButton = UI:CreateButton(frame, "Clear UI", 100, 25, function()
+        -- to be added later
     end)
     clearUIButton:SetPoint("RIGHT", savePresetButton, "LEFT", -spacing, 0)
+
+    return frame
 end
