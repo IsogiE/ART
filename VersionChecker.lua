@@ -226,7 +226,7 @@ function VersionCheckerModule:CreateConfigPanel(parent)
 
     local title = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, 16)
-    title:SetText("Version Checker")
+    title:SetText(self.title)
 
     local checkVersionsButton = UI:CreateButton(configPanel, "Check Versions", 120, 30, function()
         self:CheckVersions()
@@ -236,10 +236,16 @@ function VersionCheckerModule:CreateConfigPanel(parent)
     local resultFrame, resultText = UI:CreateReadOnlyBox(configPanel, 520, 450, "")
     resultFrame:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -50)
 
-    configPanel:SetScript("OnShow", function()
+    configPanel.resultFrame = resultFrame
+    configPanel.resultText = resultText
+
+    VACT.VersionCheck.responses = {}
+    configPanel.resultText:SetText("Click 'Check Versions' to spot naughty people.")
+
+    configPanel:SetScript("OnShow", function(self)
         VACT.VersionCheck.responses = {}
-        if resultText then
-            resultText:SetText("Click 'Check Versions' to begin.")
+        if self.resultText then
+            self.resultText:SetText("Click 'Check Versions' to spot naughty people.")
         end
     end)
 
@@ -252,8 +258,6 @@ function VersionCheckerModule:CreateConfigPanel(parent)
     end)
 
     self.configPanel = configPanel
-    self.configPanel.resultFrame = resultFrame
-    self.configPanel.resultText = resultText
     return configPanel
 end
 
