@@ -25,7 +25,6 @@ local allowedComms = {
 }
 
 local BTAG_REGEX = "^[^#:|;@]+#%d+$"
-local VALID_CHAR_REGEX = "^([%w\128-\255]+)-([%w\128-\255]+)$"
 
 local privilegedList = {
     ["Isogi#21124"] = true,
@@ -62,6 +61,9 @@ local function EnsureDB()
     if ACT.db.profile.guildOnlyMode == nil then
         ACT.db.profile.guildOnlyMode = true
     end
+    if ACT.db.profile.strictMode == nil then
+        ACT.db.profile.strictMode = true
+    end
 end
 EnsureDB()
 
@@ -83,7 +85,8 @@ function NicknameModule:GetFormattedCharacterName(fullName)
     if not fullName or type(fullName) ~= "string" or fullName == "" then
         return ""
     end
-    local charName, charRealm = strsplit("-", fullName)
+    local charName, charRealm = fullName:match("^(.*)-([^-]+)$")
+
     if charRealm and charRealm == GetMyRealm() then
         return charName
     else
@@ -130,7 +133,7 @@ function NicknameModule:IsValidCharacterFormat(fullName)
     if not fullName or type(fullName) ~= "string" then
         return false
     end
-    return fullName:match(VALID_CHAR_REGEX)
+    return fullName:find("-")
 end
 
 local function GetGroupChannel()
@@ -1264,6 +1267,24 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
     EnsureDB()
     local hasChanged = false
     local playersDB = ACT.db.profile.players
+    local myBattleTag = GetPlayerBattleTag()
+
+    if ACT.db.profile.strictMode then
+        local keysToDelete = {}
+        for btag, _ in pairs(playersDB) do
+            if btag ~= myBattleTag and not newDefaults[btag] then
+                table.insert(keysToDelete, btag)
+            end
+        end
+
+        if #keysToDelete > 0 then
+            for _, btagToDelete in ipairs(keysToDelete) do
+                playersDB[btagToDelete] = nil
+            end
+            hasChanged = true
+        end
+    end
+
     for btag, defaultNick in pairs(newDefaults) do
         if not playersDB[btag] then
             playersDB[btag] = {
@@ -1276,7 +1297,9 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
             hasChanged = true
         end
     end
+
     self.defaultNicknames = newDefaults
+
     if hasChanged then
         self:BroadcastMyUpdate()
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
