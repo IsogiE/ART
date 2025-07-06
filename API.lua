@@ -211,22 +211,19 @@ local LiquidAPI = {
         local nickname
         characterName = characterName:lower()
 
-        if NicknameAPI:GetCharacterByNickname(characterName) then
-            nickname = characterName
-        else
-            if unitIDs[characterName] then
-                if UnitExists(characterName) then
-                    local n = UnitName(characterName)
-                    if n then
-                        n = n:match("^([^-]+)")
-                        nickname = NicknameAPI:GetNicknameByCharacter(n) or n
-                    end
+        if unitIDs[characterName] then
+            if UnitExists(characterName) then
+                local n = UnitName(characterName)
+                if n then
+                    nickname = NicknameAPI:GetNicknameByCharacter(n) or n
                 else
                     nickname = characterName
                 end
             else
-                nickname = NicknameAPI:GetNicknameByCharacter(characterName) or characterName
+                nickname = characterName
             end
+        else
+            nickname = NicknameAPI:GetNicknameByCharacter(characterName) or characterName
         end
 
         if not formatting then
@@ -259,48 +256,20 @@ local LiquidAPI = {
         if not nickname then
             return nil
         end
-        local characters = _GetAllRawCharactersByNickname(nickname)
-        if #characters == 0 then
-            return nil
-        end
-
-        local characterSet = {}
-        for _, charName in ipairs(characters) do
-            characterSet[charName] = true
-        end
-
-        local function checkUnit(unitId)
-            if UnitExists(unitId) and UnitIsPlayer(unitId) then
-                local name, realm = UnitFullName(unitId)
-                if name and realm and realm ~= "" then
-                    local fullName = name .. "-" .. realm
-                    if characterSet[fullName] then
-                        local classFileName = UnitClassBase(unitId)
-                        local color = RAID_CLASS_COLORS[classFileName]
-                        return fullName, color and string.format("|c%s%%s|r", color.colorStr) or "%s", UnitGUID(unitId)
-                    end
-                end
-            end
-            return nil
-        end
-
-        if IsInRaid() then
-            for i = 1, 40 do
-                local result = checkUnit("raid" .. i)
-                if result then
-                    return result
-                end
-            end
-        elseif IsInGroup() then
-            for i = 1, 4 do
-                local result = checkUnit("party" .. i)
-                if result then
-                    return result
+        local nicknames = NicknameAPI:GetAllNicknames()
+        local entry = nicknames[nickname]
+        if entry and entry.characters then
+            for _, charData in ipairs(entry.characters) do
+                local charName = charData.character
+                local simpleName = charName:match("^([^-]+)") or charName
+                if UnitExists(simpleName) then
+                    local classFileName = UnitClassBase(simpleName)
+                    return simpleName, string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr),
+                        UnitGUID(simpleName)
                 end
             end
         end
-
-        return checkUnit("player")
+        return nil
     end,
 
     GetCharacters = function(_, nickname)
@@ -309,12 +278,18 @@ local LiquidAPI = {
             return
         end
 
-        local chars = {}
-        local characters = _GetAllRawCharactersByNickname(nickname)
-        for _, charName in ipairs(characters) do
-            chars[charName] = true
+        local nicknames = NicknameAPI:GetAllNicknames()
+        local entry = nicknames[nickname]
+        if entry and entry.characters then
+            local chars = {}
+            for _, charData in ipairs(entry.characters) do
+                local charName = charData.character
+                local simpleName = charName:match("^([^-]+)") or charName
+                chars[simpleName] = true
+            end
+            return #entry.characters > 0 and chars or nil
         end
-        return #characters > 0 and chars or nil
+        return nil
     end
 }
 
