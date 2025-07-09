@@ -14,6 +14,7 @@ RaidGroups.nameFrames = {}
 RaidGroups.nameFramePool = {}
 RaidGroups.massImportPopup = nil
 RaidGroups.massDeletePopup = nil
+RaidGroups.exportPopup = nil
 RaidGroups.massDeletePopupCheckboxes = {}
 RaidGroups.massDeleteCheckboxPool = {}
 RaidGroups.availablePlayerList = {}
@@ -813,7 +814,11 @@ function RaidGroups:CreateConfigPanel(parent)
         end
     end
 
-    local setRosterButton = UI:CreateButton(configPanel, "Get Current Roster", 150, 30)
+    local buttonWidth = 120
+    local buttonHeight = 30
+    local buttonSpacing = 15
+
+    local setRosterButton = UI:CreateButton(configPanel, "Get Roster", buttonWidth, buttonHeight)
     setRosterButton:SetPoint("BOTTOMLEFT", part2Frame, "TOPLEFT", 10, 10)
     setRosterButton:SetScript("OnClick", function()
         local groups = {}
@@ -853,8 +858,8 @@ function RaidGroups:CreateConfigPanel(parent)
         RaidGroups:UpdateNameList(RaidGroups.currentListType)
     end)
 
-    local applyGroupsButton = UI:CreateButton(configPanel, "Apply Groups", 150, 30)
-    applyGroupsButton:SetPoint("LEFT", setRosterButton, "RIGHT", 20, 0)
+    local applyGroupsButton = UI:CreateButton(configPanel, "Apply Groups", buttonWidth, buttonHeight)
+    applyGroupsButton:SetPoint("LEFT", setRosterButton, "RIGHT", buttonSpacing, 0)
     applyGroupsButton:SetScript("OnClick", function()
         local list = {}
         local nameCounts = {}
@@ -893,8 +898,8 @@ function RaidGroups:CreateConfigPanel(parent)
         RaidGroups:ApplyGroups(list)
     end)
 
-    local clearGroupsButton = UI:CreateButton(configPanel, "Clear Groups", 150, 30)
-    clearGroupsButton:SetPoint("LEFT", applyGroupsButton, "RIGHT", 20, 0)
+    local clearGroupsButton = UI:CreateButton(configPanel, "Clear Groups", buttonWidth, buttonHeight)
+    clearGroupsButton:SetPoint("LEFT", applyGroupsButton, "RIGHT", buttonSpacing, 0)
     clearGroupsButton:SetScript("OnClick", function()
         for group = 1, 8 do
             for slot = 1, 5 do
@@ -904,6 +909,74 @@ function RaidGroups:CreateConfigPanel(parent)
             end
         end
         RaidGroups:UpdateNameList(RaidGroups.currentListType)
+    end)
+
+    local exportGroupButton = UI:CreateButton(configPanel, "Export Group", buttonWidth, buttonHeight)
+    exportGroupButton:SetPoint("LEFT", clearGroupsButton, "RIGHT", buttonSpacing, 0)
+    exportGroupButton:SetScript("OnClick", function()
+        if RaidGroups.exportPopup and RaidGroups.exportPopup:IsShown() then
+            RaidGroups.exportPopup:Raise()
+            return
+        end
+
+        if not IsInGroup() then
+            local infoPopup = UI:CreateTextPopup("Export Roster", "You must be in a group or raid to export.", "OK", "Cancel", function() end)
+            infoPopup:Show()
+            return
+        end
+
+        local rosterList = {}
+        for i = 1, GetNumGroupMembers() do
+            local name, _, _, _, _, _, _, _, _, _, _, _, server = GetRaidRosterInfo(i)
+            if name then
+                local baseName, realmName = name:match("^(.-)%-(.+)$")
+                if not baseName then
+                    baseName = name
+                    realmName = GetRealmName()
+                end
+                table.insert(rosterList, baseName .. " - " .. realmName)
+            end
+        end
+        local rosterString = table.concat(rosterList, "\n")
+
+        if not RaidGroups.exportPopup then
+            local popup = CreateFrame("Frame", "RaidGroupsExportPopup", configPanel, "BackdropTemplate")
+            popup:SetSize(400, 450)
+            popup:SetPoint("CENTER")
+            popup:SetFrameStrata("HIGH")
+            popup:SetFrameLevel(500)
+            popup:SetMovable(true)
+            popup:EnableMouse(true)
+            popup:RegisterForDrag("LeftButton")
+            popup:SetScript("OnDragStart", function(self) self:StartMoving() end)
+            popup:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+            popup:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+            popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+            popup:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+
+            local title = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+            title:SetPoint("TOP", 0, -12)
+            title:SetText("Exported Roster")
+
+            local xButton = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+            xButton:SetPoint("TOPRIGHT", -5, -5)
+            xButton:SetScript("OnClick", function() popup:Hide() end)
+
+            local boxContainer, editBox = UI:CreateReadOnlyBox(popup, 360, 350, "")
+            boxContainer:SetPoint("TOP", title, "BOTTOM", 0, -10)
+            popup.textDisplay = editBox
+
+            local closeButton = UI:CreateButton(popup, "Close", 100, 25)
+            closeButton:SetPoint("BOTTOM", 0, 20)
+            closeButton:SetScript("OnClick", function() popup:Hide() end)
+
+            RaidGroups.exportPopup = popup
+        end
+
+        RaidGroups.exportPopup.textDisplay:SetText(rosterString)
+        RaidGroups.exportPopup.textDisplay:GetParent():SetVerticalScroll(0)
+        RaidGroups.exportPopup:Show()
+        RaidGroups.exportPopup:Raise()
     end)
 
     local part3Frame = CreateFrame("Frame", nil, configPanel)
