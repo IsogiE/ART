@@ -920,8 +920,6 @@ function RaidGroups:CreateConfigPanel(parent)
         end
 
         if not IsInGroup() then
-            local infoPopup = UI:CreateTextPopup("Export Roster", "You must be in a group or raid to export.", "OK", "Cancel", function() end)
-            infoPopup:Show()
             return
         end
 
