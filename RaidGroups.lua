@@ -946,9 +946,17 @@ function RaidGroups:CreateConfigPanel(parent)
             popup:SetMovable(true)
             popup:EnableMouse(true)
             popup:RegisterForDrag("LeftButton")
-            popup:SetScript("OnDragStart", function(self) self:StartMoving() end)
-            popup:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
-            popup:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+            popup:SetScript("OnDragStart", function(self)
+                self:StartMoving()
+            end)
+            popup:SetScript("OnDragStop", function(self)
+                self:StopMovingOrSizing()
+            end)
+            popup:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1
+            })
             popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
             popup:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
 
@@ -958,15 +966,43 @@ function RaidGroups:CreateConfigPanel(parent)
 
             local xButton = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
             xButton:SetPoint("TOPRIGHT", -5, -5)
-            xButton:SetScript("OnClick", function() popup:Hide() end)
+            xButton:SetScript("OnClick", function()
+                popup:Hide()
+            end)
 
             local boxContainer, editBox = UI:CreateReadOnlyBox(popup, 360, 350, "")
             boxContainer:SetPoint("TOP", title, "BOTTOM", 0, -10)
             popup.textDisplay = editBox
 
+            boxContainer:EnableMouse(true)
+            boxContainer:SetScript("OnMouseDown", function()
+                editBox:SetFocus()
+            end)
+
+            local scrollFrame = editBox:GetParent()
+            if scrollFrame and scrollFrame:IsObjectType("ScrollFrame") then
+                scrollFrame:EnableMouse(true)
+                scrollFrame:SetScript("OnMouseDown", function()
+                    editBox:SetFocus()
+                end)
+            end
+
+            editBox:SetScript("OnEditFocusGained", function(self)
+                boxContainer:SetBackdropColor(0.2, 0.2, 0.2, 1)
+                boxContainer:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+                self:HighlightText()
+            end)
+
+            editBox:SetScript("OnEditFocusLost", function(self)
+                boxContainer:SetBackdropColor(0.1, 0.1, 0.1, 1)
+                boxContainer:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+            end)
+
             local closeButton = UI:CreateButton(popup, "Close", 100, 25)
             closeButton:SetPoint("BOTTOM", 0, 20)
-            closeButton:SetScript("OnClick", function() popup:Hide() end)
+            closeButton:SetScript("OnClick", function()
+                popup:Hide()
+            end)
 
             RaidGroups.exportPopup = popup
         end
