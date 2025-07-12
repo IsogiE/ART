@@ -15,6 +15,58 @@ local function GetPlayersDB()
     return act.db.profile.players
 end
 
+-- Give data to LiquidAPI in a way where it correctly resolves to LiquidWeakAuras
+local function GetNicknamesMap()
+    local playersDB = GetPlayersDB()
+    local oldFormatMap = {}
+
+    if not playersDB then
+        return oldFormatMap
+    end
+
+    for btag, pData in pairs(playersDB) do
+        if pData and pData.nickname and pData.nickname ~= "" then
+            local nickname = pData.nickname
+
+            if not oldFormatMap[nickname] then
+                oldFormatMap[nickname] = {
+                    characters = {}
+                }
+            end
+
+            if pData.characters then
+                for charFullName, charData in pairs(pData.characters) do
+                    local isDeleted = type(charData) == 'table' and charData.deleted == true
+
+                    if not isDeleted then
+                        local simpleName = charFullName:match("^([^-]+)") or charFullName
+
+                        table.insert(oldFormatMap[nickname].characters, {
+                            character = simpleName
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    return oldFormatMap
+end
+
+local function FindNicknameEntry(nicknamesMap, nickname)
+    if not nickname then
+        return nil
+    end
+    nickname = nickname:lower()
+    for key, data in pairs(nicknamesMap) do
+        if key:lower() == nickname then
+            return data
+        end
+    end
+    return nil
+end
+
+-- Nickname API
 local function _GetAllRawCharactersByNickname(nickname)
     if not nickname or type(nickname) ~= "string" then
         return {}
@@ -32,7 +84,6 @@ local function _GetAllRawCharactersByNickname(nickname)
     return characters
 end
 
--- Nickname API
 local NicknameAPI = {
     GetNicknameByCharacter = function(_, characterName)
         if not characterName or type(characterName) ~= "string" then
@@ -211,19 +262,22 @@ local LiquidAPI = {
         local nickname
         characterName = characterName:lower()
 
-        if unitIDs[characterName] then
-            if UnitExists(characterName) then
-                local n = UnitName(characterName)
-                if n then
-                    nickname = NicknameAPI:GetNicknameByCharacter(n) or n
+        if NicknameAPI:GetCharacterByNickname(characterName) then
+            nickname = characterName
+        else
+            if unitIDs[characterName] then
+                if UnitExists(characterName) then
+                    local n = UnitName(characterName)
+                    if n then
+                        n = n:match("^([^-]+)")
+                        nickname = NicknameAPI:GetNicknameByCharacter(n) or n
+                    end
                 else
                     nickname = characterName
                 end
             else
-                nickname = characterName
+                nickname = NicknameAPI:GetNicknameByCharacter(characterName) or characterName
             end
-        else
-            nickname = NicknameAPI:GetNicknameByCharacter(characterName) or characterName
         end
 
         if not formatting then
@@ -256,16 +310,15 @@ local LiquidAPI = {
         if not nickname then
             return nil
         end
-        local nicknames = NicknameAPI:GetAllNicknames()
-        local entry = nicknames[nickname]
+        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
         if entry and entry.characters then
             for _, charData in ipairs(entry.characters) do
-                local charName = charData.character
-                local simpleName = charName:match("^([^-]+)") or charName
-                if UnitExists(simpleName) then
-                    local classFileName = UnitClassBase(simpleName)
-                    return simpleName, string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr),
-                        UnitGUID(simpleName)
+                local charNameLower = charData.character:lower()
+                if UnitExists(charNameLower) then
+                    local guid = UnitGUID(charNameLower)
+                    local classFileName = UnitClassBase(charNameLower)
+                    return charData.character, string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr),
+                        guid
                 end
             end
         end
@@ -278,16 +331,13 @@ local LiquidAPI = {
             return
         end
 
-        local nicknames = NicknameAPI:GetAllNicknames()
-        local entry = nicknames[nickname]
+        local entry = FindNicknameEntry(GetNicknamesMap(), nickname)
         if entry and entry.characters then
             local chars = {}
             for _, charData in ipairs(entry.characters) do
-                local charName = charData.character
-                local simpleName = charName:match("^([^-]+)") or charName
-                chars[simpleName] = true
+                chars[charData.character] = true
             end
-            return #entry.characters > 0 and chars or nil
+            return chars
         end
         return nil
     end
