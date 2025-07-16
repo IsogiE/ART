@@ -56,7 +56,9 @@ local function GetPlayerClassColorByName(playerName)
             if name then
                 local normalizedAPIName = RaidGroups:NormalizeCharacterName(name)
                 if normalizedAPIName:lower() == lowerInput then
-                    return GetClassColor(classToken)
+                    local color = GetClassColor(classToken)
+                    RaidGroups.rosterMapping[normalizedPlayerName] = color
+                    return color
                 end
             end
         end
@@ -69,7 +71,9 @@ local function GetPlayerClassColorByName(playerName)
             if name then
                 local normalizedAPIName = RaidGroups:NormalizeCharacterName(name)
                 if normalizedAPIName:lower() == lowerInput then
-                    return GetClassColor(classToken)
+                    local color = GetClassColor(classToken)
+                    RaidGroups.rosterMapping[normalizedPlayerName] = color
+                    return color
                 end
             end
         end
@@ -254,19 +258,12 @@ local function IsCursorInFrame(frame, margin)
     return (cx >= left - margin and cx <= right + margin and cy <= top + margin and cy >= bottom - margin)
 end
 
-local function NameFrame_OnMouseDown(self, button)
-    if button == "LeftButton" then
-        ClearAllEditFocus()
-        self:SetParent(DragContainer)
-        self:SetFrameLevel(400)
-        self:ClearAllPoints()
-        self:StartMoving()
-    end
-end
-
 local function NameFrame_OnMouseUp(self, button)
-    if button == "LeftButton" then
-        self:StopMovingOrSizing()
+    if button == "LeftButton" and self.dragFrame then
+        self.dragFrame:SetScript("OnUpdate", nil)
+        self.dragFrame:Hide()
+        self.dragFrame = nil
+
         local dropped = false
         local dropTargetBox = nil
 
@@ -283,8 +280,6 @@ local function NameFrame_OnMouseUp(self, button)
             end
         end
 
-        self:SetParent(self.originalParent)
-
         if dropped then
             local r, g, b = unpack(self.classColor or {1, 1, 1, 1})
             local hexColor = string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
@@ -294,16 +289,47 @@ local function NameFrame_OnMouseUp(self, button)
             dropTargetBox:SetCursorPosition(0)
             dropTargetBox.usedName = name
 
-            self:Hide()
             RaidGroups:UpdateNameList(RaidGroups.currentListType or "raid")
         else
-            if self.originalPoint and self.originalRelPoint then
-                self:ClearAllPoints()
-                self:SetPoint(self.originalPoint, self.originalParent, self.originalRelPoint, self.originalX,
-                    self.originalY)
-            end
             self:Show()
         end
+    end
+end
+
+local function NameFrame_OnMouseDown(self, button)
+    if button == "LeftButton" and not self.dragFrame then
+        ClearAllEditFocus()
+
+        local dragFrame = CreateFrame("Frame", nil, DragContainer, "BackdropTemplate")
+        dragFrame:SetSize(self:GetSize())
+        dragFrame:SetFrameStrata("TOOLTIP")
+
+        dragFrame:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Buttons\\WHITE8x8",
+            edgeSize = 1
+        })
+        dragFrame:SetBackdropColor(0.1, 0.1, 0.1, 1)
+        dragFrame:SetBackdropBorderColor(1, 1, 1, 1)
+
+        local text = dragFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("CENTER")
+        text:SetText(self.nameText:GetText())
+        text:SetTextColor(self.nameText:GetTextColor())
+
+        dragFrame:SetScript("OnUpdate", function(frame)
+            if not IsMouseButtonDown("LeftButton") then
+                NameFrame_OnMouseUp(self, "LeftButton")
+                return
+            end
+            local scale = UIParent:GetEffectiveScale()
+            local cx, cy = GetCursorPosition()
+            frame:ClearAllPoints()
+            frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", cx / scale, cy / scale)
+        end)
+
+        self.dragFrame = dragFrame
+        self:Hide()
     end
 end
 
@@ -408,10 +434,8 @@ local function EnableGroupEditBoxDrag(editBox)
                                        dropTarget:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
                 if dropTarget ~= sourceEditBox then
                     if targetText and targetText ~= "" then
-                        local sourceColor = RaidGroups.rosterMapping[sourceText] or
-                                                GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
-                        local targetColor = RaidGroups.rosterMapping[targetText] or
-                                                GetPlayerClassColorByName(targetText) or {1, 1, 1, 1}
+                        local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
+                        local targetColor = GetPlayerClassColorByName(targetText) or {1, 1, 1, 1}
                         local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
                             sourceColor[3] * 255)
                         local targetHex = string.format("%02x%02x%02x", targetColor[1] * 255, targetColor[2] * 255,
@@ -425,8 +449,7 @@ local function EnableGroupEditBoxDrag(editBox)
                         dropTarget:SetCursorPosition(0)
                         dropTarget.usedName = sourceText
                     else
-                        local sourceColor = RaidGroups.rosterMapping[sourceText] or
-                                                GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
+                        local sourceColor = GetPlayerClassColorByName(sourceText) or {1, 1, 1, 1}
                         local sourceHex = string.format("%02x%02x%02x", sourceColor[1] * 255, sourceColor[2] * 255,
                             sourceColor[3] * 255)
                         dropTarget:SetText("|cff" .. sourceHex .. sourceText .. "|r")
@@ -449,14 +472,9 @@ local function EnableGroupEditBoxDrag(editBox)
                 else
                     local plain = sourceText or ""
                     if plain ~= "" then
-                        local color = RaidGroups.rosterMapping[plain] or GetPlayerClassColorByName(plain)
-                        if color then
-                            local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255,
-                                color[3] * 255)
-                            sourceEditBox:SetText("|cff" .. hexColor .. plain .. "|r")
-                        else
-                            sourceEditBox:SetText(plain)
-                        end
+                        local color = GetPlayerClassColorByName(plain) or {1, 1, 1, 1}
+                        local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255, color[3] * 255)
+                        sourceEditBox:SetText("|cff" .. hexColor .. plain .. "|r")
                     else
                         sourceEditBox:SetText("")
                     end
@@ -796,15 +814,22 @@ function RaidGroups:CreateConfigPanel(parent)
             editBox.usedName = nil
             editBox:SetScript("OnEditFocusLost", function(self)
                 local plain = self:GetText():gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+                plain = plain:match("^%s*(.-)%s*$")
+
                 if plain == "" then
                     self.usedName = nil
+                    self:SetText("")
                 else
-                    local color = RaidGroups.rosterMapping[plain] or GetPlayerClassColorByName(plain)
+                    local normalizedName = RaidGroups:NormalizeCharacterName(plain)
+                    local color = RaidGroups.rosterMapping[normalizedName] or GetPlayerClassColorByName(plain)
+
                     if color then
                         local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255, color[3] * 255)
                         self:SetText("|cff" .. hexColor .. plain .. "|r")
-                        self:SetCursorPosition(0)
+                    else
+                        self:SetText(plain)
                     end
+                    self:SetCursorPosition(0)
                     self.usedName = plain
                 end
                 RaidGroups:UpdateNameList(RaidGroups.currentListType)
@@ -1507,84 +1532,128 @@ function RaidGroups:RefreshVisibleNames()
 end
 
 function RaidGroups:UpdateNameList(listType)
-    local namesForList = {}
-    self.rosterMapping = {}
     local currentRealm = GetRealmName()
 
-    if listType == "raid" and (IsInRaid() or IsInGroup()) then
-        local numRaid = GetNumGroupMembers() or 0
-        for i = 1, numRaid do
-            local name, _, _, _, _, class = GetRaidRosterInfo(i)
-            if name then
-                local baseName, realmName = name:match("^(.-)%-(.+)$")
-                local displayName = (baseName and realmName) and
-                                        ((realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)) or
-                                        name
-                local normalizedName = self:NormalizeCharacterName(displayName)
-                table.insert(namesForList, {
-                    name = displayName,
-                    class = class,
-                    order = i
-                })
-                self.rosterMapping[normalizedName] = GetClassColor(class)
-            end
-        end
-    elseif listType == "guild" then
-        if not self.guildCache or (GetTime() - self.lastGuildUpdate) > 300 then
-            self.guildCache = {}
-            local numGuild = GetNumGuildMembers() or 0
-            for i = 1, numGuild do
-                local name, _, rankIndex, _, _, _, _, _, _, _, classToken = GetGuildRosterInfo(i)
+    if self.groupSlots then
+        if IsInRaid() or IsInGroup() then
+            local playerSubgroups, raidMemberNames = {}, {}
+            for i = 1, GetNumGroupMembers() do
+                local name, _, subgroup, _, _, _, _, _, _, _, _, _, server = GetRaidRosterInfo(i)
                 if name then
-                    rankIndex = rankIndex or i
-                    local baseName, realmName = name:match("^(.-)%-(.+)$")
-                    local displayName = (baseName and realmName) and
-                                            ((realmName == currentRealm) and baseName or (baseName .. "-" .. realmName)) or
-                                            name
-                    local normalizedName = self:NormalizeCharacterName(displayName)
-                    table.insert(self.guildCache, {
-                        name = displayName,
-                        class = classToken,
-                        rankIndex = rankIndex
-                    })
-                    if not self.rosterMapping[normalizedName] then
-                        self.rosterMapping[normalizedName] = GetClassColor(classToken)
+                    local displayName =
+                        (server and server ~= "" and server ~= currentRealm) and (name .. "-" .. server) or name
+                    playerSubgroups[displayName] = subgroup
+                    raidMemberNames[displayName] = true
+                end
+            end
+
+            local redColor, yellowColor, defaultColor = {0.8, 0.2, 0.2, 0.4}, {0.8, 0.8, 0.2, 0.4}, {0.1, 0.1, 0.1, 1}
+            for _, group in ipairs(self.groupSlots) do
+                for _, editBox in ipairs(group) do
+                    local container, playerName = editBox:GetParent(), editBox.usedName
+                    if playerName and playerName ~= "" then
+                        if not raidMemberNames[playerName] then
+                            container:SetBackdropColor(unpack(redColor))
+                        elseif playerSubgroups[playerName] and playerSubgroups[playerName] >= 7 then
+                            container:SetBackdropColor(unpack(yellowColor))
+                        else
+                            container:SetBackdropColor(unpack(defaultColor))
+                        end
+                    else
+                        container:SetBackdropColor(unpack(defaultColor))
                     end
                 end
             end
-            self.lastGuildUpdate = GetTime()
-            table.sort(self.guildCache, function(a, b)
-                return a.rankIndex < b.rankIndex
-            end)
-        end
-        namesForList = self.guildCache
-    end
-
-    self.fullPlayerList = namesForList
-
-    local used = self:GetUsedNames()
-    self.availablePlayerList = {}
-    for _, player in ipairs(self.fullPlayerList) do
-        if not used[player.name] then
-            table.insert(self.availablePlayerList, player)
+        else
+            local defaultColor = {0.1, 0.1, 0.1, 1}
+            for _, group in ipairs(self.groupSlots) do
+                for _, editBox in ipairs(group) do
+                    editBox:GetParent():SetBackdropColor(unpack(defaultColor))
+                end
+            end
         end
     end
 
-    if not self.nameListContent then
-        return
+    self.rosterMapping = self.rosterMapping or {}
+
+    if not self.guildCache or (GetTime() - self.lastGuildUpdate) > 300 then
+        if C_GuildInfo and C_GuildInfo.RequestGuildRoster then
+            C_GuildInfo.RequestGuildRoster()
+        end
+        self.guildCache = {}
+        local numGuild = GetNumGuildMembers() or 0
+        for i = 1, numGuild do
+            local name, _, rankIndex, _, _, _, _, _, _, _, classToken = GetGuildRosterInfo(i)
+            if name then
+                local baseName, realmName = name:match("^(.-)%-(.+)$")
+                local displayName = (realmName and realmName == currentRealm) and baseName or name
+                table.insert(self.guildCache, {
+                    name = displayName,
+                    class = classToken,
+                    rankIndex = rankIndex or i
+                })
+            end
+        end
+        self.lastGuildUpdate = GetTime()
+        table.sort(self.guildCache, function(a, b)
+            return a.rankIndex < b.rankIndex
+        end)
     end
 
-    local totalEntries = #self.availablePlayerList
-    local lineHeight = 22
-    self.nameListContent:SetHeight(totalEntries * lineHeight)
-
-    if self.currentListType ~= listType then
-        self.listScroll:SetVerticalScroll(0)
+    self.rosterMapping = {}
+    for _, player in ipairs(self.guildCache) do
+        self.rosterMapping[self:NormalizeCharacterName(player.name)] = GetClassColor(player.class)
+    end
+    if IsInRaid() or IsInGroup() then
+        for i = 1, GetNumGroupMembers() do
+            local name, _, _, _, _, class, _, _, _, _, _, _, server = GetRaidRosterInfo(i)
+            if name then
+                local displayName = (server and server ~= "" and server ~= currentRealm) and (name .. "-" .. server) or
+                                        name
+                self.rosterMapping[self:NormalizeCharacterName(displayName)] = GetClassColor(class)
+            end
+        end
     end
 
-    self:RefreshVisibleNames()
-    self.listPopulated = true
-    self.currentListType = listType
+    if listType then
+        local namesForList = {}
+        if listType == "raid" and (IsInRaid() or IsInGroup()) then
+            for i = 1, GetNumGroupMembers() do
+                local name, _, _, _, _, class, _, _, _, _, _, _, server = GetRaidRosterInfo(i)
+                if name then
+                    local displayName =
+                        (server and server ~= "" and server ~= currentRealm) and (name .. "-" .. server) or name
+                    table.insert(namesForList, {
+                        name = displayName,
+                        class = class,
+                        order = i
+                    })
+                end
+            end
+        elseif listType == "guild" then
+            namesForList = self.guildCache
+        end
+
+        self.fullPlayerList = namesForList
+        local used = self:GetUsedNames()
+        self.availablePlayerList = {}
+        for _, player in ipairs(self.fullPlayerList) do
+            if not used[player.name] then
+                table.insert(self.availablePlayerList, player)
+            end
+        end
+
+        if not self.nameListContent then
+            return
+        end
+        self.nameListContent:SetHeight(#self.availablePlayerList * 22)
+        if self.currentListType ~= listType then
+            self.listScroll:SetVerticalScroll(0)
+        end
+        self:RefreshVisibleNames()
+        self.listPopulated = true
+        self.currentListType = listType
+    end
 end
 
 function RaidGroups:CreateDraggableNameFrame(parent, playerName, classColor, class)
@@ -1689,7 +1758,7 @@ function RaidGroups:ApplyGroups(list)
 end
 
 function RaidGroups:ProcessRoster()
-    if InCombatLockdown() then
+    if InCombatLockdown() or (IsInRaid() and not (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player"))) then
         self.db.needGroup = nil
         return
     end
@@ -1819,6 +1888,8 @@ function RaidGroups:GeneratePresetString()
 end
 
 function RaidGroups:ApplyPreset(presetString)
+    self:UpdateNameList(self.currentListType)
+
     for group = 1, 8 do
         for slot = 1, 5 do
             local editBox = self.groupSlots[group][slot]
@@ -1826,32 +1897,33 @@ function RaidGroups:ApplyPreset(presetString)
             editBox.usedName = nil
         end
     end
+
     for part in string.gmatch(presetString, "Group%d+:%s*[^;]+") do
         local groupNum, namesStr = part:match("Group(%d+):%s*(.*)")
         groupNum = tonumber(groupNum)
         if groupNum and self.groupSlots[groupNum] then
             local names = {}
             for name in string.gmatch(namesStr, "([^,]+)") do
-                local trimmed = name:match("^%s*(.-)%s*$")
-                table.insert(names, trimmed)
+                table.insert(names, name:match("^%s*(.-)%s*$"))
             end
-            for slot = 1, 5 do
-                local editBox = self.groupSlots[groupNum][slot]
-                local newName = names[slot] or ""
-                if newName ~= "" then
-                    local color = self.rosterMapping[newName] or GetPlayerClassColorByName(newName)
-                    if color then
-                        local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255, color[3] * 255)
-                        editBox:SetText("|cff" .. hexColor .. newName .. "|r")
+
+            for slot = 1, #names do
+                if self.groupSlots[groupNum][slot] then
+                    local editBox = self.groupSlots[groupNum][slot]
+                    local newName = names[slot]
+                    if newName and newName ~= "" then
+                        local normalizedName = self:NormalizeCharacterName(newName)
+                        local color = self.rosterMapping[normalizedName] or GetPlayerClassColorByName(newName)
+                        if color then
+                            local hexColor = string.format("%02x%02x%02x", color[1] * 255, color[2] * 255,
+                                color[3] * 255)
+                            editBox:SetText("|cff" .. hexColor .. newName .. "|r")
+                        else
+                            editBox:SetText(newName)
+                        end
                         editBox:SetCursorPosition(0)
-                    else
-                        editBox:SetText(newName)
-                        editBox:SetCursorPosition(0)
+                        editBox.usedName = newName
                     end
-                    editBox.usedName = newName
-                else
-                    editBox:SetText("")
-                    editBox.usedName = nil
                 end
             end
         end
@@ -1863,7 +1935,7 @@ local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "GROUP_ROSTER_UPDATE" and RaidGroups then
-        if RaidGroups.configPanel and RaidGroups.configPanel:IsShown() and RaidGroups.currentListType then
+        if RaidGroups.configPanel and RaidGroups.configPanel:IsShown() then
             RaidGroups:UpdateNameList(RaidGroups.currentListType)
         end
 
