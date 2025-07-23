@@ -69,6 +69,51 @@ EnsureDB()
 
 NicknameModule.playerBattleTag = nil
 
+function NicknameModule:GenerateSimpleHash(str)
+    local hash = 5381
+    for i = 1, #str do
+        local charCode = string.byte(str, i)
+        hash = (hash * 33) + charCode
+        hash = bit.band(hash, 0xFFFFFFFF)
+    end
+    return hash
+end
+
+function NicknameModule:GenerateDatabaseChecksum()
+    EnsureDB()
+    local players = ACT.db.profile.players
+    if not players or not next(players) then
+        return 0
+    end
+
+    local sortedBtags = {}
+    for btag in pairs(players) do
+        table.insert(sortedBtags, btag)
+    end
+    table.sort(sortedBtags)
+
+    local dataString = ""
+    for _, btag in ipairs(sortedBtags) do
+        local pData = players[btag]
+        dataString = dataString .. btag .. "|" .. (pData.nickname or "nil") .. "|"
+
+        if pData.characters and next(pData.characters) then
+            local sortedChars = {}
+            for charName, charData in pairs(pData.characters) do
+                if not charData.deleted then
+                    table.insert(sortedChars, charName)
+                end
+            end
+            table.sort(sortedChars)
+            dataString = dataString .. table.concat(sortedChars, ",")
+        end
+
+        dataString = dataString .. ";"
+    end
+
+    return self:GenerateSimpleHash(dataString)
+end
+
 local function strtrim(s)
     return s and s:match("^%s*(.-)%s*$") or ""
 end
@@ -159,6 +204,9 @@ local function GetGroupChannel()
 end
 
 function NicknameModule:Broadcast(event, channel, ...)
+    if InCombatLockdown() then
+        return
+    end
     if not channel then
         return
     end
@@ -184,6 +232,9 @@ function NicknameModule:Broadcast(event, channel, ...)
 end
 
 local function ReceiveComm(prefix, message, channel, sender)
+    if InCombatLockdown() then
+        return
+    end
     if not NicknameModule.isInitialized or prefix ~= COMM_PREFIX then
         return
     end
@@ -290,10 +341,14 @@ end
 
 function NicknameModule:BroadcastSyncRequest()
     local groupChannel = GetGroupChannel()
+    EnsureDB()
+    local myVersion = ACT.db.profile.dataVersion or 0
+    local myChecksum = self:GenerateDatabaseChecksum()
+
     if groupChannel then
-        self:Broadcast("NICK_REQUEST", groupChannel)
+        self:Broadcast("NICK_SYNC_REQUEST", groupChannel, myVersion, myChecksum)
     end
-    self:Broadcast("NICK_REQUEST", "GUILD")
+    self:Broadcast("NICK_SYNC_REQUEST", "GUILD", myVersion, myChecksum)
 end
 
 function NicknameModule:BroadcastMyUpdate()
@@ -305,7 +360,17 @@ function NicknameModule:BroadcastMyUpdate()
 end
 
 function NicknameModule:EventHandler(event, sender, channel, ...)
-    if event == "NICK_UPDATE" then
+    if event == "NICK_SYNC_REQUEST" then
+        local incomingVersion, incomingChecksum = ...
+        EnsureDB()
+        local myVersion = ACT.db.profile.dataVersion or 0
+        local myChecksum = self:GenerateDatabaseChecksum()
+
+        if myVersion < incomingVersion or (myVersion == incomingVersion and myChecksum ~= incomingChecksum) then
+            self:Broadcast("NICK_REQUEST", channel)
+        end
+
+    elseif event == "NICK_UPDATE" then
         local arg1, arg2, arg3 = ...
         if type(arg1) == 'number' and type(arg2) == 'string' and type(arg3) == 'table' then
             self:MergeData(arg1, arg2, arg3)
@@ -343,8 +408,10 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
                 self:MergeData(arg1, sender, playersData)
             end
         end
+
     elseif event == "NICK_REQUEST" then
         self:BroadcastMyDatabase(channel)
+
     elseif event == "NICK_KILLSWITCH" then
         EnsureDB()
         ACT.db.profile.players = {}
@@ -1191,6 +1258,9 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 local function ReceiveWAComm(prefix, message, channel, sender)
+    if InCombatLockdown() then
+        return
+    end
     if not NicknameModule.isInitialized and message ~= "END" then
         return
     end
