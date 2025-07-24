@@ -21,7 +21,8 @@ local DELIMITER = "~"
 
 local allowedComms = {
     ["NICK_UPDATE"] = true,
-    ["NICK_REQUEST"] = true
+    ["NICK_REQUEST"] = true,
+    ["NICK_SYNC_REQUEST"] = true
 }
 
 local BTAG_REGEX = "^[^#:|;@]+#%d+$"
