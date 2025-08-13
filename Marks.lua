@@ -123,19 +123,66 @@ function RaidMarksModule:OnUpdate(elapsed)
             return nameText
         end
 
-        local characters = LiquidAPI:GetCharacters(nameText)
-        if not characters then
-            return nil
+        local characters = NicknameAPI:GetAllCharactersByNickname(nameText)
+        if not characters or #characters == 0 then
+            local charactersTable = LiquidAPI:GetCharacters(nameText)
+            if charactersTable then
+                characters = {}
+                for charName, _ in pairs(charactersTable) do
+                    table.insert(characters, charName)
+                end
+            else
+                return nil
+            end
         end
 
         local function findUnitInGroup(unitId)
-            if UnitExists(unitId) then
-                local name, realm = UnitFullName(unitId)
-                if name and realm and characters[name .. "-" .. realm] then
+            if not UnitExists(unitId) then
+                return nil
+            end
+
+            local unitName = UnitName(unitId)
+            if not unitName then
+                return nil
+            end
+
+            local fullUnitName, realm = UnitFullName(unitId)
+            if not fullUnitName then
+                return nil
+            end
+
+            for _, charName in ipairs(characters) do
+                local charNameLower = charName:lower()
+                local unitNameLower = unitName:lower()
+                local fullUnitNameLower = fullUnitName:lower()
+
+                if charNameLower == unitNameLower then
+                    return unitId
+                end
+
+                if realm then
+                    local fullNameWithRealm = (fullUnitName .. "-" .. realm):lower()
+                    if charNameLower == fullNameWithRealm then
+                        return unitId
+                    end
+                end
+
+                if charNameLower == fullUnitNameLower then
+                    return unitId
+                end
+
+                local simpleCharName = charNameLower:match("^([^-]+)")
+                if simpleCharName and simpleCharName == unitNameLower then
                     return unitId
                 end
             end
+
             return nil
+        end
+
+        local playerUnit = findUnitInGroup("player")
+        if playerUnit then
+            return playerUnit
         end
 
         if IsInRaid() then
@@ -152,11 +199,6 @@ function RaidMarksModule:OnUpdate(elapsed)
                     return unit
                 end
             end
-        end
-
-        local unit = findUnitInGroup("player")
-        if unit then
-            return unit
         end
 
         return nil
