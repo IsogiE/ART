@@ -2,9 +2,222 @@ local SplitHelper = {}
 
 SplitHelper.characterRowPool = {}
 SplitHelper.unexpectedCharacterRowPool = {}
+SplitHelper.massDeletePopup = nil
+SplitHelper.massDeletePopupCheckboxes = {}
+SplitHelper.massDeleteCheckboxPool = {}
+SplitHelper.confirmDeleteAllPopupInstance = nil
+SplitHelper.confirmDeleteSelectedPopupInstance = nil
 
 SplitHelper.characterRows = {}
 SplitHelper.title = "Split Helper"
+
+function SplitHelper:CreateMassDeletePopup(parent)
+    if self.massDeletePopup then
+        return
+    end
+
+    local popup = CreateFrame("Frame", "SplitHelperMassDeletePopupFrame", parent, "BackdropTemplate")
+    popup:SetSize(420, 480)
+    popup:SetPoint("CENTER")
+    popup:SetFrameStrata("HIGH")
+    popup:SetFrameLevel(249)
+    popup:SetMovable(true)
+    popup:EnableMouse(true)
+    popup:RegisterForDrag("LeftButton")
+    popup:SetScript("OnDragStart", popup.StartMoving)
+    popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+    popup:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1
+    })
+    popup:SetBackdropColor(0.1, 0.1, 0.1, 0.95)
+    popup:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    self.massDeletePopup = popup
+
+    local title = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOP", popup, "TOP", 0, -12)
+    title:SetText("Select Splits to Delete")
+
+    local closeButton = CreateFrame("Button", nil, popup, "UIPanelCloseButton")
+    closeButton:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -5, -5)
+    closeButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, popup, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", popup, "TOPLEFT", 20, -45)
+    scrollFrame:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -35, 70)
+    popup.scrollFrame = scrollFrame
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetWidth(scrollFrame:GetWidth() - 15)
+    scrollFrame:SetScrollChild(scrollChild)
+    popup.scrollChild = scrollChild
+
+    local cancelMassDeleteButton = UI:CreateButton(popup, "Cancel", 100, 25)
+    cancelMassDeleteButton:SetPoint("BOTTOMLEFT", popup, "BOTTOMLEFT", 20, 20)
+    cancelMassDeleteButton:SetScript("OnClick", function()
+        popup:Hide()
+    end)
+
+    local deleteAllButton = UI:CreateButton(popup, "Delete All", 100, 25)
+    deleteAllButton:SetPoint("LEFT", cancelMassDeleteButton, "RIGHT", 10, 0)
+    deleteAllButton:SetScript("OnClick", function()
+        if SplitHelper.confirmDeleteAllPopupInstance and SplitHelper.confirmDeleteAllPopupInstance:IsShown() then
+            return
+        end
+
+        SplitHelper.confirmDeleteAllPopupInstance = UI:CreateTextPopup("Confirm Delete All",
+            "Are you sure you want to delete ALL splits? This action cannot be undone.", "Delete All", "Cancel",
+            function()
+                ACT.db.profile.splits.profiles = {}
+                SplitHelper:UpdateDropdown()
+                SplitHelper.selectedIndex = nil
+                if SplitHelper.splitDropdown and SplitHelper.splitDropdown.button then
+                    SplitHelper.splitDropdown.button.text:SetText("Select Split")
+                end
+                if SplitHelper.massDeletePopup then
+                    SplitHelper.massDeletePopup:Hide()
+                end
+                local reportPopup = UI:CreateTextPopup("Mass Delete", "All splits have been deleted.", "OK", "Close")
+                reportPopup:SetFrameStrata("HIGH")
+                reportPopup:SetFrameLevel(255)
+                reportPopup:Show()
+                SplitHelper.confirmDeleteAllPopupInstance = nil
+            end, function()
+                SplitHelper.confirmDeleteAllPopupInstance = nil
+            end)
+        SplitHelper.confirmDeleteAllPopupInstance:SetFrameStrata("HIGH")
+        SplitHelper.confirmDeleteAllPopupInstance:SetFrameLevel(450)
+        SplitHelper.confirmDeleteAllPopupInstance:SetScript("OnHide", function()
+            SplitHelper.confirmDeleteAllPopupInstance = nil
+        end)
+        SplitHelper.confirmDeleteAllPopupInstance:Show()
+    end)
+
+    local deleteSelectedButton = UI:CreateButton(popup, "Delete Selected", 120, 25)
+    deleteSelectedButton:SetPoint("BOTTOMRIGHT", popup, "BOTTOMRIGHT", -20, 20)
+    deleteSelectedButton:SetScript("OnClick", function()
+        if SplitHelper.confirmDeleteSelectedPopupInstance and SplitHelper.confirmDeleteSelectedPopupInstance:IsShown() then
+            return
+        end
+
+        local splitsToDeleteNames = {}
+        for _, cb in ipairs(SplitHelper.massDeletePopupCheckboxes) do
+            if cb:GetChecked() then
+                table.insert(splitsToDeleteNames, cb.splitName)
+            end
+        end
+
+        if #splitsToDeleteNames == 0 then
+            return
+        end
+
+        SplitHelper.confirmDeleteSelectedPopupInstance = UI:CreateTextPopup("Confirm Deletion",
+            "Are you sure you want to delete " .. #splitsToDeleteNames .. " split(s)? This cannot be undone.", "Delete",
+            "Cancel", function()
+                local currentSelectedSplitName = (SplitHelper.selectedIndex and
+                                                     ACT.db.profile.splits.profiles[SplitHelper.selectedIndex]) and
+                                                     ACT.db.profile.splits.profiles[SplitHelper.selectedIndex].name or
+                                                     nil
+
+                local newSplitsList = {}
+                local currentSelectionStillExists = false
+
+                for _, splitData in ipairs(ACT.db.profile.splits.profiles) do
+                    local deleteThis = false
+                    for _, nameToDelete in ipairs(splitsToDeleteNames) do
+                        if splitData.name == nameToDelete then
+                            deleteThis = true
+                            break
+                        end
+                    end
+
+                    if not deleteThis then
+                        table.insert(newSplitsList, splitData)
+                        if currentSelectedSplitName and splitData.name == currentSelectedSplitName then
+                            currentSelectionStillExists = true
+                        end
+                    end
+                end
+
+                ACT.db.profile.splits.profiles = newSplitsList
+
+                if not currentSelectionStillExists then
+                    SplitHelper.selectedIndex = nil
+                    if SplitHelper.splitDropdown and SplitHelper.splitDropdown.button then
+                        SplitHelper.splitDropdown.button.text:SetText("Select Split")
+                    end
+                end
+
+                SplitHelper:UpdateDropdown()
+
+                if SplitHelper.massDeletePopup then
+                    SplitHelper.massDeletePopup:Hide()
+                end
+
+                local reportPopup = UI:CreateTextPopup("Mass Delete", #splitsToDeleteNames .. " split(s) deleted.",
+                    "OK", "Close")
+                reportPopup:SetFrameStrata("HIGH")
+                reportPopup:SetFrameLevel(450)
+                reportPopup:Show()
+                SplitHelper.confirmDeleteSelectedPopupInstance = nil
+            end, function()
+                SplitHelper.confirmDeleteSelectedPopupInstance = nil
+            end)
+        SplitHelper.confirmDeleteSelectedPopupInstance:SetFrameStrata("HIGH")
+        SplitHelper.confirmDeleteSelectedPopupInstance:SetFrameLevel(450)
+        SplitHelper.confirmDeleteSelectedPopupInstance:SetScript("OnHide", function()
+            SplitHelper.confirmDeleteSelectedPopupInstance = nil
+        end)
+        SplitHelper.confirmDeleteSelectedPopupInstance:Show()
+    end)
+
+    popup:Hide()
+end
+
+function SplitHelper:ShowMassDeletePopup()
+    if not self.massDeletePopup or not self.massDeletePopup.scrollChild then
+        return
+    end
+
+    if #ACT.db.profile.splits.profiles == 0 then
+        return
+    end
+
+    for _, cb in ipairs(self.massDeletePopupCheckboxes) do
+        cb:Hide()
+        table.insert(self.massDeleteCheckboxPool, cb)
+    end
+    self.massDeletePopupCheckboxes = {}
+
+    local scrollChild = self.massDeletePopup.scrollChild
+    local yOffset = -10
+    local checkboxSize = 32
+    local checkboxSpacing = 5
+
+    for index, split in ipairs(ACT.db.profile.splits.profiles) do
+        local cb = table.remove(self.massDeleteCheckboxPool)
+        if not cb then
+            cb = CreateFrame("CheckButton", "SplitHelperMassDeleteCB" .. index, scrollChild, "UICheckButtonTemplate")
+            cb:SetSize(checkboxSize, checkboxSize)
+            cb.text:SetFontObject(GameFontNormal)
+            cb.text:SetJustifyH("LEFT")
+            cb.text:ClearAllPoints()
+            cb.text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
+        end
+        cb:SetPoint("TOPLEFT", 5, yOffset)
+        cb.text:SetText(split.name)
+        cb.splitName = split.name
+        cb:SetChecked(false)
+        cb:Show()
+        table.insert(self.massDeletePopupCheckboxes, cb)
+        yOffset = yOffset - checkboxSize - checkboxSpacing
+    end
+    scrollChild:SetHeight(math.max(self.massDeletePopup.scrollFrame:GetHeight() + 10, -yOffset + checkboxSpacing))
+    self.massDeletePopup:Show()
+end
 
 function SplitHelper:GetConfigSize()
     return 1000, 600
@@ -96,19 +309,163 @@ function SplitHelper:CreateConfigPanel(parent)
     self:UpdateDropdown()
 
     importButton:SetScript("OnClick", function()
-        local characterString = self.importBox:GetText()
-        if characterString ~= "" then
-            self:ProcessCharacterString(characterString)
-            self.importBox:SetText("")
-            self:UpdateDropdown()
-            self:DisplayImportedCharacters()
+        if IsShiftKeyDown() then
+            if self.massImportPopup and self.massImportPopup:IsShown() then
+                return
+            end
+
+            local popup, editBox = UI:CreatePopupWithEditBox("Mass Import Splits", 550, 450,
+                "Enter splits one per line in the format:\nTitle: name1, name2, name3\n\nExample:\nEarly 1: Jafjitsu, Strikedhtwo, Soulpten\nEarly 2: Jafsham, Strikemonk, Soulpsix\nTonight raid: Wooiben, Gucciform",
+                function(text)
+                    if self.massImportPopup then
+                        self.massImportPopup:Hide()
+                    end
+                    self.massImportPopup = nil
+
+                    if not text or text:trim() == "" then
+                        return
+                    end
+
+                    local processedText = text:trim()
+                    if processedText:len() > 1 and processedText:sub(1, 1) == '"' and processedText:sub(-1) == '"' then
+                        processedText = processedText:sub(2, -2)
+                    end
+
+                    local lines = {}
+                    for line in string.gmatch(processedText, "[^\r\n]+") do
+                        table.insert(lines, line)
+                    end
+
+                    local importedCount = 0
+                    local errors = {}
+                    local tempNewSplitNames = {}
+
+                    for i, lineData in ipairs(lines) do
+                        local currentLine = lineData:match("^%s*(.-)%s*$")
+                        if currentLine ~= "" then
+                            local title, namesStr = currentLine:match("^(.-)%s*:%s*(.*)$")
+
+                            if not title or not namesStr then
+                                table.insert(errors,
+                                    "Line " .. i .. ": Invalid format. Expected 'Title: name1, name2, ...'")
+                            else
+                                title = title:match("^%s*(.-)%s*$")
+                                namesStr = namesStr:match("^%s*(.-)%s*$")
+
+                                if title == "" then
+                                    table.insert(errors, "Line " .. i .. ": Title cannot be empty.")
+                                else
+                                    local duplicateInBatch = false
+                                    for _, existing in ipairs(tempNewSplitNames) do
+                                        if existing == title then
+                                            table.insert(errors, "Line " .. i .. ": Title '" .. title ..
+                                                "' is duplicated in this batch.")
+                                            duplicateInBatch = true
+                                            break
+                                        end
+                                    end
+
+                                    if not duplicateInBatch then
+                                        local nameExists = false
+                                        for _, existingProfile in ipairs(ACT.db.profile.splits.profiles) do
+                                            if existingProfile.name == title then
+                                                nameExists = true
+                                                break
+                                            end
+                                        end
+                                        if nameExists then
+                                            table.insert(errors,
+                                                "Line " .. i .. ": Title '" .. title .. "' already exists.")
+                                            duplicateInBatch = true
+                                        end
+                                    end
+
+                                    if not duplicateInBatch then
+                                        local characters = {}
+                                        for char in string.gmatch(namesStr, '([^,]+)') do
+                                            table.insert(characters, strtrim(char))
+                                        end
+
+                                        if #characters > 40 then
+                                            table.insert(errors, "Line " .. i .. " (Title: '" .. title ..
+                                                "'): Too many names (" .. #characters .. "/40 max).")
+                                        elseif #characters == 0 then
+                                            table.insert(errors,
+                                                "Line " .. i .. " (Title: '" .. title .. "'): No names found.")
+                                        else
+                                            table.insert(ACT.db.profile.splits.profiles, {
+                                                name = title,
+                                                characters = characters
+                                            })
+                                            table.insert(tempNewSplitNames, title)
+                                            importedCount = importedCount + 1
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    self:UpdateDropdown()
+
+                    local feedbackMsg = importedCount .. " split(s) imported successfully."
+                    if #errors > 0 then
+                        local errorSummary = ""
+                        for errIdx = 1, math.min(5, #errors) do
+                            errorSummary = errorSummary .. errors[errIdx] .. "\n"
+                        end
+                        feedbackMsg = feedbackMsg .. "\n\nEncountered " .. #errors .. " error(s):\n" ..
+                                          errorSummary:trim()
+                        if #errors > 5 then
+                            feedbackMsg = feedbackMsg .. "\n(And " .. (#errors - 5) ..
+                                              " more errors... See chat for full list.)"
+                            DEFAULT_CHAT_FRAME:AddMessage("|cffffd100ACT Split Helper Mass Import Errors:|r")
+                            for _, errMsg in ipairs(errors) do
+                                DEFAULT_CHAT_FRAME:AddMessage("|cffff2020 - " .. errMsg .. "|r")
+                            end
+                        end
+                    end
+
+                    local reportPopup = UI:CreateTextPopup("Mass Import Report", feedbackMsg, "OK", "Close", nil,
+                        function()
+                        end, nil)
+                    local numReportLines = importedCount + #errors + 5
+                    local newHeight = math.min(500, 100 + numReportLines * 14)
+                    reportPopup:SetSize(450, newHeight)
+                    reportPopup:Show()
+                end, function()
+                    if self.massImportPopup then
+                        self.massImportPopup:Hide()
+                    end
+                    self.massImportPopup = nil
+                end)
+            self.massImportPopup = popup
+            self.massImportPopup:SetScript("OnHide", function()
+                self.massImportPopup = nil
+            end)
+            self.massImportPopup:Show()
+        else
+            local characterString = self.importBox:GetText()
+            if characterString ~= "" then
+                self:ProcessCharacterString(characterString)
+                self.importBox:SetText("")
+                self:UpdateDropdown()
+                self:DisplayImportedCharacters()
+            end
         end
     end)
 
     deleteButton:SetScript("OnClick", function()
-        if self.selectedIndex then
-            self:ClearData(self.selectedIndex)
-            self:CheckCharacters()
+        if IsShiftKeyDown() then
+            if not SplitHelper.massDeletePopup then
+                SplitHelper:CreateMassDeletePopup(configPanel)
+            end
+            SplitHelper:ShowMassDeletePopup()
+        else
+            if SplitHelper.selectedIndex then
+                SplitHelper:ClearData(SplitHelper.selectedIndex)
+                SplitHelper:CheckCharacters()
+            end
         end
     end)
 
@@ -132,6 +489,7 @@ function SplitHelper:CreateConfigPanel(parent)
     end
 
     self.configPanel = configPanel
+    self:CreateMassDeletePopup(configPanel)
     return configPanel
 end
 
