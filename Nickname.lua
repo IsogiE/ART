@@ -1,13 +1,13 @@
 local NicknameModule = {}
+
 NicknameModule.title = "Nicknames"
 NicknameModule.isInitialized = false
 NicknameModule.lastUpdateMessageTime = 0
-NicknameModule.defaultNicknames = {}
-NicknameModule.hasReceivedWAData = false
 NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
 NicknameModule.rowPool = {}
 NicknameModule.activePopup = nil
+NicknameModule.authoritativeData = {}
 
 local TOMBSTONE_LIFETIME_SECONDS = 7776000
 
@@ -15,15 +15,9 @@ local AceComm = LibStub("AceComm-3.0")
 local LibSerialize = LibStub("LibSerialize")
 local LibDeflate = LibStub("LibDeflate")
 
-local COMM_PREFIX = "NICK_MSG_ADV"
+local COMM_PREFIX = "NICK_MSG_ADNC"
 local COMM_PREFIX_WA = "WA_NICK_ADV"
 local DELIMITER = "~"
-
-local allowedComms = {
-    ["NICK_UPDATE"] = true,
-    ["NICK_REQUEST"] = true,
-    ["NICK_SYNC_REQUEST"] = true
-}
 
 local BTAG_REGEX = "^[^#:|;@]+#%d+$"
 
@@ -73,8 +67,7 @@ NicknameModule.playerBattleTag = nil
 function NicknameModule:GenerateSimpleHash(str)
     local hash = 5381
     for i = 1, #str do
-        local charCode = string.byte(str, i)
-        hash = (hash * 33) + charCode
+        hash = (hash * 33) + string.byte(str, i)
         hash = bit.band(hash, 0xFFFFFFFF)
     end
     return hash
@@ -97,7 +90,6 @@ function NicknameModule:GenerateDatabaseChecksum()
     for _, btag in ipairs(sortedBtags) do
         local pData = players[btag]
         dataString = dataString .. btag .. "|" .. (pData.nickname or "nil") .. "|"
-
         if pData.characters and next(pData.characters) then
             local sortedChars = {}
             for charName, charData in pairs(pData.characters) do
@@ -108,10 +100,8 @@ function NicknameModule:GenerateDatabaseChecksum()
             table.sort(sortedChars)
             dataString = dataString .. table.concat(sortedChars, ",")
         end
-
         dataString = dataString .. ";"
     end
-
     return self:GenerateSimpleHash(dataString)
 end
 
@@ -132,22 +122,11 @@ function NicknameModule:GetFormattedCharacterName(fullName)
         return ""
     end
     local charName, charRealm = fullName:match("^(.*)-([^-]+)$")
-
     if charRealm and charRealm == GetMyRealm() then
         return charName
     else
         return fullName
     end
-end
-
-local function GetBroadcastCharacterName(charName)
-    if not charName or type(charName) ~= "string" or charName == "" then
-        return nil
-    end
-    if not string.find(charName, "-") then
-        return charName .. "-" .. GetMyRealm()
-    end
-    return charName
 end
 
 local function GetPlayerBattleTag()
@@ -169,33 +148,14 @@ end
 
 function IsPrivilegedUser()
     local btag = GetPlayerBattleTag()
-    if not btag then
-        return false
-    end
-    return privilegedList[btag]
+    return btag and privilegedList[btag]
 end
 
 function NicknameModule:IsValidCharacterFormat(fullName)
-    if not fullName or type(fullName) ~= "string" then
-        return false
-    end
-    return fullName:find("-")
+    return type(fullName) == "string" and fullName:find("-")
 end
 
 local function GetGroupChannel()
-    local _, _, difficultyID = GetInstanceInfo()
-    local validDifficulties = {
-        [0] = true,
-        [2] = true,
-        [14] = true,
-        [15] = true,
-        [16] = true
-    }
-
-    if not validDifficulties[difficultyID] then
-        return nil
-    end
-
     if UnitInRaid("player") then
         return "RAID"
     elseif UnitInParty("player") and GetNumGroupMembers() > 0 then
@@ -216,19 +176,8 @@ function NicknameModule:Broadcast(event, channel, ...)
         return
     end
 
-    local argTable = {...}
-    local message = event
-    for i = 1, #argTable do
-        local data = argTable[i]
-        if type(data) == "table" then
-            local serialized = LibSerialize:Serialize(data)
-            local compressed = LibDeflate:CompressDeflate(serialized)
-            local encoded = LibDeflate:EncodeForWoWAddonChannel(compressed)
-            message = message .. DELIMITER .. encoded .. "(table)"
-        else
-            message = message .. DELIMITER .. tostring(data) .. "(" .. type(data) .. ")"
-        end
-    end
+    local message = event .. DELIMITER ..
+        LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ ... })))
     AceComm:SendCommMessage(COMM_PREFIX, message, channel)
 end
 
@@ -240,104 +189,50 @@ local function ReceiveComm(prefix, message, channel, sender)
         return
     end
 
-    local argTable = {strsplit(DELIMITER, message)}
-    local event = table.remove(argTable, 1)
+    local event, payload = strsplit(DELIMITER, message, 2)
+    if not event or not payload then
+        return
+    end
 
-    local canProcess = false
     EnsureDB()
+    local canProcess = false
     if ACT.db.profile.guildOnlyMode then
-        if channel == "GUILD" and allowedComms[event] then
+        if channel == "GUILD" then
             canProcess = true
         end
     else
-        if (UnitExists(sender) and (UnitInRaid(sender) or UnitInParty(sender))) or
-            (channel == "GUILD" and allowedComms[event]) then
+        if (UnitExists(sender) and (UnitInRaid(sender) or UnitInParty(sender))) or (channel == "GUILD") then
             canProcess = true
         end
     end
 
     if canProcess then
-        local formattedArgs = {}
-        local tonext
-        for _, functionArg in ipairs(argTable) do
-            local value, argType = functionArg:match("(.*)%((%a+)%)")
-            if tonext and value then
-                value = tonext .. value
-            end
-            if argType then
-                tonext = nil
-                if value then
-                    if argType == "table" then
-                        local decoded = LibDeflate:DecodeForWoWAddonChannel(value)
-                        if decoded then
-                            local decompressed = LibDeflate:DecompressDeflate(decoded)
-                            if decompressed then
-                                local success, deserialized = LibSerialize:Deserialize(decompressed)
-                                if success then
-                                    table.insert(formattedArgs, deserialized)
-                                end
-                            end
-                        end
-                    elseif argType == "number" then
-                        table.insert(formattedArgs, tonumber(value))
-                    elseif argType == "boolean" then
-                        table.insert(formattedArgs, value == "true")
-                    else
-                        table.insert(formattedArgs, value)
-                    end
-                end
-            else
-                tonext = (tonext or "") .. functionArg .. DELIMITER
-            end
+        local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(payload))
+        if not decompressed then
+            return
         end
-        NicknameModule:EventHandler(event, sender, channel, unpack(formattedArgs))
+        local success, args = LibSerialize:Deserialize(decompressed)
+        if success and type(args) == "table" then
+            NicknameModule:EventHandler(event, sender, channel, unpack(args))
+        end
     end
 end
 AceComm:RegisterComm(COMM_PREFIX, ReceiveComm)
 
-function NicknameModule:BroadcastMyDatabase(channel)
+function NicknameModule:BroadcastFullDatabase(channel)
     EnsureDB()
     local dataToSend = ACT.db.profile.players
     if not dataToSend or not next(dataToSend) then
         return
     end
+
     local version = ACT.db.profile.dataVersion or 0
     local myBtag = GetPlayerBattleTag()
     if not myBtag then
         return
     end
 
-    self:Broadcast("NICK_UPDATE", channel, version, myBtag, dataToSend)
-
-    local serialized_legacy = {}
-    for btag, pData in pairs(dataToSend) do
-        if pData and pData.nickname then
-            local charsToSend = {}
-            if pData.characters and type(pData.characters) == "table" then
-                for char, charData in pairs(pData.characters) do
-                    if type(charData) ~= "table" or charData.deleted ~= true then
-                        local broadcastName = GetBroadcastCharacterName(char)
-                        if broadcastName then
-                            table.insert(charsToSend, broadcastName)
-                        end
-                    end
-                end
-            end
-            table.insert(serialized_legacy,
-                table.concat({btag, pData.nickname or "", table.concat(charsToSend, ",")}, "|"))
-        end
-    end
-
-    if #serialized_legacy > 0 then
-        local str = table.concat(serialized_legacy, ";")
-        local compressed = LibDeflate:CompressDeflate(str)
-        local legacy_payload = LibDeflate:EncodeForWoWAddonChannel(compressed)
-
-        if legacy_payload then
-            local legacy_message = "NICK_UPDATE" .. DELIMITER .. tostring(version) .. DELIMITER .. legacy_payload
-            AceComm:SendCommMessage(COMM_PREFIX, legacy_message, channel)
-        end
-    end
+    self:Broadcast("NICK_DATABASE_RESPONSE", channel, version, myBtag, dataToSend)
 end
 
 function NicknameModule:BroadcastSyncRequest()
@@ -352,12 +247,19 @@ function NicknameModule:BroadcastSyncRequest()
     self:Broadcast("NICK_SYNC_REQUEST", "GUILD", myVersion, myChecksum)
 end
 
-function NicknameModule:BroadcastMyUpdate()
-    local groupChannel = GetGroupChannel()
-    if groupChannel then
-        self:BroadcastMyDatabase(groupChannel)
+function NicknameModule:BroadcastSelfUpdate()
+    local myBtag = GetPlayerBattleTag()
+    if not myBtag or not ACT.db.profile.players[myBtag] then
+        return
     end
-    self:BroadcastMyDatabase("GUILD")
+
+    local groupChannel = GetGroupChannel()
+    local payload = ACT.db.profile.players[myBtag]
+
+    if groupChannel then
+        self:Broadcast("NICK_PLAYER_UPDATE", groupChannel, myBtag, payload)
+    end
+    self:Broadcast("NICK_PLAYER_UPDATE", "GUILD", myBtag, payload)
 end
 
 function NicknameModule:EventHandler(event, sender, channel, ...)
@@ -367,52 +269,23 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
         local myVersion = ACT.db.profile.dataVersion or 0
         local myChecksum = self:GenerateDatabaseChecksum()
 
-        if myVersion < incomingVersion or (myVersion == incomingVersion and myChecksum ~= incomingChecksum) then
-            self:Broadcast("NICK_REQUEST", channel)
+        if myVersion > incomingVersion or (myVersion == incomingVersion and myChecksum ~= incomingChecksum) then
+            self:BroadcastFullDatabase(channel)
         end
-
-    elseif event == "NICK_UPDATE" then
-        local arg1, arg2, arg3 = ...
-        if type(arg1) == 'number' and type(arg2) == 'string' and type(arg3) == 'table' then
-            self:MergeData(arg1, arg2, arg3)
-        elseif type(arg1) == 'number' and type(arg2) == 'string' and not arg3 then
-            local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(arg2))
-            if not decompressed then
-                return
-            end
-            local playersData = {}
-            for pStr in string.gmatch(decompressed, "[^;]+") do
-                local parts = {}
-                for part in string.gmatch(pStr, "[^|]+") do
-                    table.insert(parts, part)
-                end
-                if #parts >= 2 then
-                    local btag, nickname = parts[1], parts[2]
-                    if type(btag) == "string" and btag:match(BTAG_REGEX) and type(nickname) == "string" then
-                        playersData[btag] = {
-                            nickname = nickname,
-                            characters = {}
-                        }
-                        local charStr = parts[3]
-                        if charStr and charStr ~= "" then
-                            for char in string.gmatch(charStr, "[^,]+") do
-                                playersData[btag].characters[char] = {
-                                    deleted = false,
-                                    timestamp = 0
-                                }
-                            end
-                        end
-                    end
-                end
-            end
-            if next(playersData) then
-                self:MergeData(arg1, sender, playersData)
-            end
+    elseif event == "NICK_DATABASE_RESPONSE" then
+        local incomingVersion, senderBtag, incomingPlayers = ...
+        if type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table' then
+            self:MergeData(incomingVersion, senderBtag, incomingPlayers)
         end
-
+    elseif event == "NICK_PLAYER_UPDATE" then
+        local btag, playerData = ...
+        if type(btag) == 'string' and type(playerData) == 'table' then
+            self:MergeData(99999999, sender, {
+                [btag] = playerData
+            })
+        end
     elseif event == "NICK_REQUEST" then
-        self:BroadcastMyDatabase(channel)
-
+        self:BroadcastFullDatabase(channel)
     elseif event == "NICK_KILLSWITCH" then
         EnsureDB()
         ACT.db.profile.players = {}
@@ -429,9 +302,9 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
             end
             self.killswitchPopup = UI:CreateTextPopup("Killswitch Activated", sender ..
                 " has triggered a killswitch! All nicknames have been wiped.", "Reload Now", "Later", function()
-                ReloadUI()
-            end, function()
-            end)
+                    ReloadUI()
+                end, function()
+                end)
             self.killswitchPopup:SetScript("OnHide", function()
                 self.killswitchPopup = nil
             end)
@@ -482,25 +355,20 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
     local myBattleTag = GetPlayerBattleTag()
     local localVersion = ACT.db.profile.dataVersion or 0
 
+    if incomingVersion < localVersion then
+        return
+    end
+
     for btag, incomingData in pairs(incomingPlayers) do
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            if incomingVersion >= localVersion and (not self.hasReceivedWAData or self.defaultNicknames[btag]) then
-                ACT.db.profile.players[btag] = incomingData
-                hasChanged = true
-            end
+            ACT.db.profile.players[btag] = incomingData
+            hasChanged = true
         else
             local hasLocalChange = false
-
-            local defaultNick = self.defaultNicknames[btag]
-            if defaultNick then
-                if localData.nickname ~= defaultNick then
-                    localData.nickname = defaultNick
-                    hasLocalChange = true
-                end
-            elseif incomingVersion >= localVersion and btag ~= myBattleTag and incomingData.nickname and
-                incomingData.nickname ~= "" and localData.nickname ~= incomingData.nickname then
+            if btag ~= myBattleTag and incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~=
+                incomingData.nickname then
                 localData.nickname = incomingData.nickname
                 hasLocalChange = true
             end
@@ -513,14 +381,14 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
                     if self:IsValidCharacterFormat(charFullName) then
                         local localCharData = localData.characters[charFullName]
 
-                        if type(localCharData) == "boolean" and localCharData == true then
+                        if type(localCharData) == "boolean" then
                             localCharData = {
                                 deleted = false,
                                 timestamp = 0
                             }
                             localData.characters[charFullName] = localCharData
                         end
-                        if type(incomingCharData) == "boolean" and incomingCharData == true then
+                        if type(incomingCharData) == "boolean" then
                             incomingCharData = {
                                 deleted = false,
                                 timestamp = 0
@@ -528,16 +396,10 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
                         end
 
                         if type(incomingCharData) == "table" then
-                            if not localCharData then
-                                localData.characters[charFullName] = incomingCharData
-                                hasLocalChange = true
-                            elseif type(localCharData) == "table" and incomingCharData.timestamp >
-                                localCharData.timestamp then
-                                if incomingCharData.deleted == true then
-                                    if privilegedList[senderBtag] then
-                                        localData.characters[charFullName] = incomingCharData
-                                        hasLocalChange = true
-                                    end
+                            if not localCharData or
+                                (type(localCharData) == "table" and incomingCharData.timestamp >
+                                    (localCharData.timestamp or 0)) then
+                                if incomingCharData.deleted and not privilegedList[senderBtag] then
                                 else
                                     localData.characters[charFullName] = incomingCharData
                                     hasLocalChange = true
@@ -554,9 +416,6 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
     end
 
     if hasChanged then
-        if incomingVersion > localVersion then
-            ACT.db.profile.dataVersion = incomingVersion
-        end
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
         end
@@ -601,10 +460,8 @@ function NicknameModule:PruneOldData()
                     allKnownChars[charFullName] = true
                 end
             end
-            if #charsToPrune > 0 then
-                for _, key in ipairs(charsToPrune) do
-                    data.characters[key] = nil
-                end
+            for _, key in ipairs(charsToPrune) do
+                data.characters[key] = nil
             end
         end
     end
@@ -617,10 +474,8 @@ function NicknameModule:PruneOldData()
                 hasChanged = true
             end
         end
-        if #hideListToPrune > 0 then
-            for _, key in ipairs(hideListToPrune) do
-                ACT.db.profile.localHideList[key] = nil
-            end
+        for _, key in ipairs(hideListToPrune) do
+            ACT.db.profile.localHideList[key] = nil
         end
     end
 
@@ -643,18 +498,14 @@ function NicknameModule:CleanBrick()
         elseif data and data.characters and type(data.characters) == "table" then
             local corruptedChars = {}
             for charFullName, charData in pairs(data.characters) do
-                if not self:IsValidCharacterFormat(charFullName) then
-                    table.insert(corruptedChars, charFullName)
-                    hasChanged = true
-                elseif type(charData) ~= "table" and type(charData) ~= "boolean" then
+                if not self:IsValidCharacterFormat(charFullName) or
+                    (type(charData) ~= "table" and type(charData) ~= "boolean") then
                     table.insert(corruptedChars, charFullName)
                     hasChanged = true
                 end
             end
-            if #corruptedChars > 0 then
-                for _, key in ipairs(corruptedChars) do
-                    data.characters[key] = nil
-                end
+            for _, key in ipairs(corruptedChars) do
+                data.characters[key] = nil
             end
         end
     end
@@ -669,9 +520,8 @@ function NicknameModule:OnSaveNickname()
         return
     end
 
-    if self.defaultNicknames[myBattleTag] then
-        print("|cffFF0000[ACT]|r Your nickname is managed by the default list and cannot be changed here.")
-        self.myNickBoxEdit:SetText(self.defaultNicknames[myBattleTag])
+    if self.authoritativeData and self.authoritativeData[myBattleTag] then
+        self.myNickBoxEdit:SetText(self.authoritativeData[myBattleTag])
         return
     end
 
@@ -685,8 +535,9 @@ function NicknameModule:OnSaveNickname()
     else
         ACT.db.profile.players[myBattleTag].nickname = newNick
     end
-    ACT.db.profile.dataVersion = (ACT.db.profile.dataVersion or 0) + 1
-    self:BroadcastMyUpdate()
+
+    self:BroadcastSelfUpdate()
+
     if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
         NicknameAPI.RefreshAllIntegrations()
     end
@@ -721,8 +572,7 @@ function NicknameModule:HandleAuthDelete(btag, charsToDelete)
     end
 
     if hasDeleted then
-        ACT.db.profile.dataVersion = (ACT.db.profile.dataVersion or 0) + 1
-        self:BroadcastMyUpdate()
+        self:BroadcastSelfUpdate()
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             NicknameAPI.RefreshAllIntegrations()
         end
@@ -731,7 +581,6 @@ function NicknameModule:HandleAuthDelete(btag, charsToDelete)
 end
 
 function NicknameModule:HandleDeletePlayer(btag, isStreamerMode, data)
-    local UI = UI;
     if not UI then
         return
     end
@@ -741,15 +590,15 @@ function NicknameModule:HandleDeletePlayer(btag, isStreamerMode, data)
     local displayName = isStreamerMode and (data.nickname or "this player") or btag
     local popup = UI:CreateTextPopup("Confirm Local Delete", "Locally delete all data for " .. displayName ..
         "? This will not affect other users.", "Delete Locally", "Cancel", function()
-        ACT.db.profile.players[btag] = nil
-        if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-            NicknameAPI.RefreshAllIntegrations()
-        end
-        self:RefreshContent()
-        self.deleteConfirmationPopup = nil
-    end, function()
-        self.deleteConfirmationPopup = nil
-    end)
+            ACT.db.profile.players[btag] = nil
+            if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+                NicknameAPI.RefreshAllIntegrations()
+            end
+            self:RefreshContent()
+            self.deleteConfirmationPopup = nil
+        end, function()
+            self.deleteConfirmationPopup = nil
+        end)
     popup:SetScript("OnHide", function()
         self.deleteConfirmationPopup = nil
     end)
@@ -795,6 +644,7 @@ function NicknameModule:CreateConfigPanel(parent)
         self:OnSaveNickname()
     end)
     saveNickButton:SetPoint("LEFT", myNickBoxFrame, "RIGHT", 10, 0)
+    self.saveNickButton = saveNickButton
 
     local manageHiddenBtn = UI:CreateButton(configPanel, "Manage Hidden", 120, 30, function()
         self:CreateManageHiddenPopup()
@@ -804,7 +654,7 @@ function NicknameModule:CreateConfigPanel(parent)
     local integrationCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     integrationCheckbox:SetPoint("TOPLEFT", myNickBoxFrame, "BOTTOMLEFT", 0, -15)
     integrationCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.useNicknameIntegration = self:GetChecked();
+        ACT.db.profile.useNicknameIntegration = self:GetChecked()
         NicknameModule:PromptReloadNormal()
     end)
     integrationCheckbox.Text:SetText("Show Nicknames on Raid Frames")
@@ -812,12 +662,12 @@ function NicknameModule:CreateConfigPanel(parent)
     local streamerCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     streamerCheckbox:SetPoint("TOP", integrationCheckbox, "BOTTOM", 0, -5)
     streamerCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.streamerMode = self:GetChecked();
+        ACT.db.profile.streamerMode = self:GetChecked()
         NicknameModule:RefreshContent()
     end)
     streamerCheckbox.Text:SetText("Streamer Mode")
 
-    for _, cb in ipairs({integrationCheckbox, streamerCheckbox}) do
+    for _, cb in ipairs({ integrationCheckbox, streamerCheckbox }) do
         cb:SetSize(22, 22)
         cb.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         cb.Text:ClearAllPoints()
@@ -894,32 +744,33 @@ function NicknameModule:CreateConfigPanel(parent)
 end
 
 function NicknameModule:RefreshContent()
-    if not self.scrollChild then
-        return
-    end
-    local UI = UI;
-    if not UI then
+    if not self.scrollChild or not UI then
         return
     end
 
-    for _, child in ipairs({self.scrollChild:GetChildren()}) do
+    for _, child in ipairs({ self.scrollChild:GetChildren() }) do
         child:Hide()
         table.insert(self.rowPool, child)
     end
     self.scrollChild:SetHeight(0)
 
     local myBattleTag = GetPlayerBattleTag()
-    if myBattleTag and ACT.db.profile.players[myBattleTag] and self.myNickBoxEdit then
-        self.myNickBoxEdit:SetText(ACT.db.profile.players[myBattleTag].nickname or "")
-        if self.defaultNicknames[myBattleTag] then
-            self.myNickBoxEdit:EnableMouse(false)
-            self.myNickBoxEdit:SetTextColor(0.5, 0.5, 0.5)
+    if myBattleTag and self.myNickBoxEdit and self.saveNickButton then
+        if ACT.db.profile.players[myBattleTag] then
+            self.myNickBoxEdit:SetText(ACT.db.profile.players[myBattleTag].nickname or "")
         else
-            self.myNickBoxEdit:EnableMouse(true)
-            self.myNickBoxEdit:SetTextColor(1, 1, 1)
+            self.myNickBoxEdit:SetText("")
         end
-    elseif self.myNickBoxEdit then
-        self.myNickBoxEdit:SetText("")
+
+        if self.authoritativeData and self.authoritativeData[myBattleTag] then
+            self.myNickBoxEdit:SetEnabled(false)
+            self.myNickBoxEdit:SetTextColor(0.5, 0.5, 0.5)
+            self.saveNickButton:Disable()
+        else
+            self.myNickBoxEdit:SetEnabled(true)
+            self.myNickBoxEdit:SetTextColor(1, 1, 1)
+            self.saveNickButton:Enable()
+        end
     end
 
     local sortedPlayers = {}
@@ -976,14 +827,9 @@ function NicknameModule:RefreshContent()
             self:HandleDeletePlayer(btag, isStreamerMode, data)
         end)
 
-        if self.defaultNicknames[btag] then
-            row.nickLabel:SetTextColor(0.8, 0.6, 0.1)
-        else
-            row.nickLabel:SetTextColor(1, 1, 1)
-        end
         if isStreamerMode then
-            row.nickLabel:SetText(data.nickname or "Please Subscribe!");
-            row.btagLabel:SetText("Please Subscribe!")
+            row.nickLabel:SetText(data.nickname or "Hidden");
+            row.btagLabel:SetText("Hidden")
         else
             row.nickLabel:SetText(data.nickname or btag);
             row.btagLabel:SetText(btag)
@@ -1016,7 +862,6 @@ function NicknameModule:CreateManageHiddenPopup()
     if self.activePopup and self.activePopup:IsShown() then
         return
     end
-    local UI = UI;
     if not UI then
         return
     end
@@ -1054,7 +899,7 @@ function NicknameModule:CreateManageHiddenPopup()
 
     local function refreshHiddenList()
         scrollChild:SetHeight(0)
-        for _, child in ipairs({scrollChild:GetChildren()}) do
+        for _, child in ipairs({ scrollChild:GetChildren() }) do
             child:Hide()
         end
         local y = -10
@@ -1076,7 +921,6 @@ function NicknameModule:CreateManageHiddenPopup()
         scrollChild:SetHeight(math.abs(y) + 10)
     end
     refreshHiddenList()
-
     popup:Show()
 end
 
@@ -1084,7 +928,6 @@ function NicknameModule:CreateAuthDeletePopup()
     if self.activePopup and self.activePopup:IsShown() then
         return
     end
-    local UI = UI;
     if not UI then
         return
     end
@@ -1140,7 +983,7 @@ function NicknameModule:CreateAuthDeletePopup()
         selectedBtag = btagDropdown.selectedValue
         selectedChars = {}
         scrollChild:SetHeight(0)
-        for _, child in ipairs({scrollChild:GetChildren()}) do
+        for _, child in ipairs({ scrollChild:GetChildren() }) do
             child:Hide()
         end
         if not selectedBtag then
@@ -1197,11 +1040,7 @@ end
 
 SLASH_WIPENICKNAMES1 = "/actwipe"
 SlashCmdList["WIPENICKNAMES"] = function()
-    if not IsPrivilegedUser() then
-        return
-    end
-    local UI = UI;
-    if not UI then
+    if not IsPrivilegedUser() or not UI then
         return
     end
     if not NicknameModule.wipePopup then
@@ -1225,11 +1064,7 @@ end
 
 SLASH_ACTKILLSWITCH1 = "/actkillswitch"
 SlashCmdList["ACTKILLSWITCH"] = function()
-    if not IsPrivilegedUser() then
-        return
-    end
-    local UI = UI;
-    if not UI then
+    if not IsPrivilegedUser() or not UI then
         return
     end
     if not NicknameModule.killConfirmPopup then
@@ -1262,9 +1097,6 @@ local function ReceiveWAComm(prefix, message, channel, sender)
     if InCombatLockdown() then
         return
     end
-    if not NicknameModule.isInitialized and message ~= "END" then
-        return
-    end
     if prefix ~= COMM_PREFIX_WA or type(message) ~= "string" then
         return
     end
@@ -1272,14 +1104,16 @@ local function ReceiveWAComm(prefix, message, channel, sender)
     if ACT.db.profile.guildOnlyMode and channel ~= "GUILD" then
         return
     end
+
     if NicknameModule.waMessageTimer[sender] then
         C_Timer.Cancel(NicknameModule.waMessageTimer[sender])
     end
     NicknameModule.waMessageTimer[sender] = C_Timer.After(5, function()
-        NicknameModule.waMessageAccumulator[sender] = nil;
+        NicknameModule.waMessageAccumulator[sender] = nil
         NicknameModule.waMessageTimer[sender] = nil
     end)
-    if string.sub(message, 1, 6) == "START:" then
+
+    if message:find("^START:") then
         local _, versionStr = strsplit(":", message, 2)
         local incomingVersion = tonumber(versionStr) or 0
         NicknameModule.waMessageAccumulator[sender] = {
@@ -1295,35 +1129,31 @@ local function ReceiveWAComm(prefix, message, channel, sender)
         local accumulation = NicknameModule.waMessageAccumulator[sender]
         if accumulation and accumulation.data and #accumulation.data > 0 then
             local completeData = table.concat(accumulation.data)
+
             local defaults = {}
+            local count = 0
             for entry in string.gmatch(completeData, "([^;]+)") do
                 local btag, nick = strsplit(":", entry, 2)
-                if btag and nick and btag ~= "" and nick ~= "" then
-                    local cleanBtag = strtrim(btag)
-                    if cleanBtag:match(BTAG_REGEX) then
-                        defaults[cleanBtag] = strtrim(nick)
-                    end
+                if btag and nick and btag:match(BTAG_REGEX) then
+                    defaults[strtrim(btag)] = strtrim(nick)
+                    count = count + 1
                 end
             end
+
             if next(defaults) then
-                NicknameModule:SetDefaultNicknames(defaults)
-                EnsureDB()
-                local localVersion = ACT.db.profile.dataVersion or 0
-                if accumulation.version > localVersion then
-                    ACT.db.profile.dataVersion = accumulation.version
-                end
-                NicknameModule.hasReceivedWAData = true
+                NicknameModule:MergeAuthoritativeData(accumulation.version, defaults)
+            else
             end
         end
         NicknameModule.waMessageAccumulator[sender] = nil
         if NicknameModule.waMessageTimer[sender] then
-            C_Timer.Cancel(NicknameModule.waMessageTimer[sender]);
+            C_Timer.Cancel(NicknameModule.waMessageTimer[sender])
             NicknameModule.waMessageTimer[sender] = nil
         end
-    elseif string.sub(message, 1, 5) == "DATA:" then
+    elseif message:find("^DATA:") then
         local accumulation = NicknameModule.waMessageAccumulator[sender]
         if accumulation then
-            table.insert(accumulation.data, string.sub(message, 6))
+            table.insert(accumulation.data, message:sub(6))
         end
     end
 end
@@ -1333,9 +1163,13 @@ waEventFrame:SetScript("OnEvent", function(self, event, prefix, message, channel
     ReceiveWAComm(prefix, message, channel, sender)
 end)
 
-function NicknameModule:SetDefaultNicknames(newDefaults)
-    newDefaults = newDefaults or {}
+function NicknameModule:MergeAuthoritativeData(version, defaults)
     EnsureDB()
+
+    self.authoritativeData = defaults or {}
+
+    ACT.db.profile.dataVersion = version
+
     local hasChanged = false
     local playersDB = ACT.db.profile.players
     local myBattleTag = GetPlayerBattleTag()
@@ -1343,11 +1177,10 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
     if ACT.db.profile.strictMode then
         local keysToDelete = {}
         for btag, _ in pairs(playersDB) do
-            if btag ~= myBattleTag and not newDefaults[btag] then
+            if btag ~= myBattleTag and not defaults[btag] then
                 table.insert(keysToDelete, btag)
             end
         end
-
         if #keysToDelete > 0 then
             for _, btagToDelete in ipairs(keysToDelete) do
                 playersDB[btagToDelete] = nil
@@ -1356,7 +1189,7 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
         end
     end
 
-    for btag, defaultNick in pairs(newDefaults) do
+    for btag, defaultNick in pairs(defaults) do
         if not playersDB[btag] then
             playersDB[btag] = {
                 nickname = defaultNick,
@@ -1369,21 +1202,19 @@ function NicknameModule:SetDefaultNicknames(newDefaults)
         end
     end
 
-    self.defaultNicknames = newDefaults
-
     if hasChanged then
-        self:BroadcastMyUpdate()
+        self:BroadcastSyncRequest()
         if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
             C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
         end
-        if self.configPanel and self.configPanel:IsShown() then
-            self:RefreshContent()
-        end
+    end
+
+    if self.configPanel and self.configPanel:IsShown() then
+        self:RefreshContent()
     end
 end
 
 function NicknameModule:PromptReloadNormal()
-    local UI = UI;
     if not UI then
         return
     end
