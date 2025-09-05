@@ -33,20 +33,15 @@ function HomeModule:CreateConfigPanel(parent)
     info:SetText("|cff00ccffAdvance Custom Tools|r\n\n|cffffcc00The #1 way to upset your raiders|r")
     info:SetJustifyH("CENTER")
 
-    local hatewatch = configPanel:CreateTexture(nil, "ARTWORK")
-    hatewatch:SetSize(600, 500)
-    hatewatch:SetPoint("CENTER", configPanel, "CENTER", -120, 50)
-    hatewatch:SetTexture("Interface\\AddOns\\ACT\\media\\hatewatch.tga")
+    local brick = configPanel:CreateTexture(nil, "OVERLAY")
+    brick:SetSize(64, 64)
+    brick:SetPoint("TOP", logo, "CENTER", 0, -230)
+    brick:SetTexture("Interface\\AddOns\\ACT\\media\\roiben.tga")
 
-    local brickleft = configPanel:CreateTexture(nil, "ARTWORK")
-    brickleft:SetSize(32, 32)
-    brickleft:SetPoint("TOP", configPanel, "CENTER", -260, -170)
-    brickleft:SetTexture("Interface\\AddOns\\ACT\\media\\roiben.tga")
-
-    local brickright = configPanel:CreateTexture(nil, "ARTWORK")
-    brickright:SetSize(32, 32)
-    brickright:SetPoint("TOP", configPanel, "CENTER", 20, -170)
-    brickright:SetTexture("Interface\\AddOns\\ACT\\media\\roiben.tga")
+    local roibenrequest = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    roibenrequest:SetPoint("TOP", logo, "CENTER", 0, -300)
+    roibenrequest:SetText("[18:30]Grandma Roiben: no matter what you do, keep the bricks in there!")
+    roibenrequest:SetJustifyH("CENTER")
 
     self.configPanel = configPanel
     return configPanel
