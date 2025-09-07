@@ -9,6 +9,16 @@ NicknameModule.rowPool = {}
 NicknameModule.activePopup = nil
 NicknameModule.authoritativeData = {}
 
+if not NicknameAPI then NicknameAPI = {} end
+
+NicknameModule.localWAVersion = "N/A"
+
+function NicknameAPI.RegisterWAVersion(version)
+    if type(version) == "number" then
+        NicknameModule.localWAVersion = version
+    end
+end
+
 local TOMBSTONE_LIFETIME_SECONDS = 7776000
 
 local AceComm = LibStub("AceComm-3.0")
@@ -233,7 +243,7 @@ local function ReceiveVersionComm(prefix, message, channel, sender)
     if not success or type(args) ~= "table" then return end
 
     if event == "VER_REQ" then
-        local myVersion = ACT.db.profile.dataVersion or 0
+        local myVersion = NicknameModule.localWAVersion or "N/A"
         local myBtag = GetPlayerBattleTag()
         if not myBtag then return end
 
@@ -243,7 +253,7 @@ local function ReceiveVersionComm(prefix, message, channel, sender)
         AceComm:SendCommMessage(COMM_PREFIX_VER, reply_message, "WHISPER", sender)
     elseif event == "VER_RES" then
         local version, btag = unpack(args)
-        if NicknameModule.waVersionData and type(version) == 'number' and type(btag) == 'string' then
+        if NicknameModule.waVersionData and type(version) ~= 'nil' and type(btag) == 'string' then
             NicknameModule.waVersionData[btag] = { version = version, sender = sender }
             if NicknameModule.activePopup and NicknameModule.activePopup.isVersionCheckPopup then
                 NicknameModule:RefreshVersionCheckPopupContent()
@@ -251,6 +261,7 @@ local function ReceiveVersionComm(prefix, message, channel, sender)
         end
     end
 end
+
 AceComm:RegisterComm(COMM_PREFIX_VER, ReceiveVersionComm)
 
 function NicknameModule:BroadcastVersionCheck(event, channel, ...)
