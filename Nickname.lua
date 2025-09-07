@@ -1166,6 +1166,10 @@ end)
 function NicknameModule:MergeAuthoritativeData(version, defaults)
     EnsureDB()
 
+    if version < (ACT.db.profile.dataVersion or 0) then
+        return
+    end
+
     self.authoritativeData = defaults or {}
 
     ACT.db.profile.dataVersion = version
