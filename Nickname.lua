@@ -17,6 +17,7 @@ local LibDeflate = LibStub("LibDeflate")
 
 local COMM_PREFIX = "NICK_MSG_ADNC"
 local COMM_PREFIX_WA = "WA_NICK_ADV"
+local COMM_PREFIX_VER = "WA_VER_ADV"
 local DELIMITER = "~"
 
 local BTAG_REGEX = "^[^#:|;@]+#%d+$"
@@ -218,6 +219,46 @@ local function ReceiveComm(prefix, message, channel, sender)
     end
 end
 AceComm:RegisterComm(COMM_PREFIX, ReceiveComm)
+
+local function ReceiveVersionComm(prefix, message, channel, sender)
+    if InCombatLockdown() or prefix ~= COMM_PREFIX_VER then return end
+
+    local event, payload = strsplit(DELIMITER, message, 2)
+    if not event or not payload then return end
+
+    local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(payload))
+    if not decompressed then return end
+
+    local success, args = LibSerialize:Deserialize(decompressed)
+    if not success or type(args) ~= "table" then return end
+
+    if event == "VER_REQ" then
+        local myVersion = ACT.db.profile.dataVersion or 0
+        local myBtag = GetPlayerBattleTag()
+        if not myBtag then return end
+
+        local reply_message = "VER_RES" ..
+            DELIMITER ..
+            LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ myVersion, myBtag })))
+        AceComm:SendCommMessage(COMM_PREFIX_VER, reply_message, "WHISPER", sender)
+    elseif event == "VER_RES" then
+        local version, btag = unpack(args)
+        if NicknameModule.waVersionData and type(version) == 'number' and type(btag) == 'string' then
+            NicknameModule.waVersionData[btag] = { version = version, sender = sender }
+            if NicknameModule.activePopup and NicknameModule.activePopup.isVersionCheckPopup then
+                NicknameModule:RefreshVersionCheckPopupContent()
+            end
+        end
+    end
+end
+AceComm:RegisterComm(COMM_PREFIX_VER, ReceiveVersionComm)
+
+function NicknameModule:BroadcastVersionCheck(event, channel, ...)
+    if InCombatLockdown() or not channel then return end
+    local message = event ..
+        DELIMITER .. LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ ... })))
+    AceComm:SendCommMessage(COMM_PREFIX_VER, message, channel)
+end
 
 function NicknameModule:BroadcastFullDatabase(channel)
     EnsureDB()
@@ -713,7 +754,7 @@ function NicknameModule:CreateConfigPanel(parent)
 
     if IsPrivilegedUser() then
         local debugFrame = CreateFrame("Frame", "DebugToolsFrame", configPanel, "BackdropTemplate");
-        debugFrame:SetSize(165, 135);
+        debugFrame:SetSize(165, 170);
         debugFrame:SetPoint("TOPLEFT", configPanel, "TOPRIGHT", -213, 40)
         debugFrame.bg = debugFrame:CreateTexture(nil, "BACKGROUND");
         debugFrame.bg:SetAllPoints();
@@ -739,6 +780,10 @@ function NicknameModule:CreateConfigPanel(parent)
             SlashCmdList["ACTKILLSWITCH"]("")
         end)
         nukeAllBtn:SetPoint("TOP", nukeLocalBtn, "BOTTOM", 0, -5)
+        local versionCheckBtn = UI:CreateButton(debugFrame, "Check Versions", 135, 30, function()
+            self:CreateVersionCheckPopup()
+        end)
+        versionCheckBtn:SetPoint("TOP", nukeAllBtn, "BOTTOM", 0, -5)
     end
 
     self:RefreshContent()
@@ -1038,6 +1083,139 @@ function NicknameModule:CreateAuthDeletePopup()
     UI:SetDropdownOptions(btagDropdown, btagOptions)
 
     popup:Show()
+end
+
+function NicknameModule:RefreshVersionCheckPopupContent()
+    local popup = self.activePopup
+    if not popup or not popup.isVersionCheckPopup or not popup:IsShown() or not popup.scrollChild then
+        return
+    end
+
+    local scrollChild = popup.scrollChild
+    if not scrollChild.lines then scrollChild.lines = {} end
+
+    for _, line in ipairs(scrollChild.lines) do
+        line:Hide()
+    end
+
+    local sortedResults = {}
+    for btag, data in pairs(self.waVersionData or {}) do
+        local nick = (ACT.db.profile.players[btag] and ACT.db.profile.players[btag].nickname) or btag
+        table.insert(sortedResults, { btag = btag, nick = nick, version = data.version, sender = data.sender })
+    end
+    table.sort(sortedResults, function(a, b) return a.nick:lower() < b.nick:lower() end)
+
+    local y = -10
+    local lineIndex = 0
+    local myVersion = ACT.db.profile.dataVersion or 0
+
+    local function getLine()
+        lineIndex = lineIndex + 1
+        local line = scrollChild.lines[lineIndex]
+        if not line then
+            line = CreateFrame("Frame", nil, scrollChild)
+            line:SetSize(320, 25)
+            line.label = line:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+            line.label:SetPoint("LEFT", 10, 0)
+            line.versionLabel = line:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+            line.versionLabel:SetPoint("RIGHT", -10, 0)
+            table.insert(scrollChild.lines, line)
+        end
+        line:ClearAllPoints()
+        line:SetPoint("TOPLEFT", 5, y)
+        line:Show()
+        y = y - 30
+        return line
+    end
+
+    for _, data in ipairs(sortedResults) do
+        local remoteLine = getLine()
+        local myBtag = GetPlayerBattleTag()
+        local displayText = data.nick .. " (" .. data.sender .. ")"
+
+        if data.btag == myBtag then
+            displayText = displayText .. " |cffFFFF00(You)|r"
+        end
+
+        remoteLine.label:SetText(displayText)
+        remoteLine.versionLabel:SetText("v" .. data.version)
+
+        if data.version < myVersion then
+            remoteLine.versionLabel:SetTextColor(1, 0.5, 0.5)
+        else
+            remoteLine.versionLabel:SetTextColor(0.5, 1, 0.5)
+        end
+    end
+
+    scrollChild:SetHeight(math.abs(y) + 10)
+    popup.messageLabel:SetText("Received " .. #sortedResults .. " responses.")
+end
+
+function NicknameModule:CreateVersionCheckPopup()
+    if self.activePopup and self.activePopup:IsShown() then
+        return
+    end
+    if not UI then
+        return
+    end
+
+    self.waVersionData = {}
+    if self.versionCheckTimer then
+        C_Timer.Cancel(self.versionCheckTimer)
+    end
+    self.versionCheckTimer = C_Timer.After(30, function()
+        self.waVersionData = nil
+        self.versionCheckTimer = nil
+        if self.activePopup and self.activePopup.isVersionCheckPopup then
+            self.activePopup.messageLabel:SetText("Request timed out. Please close and reopen.")
+        end
+    end)
+
+    local function closePopup()
+        if NicknameModule.activePopup then
+            NicknameModule.activePopup:Hide()
+        end
+        NicknameModule.activePopup = nil
+        if NicknameModule.versionCheckTimer then
+            C_Timer.Cancel(NicknameModule.versionCheckTimer)
+            NicknameModule.versionCheckTimer = nil
+        end
+        NicknameModule.waVersionData = nil
+    end
+
+    local popup = UI:CreateTextPopup("WeakAura Version Check", "Requesting versions...", "Close", "", closePopup, nil)
+    popup.isVersionCheckPopup = true
+    self.activePopup = popup
+    popup:SetScript("OnHide", closePopup)
+
+    popup:SetFrameLevel(500)
+    popup:SetSize(400, 450)
+    popup:SetScript("OnShow", nil)
+    popup:ClearAllPoints()
+    popup:SetPoint("CENTER")
+
+    popup.cancelButton:Hide()
+    popup.acceptButton:ClearAllPoints()
+    popup.acceptButton:SetPoint("BOTTOM", 0, 20)
+    popup.messageLabel:ClearAllPoints()
+    popup.messageLabel:SetPoint("TOP", popup.titleLabel, "BOTTOM", 0, -15)
+
+    local scrollFrame = CreateFrame("ScrollFrame", nil, popup, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetSize(350, 320)
+    scrollFrame:SetPoint("TOP", popup.messageLabel, "BOTTOM", 0, -10)
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetSize(330, 10)
+    scrollFrame:SetScrollChild(scrollChild)
+    popup.scrollChild = scrollChild
+
+    popup:Show()
+    self:RefreshVersionCheckPopupContent()
+
+    local groupChannel = GetGroupChannel()
+    if groupChannel then
+        self:BroadcastVersionCheck("VER_REQ", groupChannel)
+    end
+    self:BroadcastVersionCheck("VER_REQ", "GUILD")
 end
 
 SLASH_WIPENICKNAMES1 = "/actwipe"
