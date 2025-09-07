@@ -8,6 +8,20 @@ function ACT:RegisterModule(mod)
     table.insert(self.modules, mod)
 end
 
+function ACT:PreloadModuleUIs()
+    local preloadFrame = CreateFrame("Frame")
+    preloadFrame:Hide()
+
+    for _, mod in ipairs(self.modules) do
+        if mod.CreateConfigPanel then
+            mod:CreateConfigPanel(preloadFrame)
+            if mod.configPanel then
+                mod.configPanel:Hide()
+            end
+        end
+    end
+end
+
 function ACT:OpenConfig()
     if self.configFrame then
         self.configFrame:Show()
@@ -93,9 +107,9 @@ function ACT:OpenConfig()
         local btn = UI:CreateButton(sidebar, text, 180, 25)
         btn:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 10, -10 - (yOffset * 30))
 
-        local defaultColor = {0.1, 0.1, 0.1, 1}
-        local hoverColor = {0.2, 0.2, 0.2, 1}
-        local selectedColor = {0.3, 0.6, 1, 1}
+        local defaultColor = { 0.1, 0.1, 0.1, 1 }
+        local hoverColor = { 0.2, 0.2, 0.2, 1 }
+        local selectedColor = { 0.3, 0.6, 1, 1 }
 
         btn:SetBackdropColor(unpack(defaultColor))
 
@@ -152,7 +166,7 @@ function ACT:ShowModule(mod)
     end
     local content = self.configFrame.content
 
-    for _, child in ipairs({content:GetChildren()}) do
+    for _, child in ipairs({ content:GetChildren() }) do
         child:Hide()
     end
 
@@ -222,4 +236,6 @@ function ACT:OnEnable()
         ACTDB.minimap = {}
     end
     LDBIcon:Register("ACT", LDB, ACTDB.minimap)
+
+    self:PreloadModuleUIs()
 end
