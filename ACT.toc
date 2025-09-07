@@ -1,4 +1,4 @@
-## Interface: 110107, 110200
+## Interface: 110200
 
 ## Title: Advance Custom Tools
 ## Author: Isogi, Jaf
@@ -21,19 +21,15 @@ libs\AceConsole-3.0\AceConsole-3.0.xml
 
 API.lua
 
-Assignments\Assignment.lua
-Assignments\Bosses\Bosses.xml
-
 UI.lua
 Core.lua
 Home.lua
 Nickname.lua
 RaidGroups.lua
-RaidAssignments.lua
 Macros.lua
 Marks.lua
 SplitHelper.lua
 AddonChecker.lua
-WAUpdater.lua
 VersionChecker.lua
 Currency.lua
+WAUpdater.lua
