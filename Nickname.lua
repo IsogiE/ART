@@ -363,8 +363,10 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            ACT.db.profile.players[btag] = incomingData
-            hasChanged = true
+            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[btag]) then
+                ACT.db.profile.players[btag] = incomingData
+                hasChanged = true
+            end
         else
             local hasLocalChange = false
             if btag ~= myBattleTag and incomingData.nickname and incomingData.nickname ~= "" and localData.nickname ~=
