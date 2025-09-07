@@ -1151,7 +1151,7 @@ function NicknameModule:RefreshVersionCheckPopupContent()
         remoteLine.label:SetText(displayText)
         remoteLine.versionLabel:SetText("v" .. data.version)
 
-        if data.version < myVersion then
+        if type(data.version) ~= "number" or data.version < myVersion then
             remoteLine.versionLabel:SetTextColor(1, 0.5, 0.5)
         else
             remoteLine.versionLabel:SetTextColor(0.5, 1, 0.5)
