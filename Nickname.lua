@@ -1357,8 +1357,44 @@ end)
 function NicknameModule:MergeAuthoritativeData(version, defaults)
     EnsureDB()
 
+    local function calculateSimilarity(listA, listB)
+        if not listA or not next(listA) or not listB or not next(listB) then
+            return 0
+        end
+
+        local intersectionSize = 0
+        local union = {}
+        local unionSize = 0
+
+        for btag in pairs(listA) do
+            if not union[btag] then
+                union[btag] = true
+                unionSize = unionSize + 1
+            end
+            if listB[btag] then
+                intersectionSize = intersectionSize + 1
+            end
+        end
+
+        for btag in pairs(listB) do
+            if not union[btag] then
+                union[btag] = true
+                unionSize = unionSize + 1
+            end
+        end
+
+        if unionSize == 0 then return 1 end
+        return intersectionSize / unionSize
+    end
+
     if version < (ACT.db.profile.dataVersion or 0) then
-        return
+        local SIMILARITY_THRESHOLD = 0.5
+
+        local similarity = calculateSimilarity(self.authoritativeData, defaults)
+
+        if similarity >= SIMILARITY_THRESHOLD then
+            return
+        end
     end
 
     self.authoritativeData = defaults or {}
