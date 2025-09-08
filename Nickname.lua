@@ -288,10 +288,8 @@ function NicknameModule:BroadcastFullDatabase(channel)
         end
     elseif channel == "PARTY" or channel == "RAID" then
         if ACT.db.profile.pugMode then
-            for btag, data in pairs(playersDB) do
-                if not authData[btag] or btag == myBtag then
-                    dataToSend[btag] = data
-                end
+            if myBtag and playersDB[myBtag] then
+                dataToSend[myBtag] = playersDB[myBtag]
             end
         else
             for btag, data in pairs(playersDB) do
