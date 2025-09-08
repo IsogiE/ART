@@ -7,6 +7,7 @@ NicknameModule.waMessageAccumulator = {}
 NicknameModule.waMessageTimer = {}
 NicknameModule.rowPool = {}
 NicknameModule.activePopup = nil
+NicknameModule.pugModeWipePopup = nil
 NicknameModule.authoritativeData = {}
 
 if not NicknameAPI then NicknameAPI = {} end
@@ -69,6 +70,9 @@ local function EnsureDB()
     end
     if ACT.db.profile.strictMode == nil then
         ACT.db.profile.strictMode = true
+    end
+    if ACT.db.profile.pugMode == nil then
+        ACT.db.profile.pugMode = false
     end
 end
 EnsureDB()
@@ -183,7 +187,7 @@ function NicknameModule:Broadcast(event, channel, ...)
         return
     end
     EnsureDB()
-    if ACT.db.profile.guildOnlyMode and channel ~= "GUILD" then
+    if channel ~= "GUILD" and ACT.db.profile.guildOnlyMode and not ACT.db.profile.pugMode then
         return
     end
 
@@ -207,12 +211,10 @@ local function ReceiveComm(prefix, message, channel, sender)
 
     EnsureDB()
     local canProcess = false
-    if ACT.db.profile.guildOnlyMode then
-        if channel == "GUILD" then
-            canProcess = true
-        end
-    else
-        if (UnitExists(sender) and (UnitInRaid(sender) or UnitInParty(sender))) or (channel == "GUILD") then
+    if channel == "GUILD" then
+        canProcess = true
+    elseif ACT.db.profile.pugMode and (channel == "PARTY" or channel == "RAID") then
+        if (UnitExists(sender) and (UnitInRaid(sender) or UnitInParty(sender))) then
             canProcess = true
         end
     end
@@ -273,17 +275,38 @@ end
 
 function NicknameModule:BroadcastFullDatabase(channel)
     EnsureDB()
-    local dataToSend = ACT.db.profile.players
-    if not dataToSend or not next(dataToSend) then
+    local dataToSend = {}
+    local myBtag = GetPlayerBattleTag()
+    local playersDB = ACT.db.profile.players or {}
+    local authData = self.authoritativeData or {}
+
+    if channel == "GUILD" then
+        for btag, data in pairs(playersDB) do
+            if authData[btag] or btag == myBtag then
+                dataToSend[btag] = data
+            end
+        end
+    elseif channel == "PARTY" or channel == "RAID" then
+        if ACT.db.profile.pugMode then
+            for btag, data in pairs(playersDB) do
+                if not authData[btag] or btag == myBtag then
+                    dataToSend[btag] = data
+                end
+            end
+        else
+            for btag, data in pairs(playersDB) do
+                if authData[btag] or btag == myBtag then
+                    dataToSend[btag] = data
+                end
+            end
+        end
+    end
+
+    if not next(dataToSend) then
         return
     end
 
     local version = ACT.db.profile.dataVersion or 0
-    local myBtag = GetPlayerBattleTag()
-    if not myBtag then
-        return
-    end
-
     self:Broadcast("NICK_DATABASE_RESPONSE", channel, version, myBtag, dataToSend)
 end
 
@@ -415,7 +438,7 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[btag]) then
+            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[btag]) or ACT.db.profile.pugMode then
                 ACT.db.profile.players[btag] = incomingData
                 hasChanged = true
             end
@@ -742,9 +765,73 @@ function NicknameModule:CreateConfigPanel(parent)
     guildOnlyCheckbox.Text:SetPoint("LEFT", guildOnlyCheckbox, "RIGHT", 5, 0);
     guildOnlyCheckbox:SetChecked(ACT.db.profile.guildOnlyMode)
 
+    local pugModeCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    pugModeCheckbox:SetPoint("TOP", guildOnlyCheckbox, "BOTTOM", 0, -5)
+    pugModeCheckbox:SetScript("OnClick", function(self)
+        local isEnabled = self:GetChecked()
+        ACT.db.profile.pugMode = isEnabled
+
+        if not isEnabled then
+            if not UI then return end
+
+            if NicknameModule.pugModeWipePopup and NicknameModule.pugModeWipePopup:IsShown() then
+                return
+            end
+
+            local popup = UI:CreateTextPopup(
+                "Confirm Pug Data Wipe",
+                "Disabling Pug Mode will remove all nicknames that are not part of the guild WA. This cannot be undone. Are you sure?",
+                "Yes",
+                "Cancel",
+                function()
+                    local myBtag = GetPlayerBattleTag()
+                    local playersDB = ACT.db.profile.players
+                    local authData = NicknameModule.authoritativeData or {}
+                    local playersToWipe = {}
+
+                    for btag, _ in pairs(playersDB) do
+                        if not authData[btag] and btag ~= myBtag then
+                            table.insert(playersToWipe, btag)
+                        end
+                    end
+
+                    if #playersToWipe > 0 then
+                        for _, btag in ipairs(playersToWipe) do
+                            playersDB[btag] = nil
+                        end
+
+                        if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+                            NicknameAPI.RefreshAllIntegrations()
+                        end
+                        NicknameModule:RefreshContent()
+                    end
+                end,
+                function()
+                    self:SetChecked(true)
+                    ACT.db.profile.pugMode = true
+                end
+            )
+            popup:SetScript("OnHide", function()
+                NicknameModule.pugModeWipePopup = nil
+            end)
+
+            NicknameModule.pugModeWipePopup = popup
+            popup:Show()
+        else
+            NicknameModule:BroadcastSyncRequest()
+        end
+    end)
+
+    pugModeCheckbox.Text:SetText("Pug Mode")
+    pugModeCheckbox:SetSize(22, 22);
+    pugModeCheckbox.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE");
+    pugModeCheckbox.Text:ClearAllPoints();
+    pugModeCheckbox.Text:SetPoint("LEFT", pugModeCheckbox, "RIGHT", 5, 0);
+    pugModeCheckbox:SetChecked(ACT.db.profile.pugMode)
+
     local headerFrame = CreateFrame("Frame", nil, configPanel);
     headerFrame:SetSize(520, 20);
-    headerFrame:SetPoint("TOPLEFT", guildOnlyCheckbox, "BOTTOMLEFT", 0, -15)
+    headerFrame:SetPoint("TOPLEFT", pugModeCheckbox, "BOTTOMLEFT", 0, -15)
     local nicknameHeader = headerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall");
     nicknameHeader:SetPoint("LEFT", headerFrame, "LEFT", 25, -10);
     nicknameHeader:SetText("Nickname")
@@ -756,10 +843,10 @@ function NicknameModule:CreateConfigPanel(parent)
     actionsHeader:SetText("Actions")
 
     local scrollFrame = CreateFrame("ScrollFrame", nil, configPanel, "UIPanelScrollFrameTemplate");
-    scrollFrame:SetSize(520, 325);
+    scrollFrame:SetSize(520, 290);
     scrollFrame:SetPoint("TOPLEFT", headerFrame, "BOTTOMLEFT", 0, -10)
     local scrollChild = CreateFrame("Frame", nil, scrollFrame);
-    scrollChild:SetSize(500, 325);
+    scrollChild:SetSize(500, 290);
     scrollFrame:SetScrollChild(scrollChild);
     self.scrollChild = scrollChild
 
@@ -891,6 +978,12 @@ function NicknameModule:RefreshContent()
         else
             row.nickLabel:SetText(data.nickname or btag);
             row.btagLabel:SetText(btag)
+        end
+
+        if not self.authoritativeData[btag] and not isStreamerMode and btag ~= GetPlayerBattleTag() then
+            row.btagLabel:SetTextColor(0.4, 0.8, 1)
+        else
+            row.btagLabel:SetTextColor(1, 1, 0)
         end
 
         local options = {};
@@ -1405,7 +1498,7 @@ function NicknameModule:MergeAuthoritativeData(version, defaults)
     local playersDB = ACT.db.profile.players
     local myBattleTag = GetPlayerBattleTag()
 
-    if ACT.db.profile.strictMode then
+    if ACT.db.profile.strictMode and not ACT.db.profile.pugMode then
         local keysToDelete = {}
         for btag, _ in pairs(playersDB) do
             if btag ~= myBattleTag and not defaults[btag] then
