@@ -15,6 +15,14 @@ local function GetPlayersDB()
     return act.db.profile.players
 end
 
+local myRealmName
+local function GetMyRealm()
+    if not myRealmName then
+        myRealmName = GetRealmName()
+    end
+    return myRealmName
+end
+
 -- Give data to LiquidAPI in a way where it correctly resolves to LiquidWeakAuras
 local function GetNicknamesMap()
     local playersDB = GetPlayersDB()
@@ -93,20 +101,35 @@ local NicknameAPI = {
         local lowerCharName = characterName:lower()
         local playersDB = GetPlayersDB()
 
-        for _, pData in pairs(playersDB) do
-            if pData.nickname and pData.nickname ~= "" and pData.characters then
-                for dbChar, _ in pairs(pData.characters) do
-                    local lowerDbChar = dbChar:lower()
-                    local simpleDbName = lowerDbChar:match("^([^-]+)")
-                    local simpleInputName = lowerCharName:match("^([^-]+)")
+        local inputHasRealm = lowerCharName:find("-")
 
-                    if lowerDbChar == lowerCharName or
-                        (simpleDbName and simpleInputName and simpleDbName == simpleInputName) then
-                        return pData.nickname
+        if inputHasRealm then
+            for _, pData in pairs(playersDB) do
+                if pData.nickname and pData.nickname ~= "" and pData.characters then
+                    for dbChar, charData in pairs(pData.characters) do
+                        local isDeleted = type(charData) == 'table' and charData.deleted == true
+                        if not isDeleted and (dbChar:lower():gsub(" ", "")) == (lowerCharName:gsub(" ", "")) then
+                            return pData.nickname
+                        end
+                    end
+                end
+            end
+        else
+            for _, pData in pairs(playersDB) do
+                if pData.nickname and pData.nickname ~= "" and pData.characters then
+                    for dbChar, charData in pairs(pData.characters) do
+                        local isDeleted = type(charData) == 'table' and charData.deleted == true
+                        if not isDeleted then
+                            local dbSimpleName = dbChar:lower():match("^([^-]+)")
+                            if dbSimpleName and dbSimpleName == lowerCharName then
+                                return pData.nickname
+                            end
+                        end
                     end
                 end
             end
         end
+
         return nil
     end,
 
@@ -295,12 +318,12 @@ local LiquidAPI = {
 
         local classFileName = UnitClassBase(characterName)
         local colorStr = classFileName and RAID_CLASS_COLORS[classFileName] and
-                             RAID_CLASS_COLORS[classFileName].colorStr or "ffffffff"
+            RAID_CLASS_COLORS[classFileName].colorStr or "ffffffff"
         local colorFormat = string.format("|c%s%%s|r", colorStr)
 
         local role = UnitGroupRolesAssigned(characterName)
         local roleAtlas = role == "TANK" and "Role-Tank-SM" or role == "HEALER" and "Role-Healer-SM" or role ==
-                              "DAMAGER" and "Role-DPS-SM"
+            "DAMAGER" and "Role-DPS-SM"
         local roleIcon = roleAtlas and CreateAtlasMarkup(roleAtlas, atlasSize or 12, atlasSize or 12) or ""
 
         return nickname, colorFormat, roleIcon, RAID_CLASS_COLORS[classFileName] or {}
@@ -453,12 +476,15 @@ local function InitializeGrid2()
     function Name:UNIT_NAME_UPDATE(_, unit)
         self:UpdateIndicators(unit)
     end
+
     function Name:OnEnable()
         self:RegisterEvent("UNIT_NAME_UPDATE")
     end
+
     function Name:OnDisable()
         self:UnregisterEvent("UNIT_NAME_UPDATE")
     end
+
     function Name:GetText(unit)
         local name = UnitName(unit)
         if not IsIntegrationEnabled() then
@@ -466,8 +492,9 @@ local function InitializeGrid2()
         end
         return name and NicknameAPI:GetNicknameByCharacter(name) or name
     end
+
     local function Create(baseKey, dbx)
-        Grid2:RegisterStatus(Name, {"text"}, baseKey, dbx);
+        Grid2:RegisterStatus(Name, { "text" }, baseKey, dbx);
         return Name
     end
     Grid2.setupFunc["name"] = Create
