@@ -425,12 +425,28 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
         end
     elseif event == "NICK_DATABASE_RESPONSE" then
         local incomingVersion, senderBtag, incomingPlayers = ...
-        if type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table' then
+
+        local canMerge = true
+        if ACT.db.profile.strictMode and not ACT.db.profile.pugMode then
+            if not self.authoritativeData[senderBtag] then
+                canMerge = false
+            end
+        end
+
+        if canMerge and type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table' then
             self:MergeData(incomingVersion, senderBtag, incomingPlayers)
         end
     elseif event == "NICK_DATABASE_PATCH" then
         local incomingVersion, senderBtag, patchData = ...
-        if type(incomingVersion) == 'number' and type(patchData) == 'table' then
+
+        local canMerge = true
+        if ACT.db.profile.strictMode and not ACT.db.profile.pugMode then
+            if not self.authoritativeData[senderBtag] then
+                canMerge = false
+            end
+        end
+
+        if canMerge and type(incomingVersion) == 'number' and type(patchData) == 'table' then
             local hasChanged = false
             for btag, data in pairs(patchData) do
                 ACT.db.profile.players[btag] = data
