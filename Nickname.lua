@@ -88,38 +88,6 @@ function NicknameModule:GenerateSimpleHash(str)
     return hash
 end
 
-function NicknameModule:GenerateDatabaseChecksum()
-    EnsureDB()
-    local players = ACT.db.profile.players
-    if not players or not next(players) then
-        return 0
-    end
-
-    local sortedBtags = {}
-    for btag in pairs(players) do
-        table.insert(sortedBtags, btag)
-    end
-    table.sort(sortedBtags)
-
-    local dataString = ""
-    for _, btag in ipairs(sortedBtags) do
-        local pData = players[btag]
-        dataString = dataString .. btag .. "|" .. (pData.nickname or "nil") .. "|"
-        if pData.characters and next(pData.characters) then
-            local sortedChars = {}
-            for charName, charData in pairs(pData.characters) do
-                if not charData.deleted then
-                    table.insert(sortedChars, charName)
-                end
-            end
-            table.sort(sortedChars)
-            dataString = dataString .. table.concat(sortedChars, ",")
-        end
-        dataString = dataString .. ";"
-    end
-    return self:GenerateSimpleHash(dataString)
-end
-
 local function strtrim(s)
     return s and s:match("^%s*(.-)%s*$") or ""
 end
@@ -164,6 +132,54 @@ end
 function IsPrivilegedUser()
     local btag = GetPlayerBattleTag()
     return btag and privilegedList[btag]
+end
+
+function NicknameModule:GenerateDatabaseChecksum()
+    EnsureDB()
+    local players = ACT.db.profile.players
+    if not players or not next(players) then
+        return 0
+    end
+
+    local myBtag = GetPlayerBattleTag()
+    local authData = self.authoritativeData or {}
+    local btagsToProcess = {}
+    local seenBtags = {}
+
+    for btag in pairs(authData) do
+        if players[btag] and not seenBtags[btag] then
+            table.insert(btagsToProcess, btag)
+            seenBtags[btag] = true
+        end
+    end
+
+    if myBtag and players[myBtag] and not seenBtags[myBtag] then
+        table.insert(btagsToProcess, myBtag)
+    end
+
+    if not next(btagsToProcess) then
+        return 0
+    end
+
+    table.sort(btagsToProcess)
+
+    local dataString = ""
+    for _, btag in ipairs(btagsToProcess) do
+        local pData = players[btag]
+        dataString = dataString .. btag .. "|" .. (pData.nickname or "nil") .. "|"
+        if pData.characters and next(pData.characters) then
+            local sortedChars = {}
+            for charName, charData in pairs(pData.characters) do
+                if not charData.deleted then
+                    table.insert(sortedChars, charName)
+                end
+            end
+            table.sort(sortedChars)
+            dataString = dataString .. table.concat(sortedChars, ",")
+        end
+        dataString = dataString .. ";"
+    end
+    return self:GenerateSimpleHash(dataString)
 end
 
 function NicknameModule:IsValidCharacterFormat(fullName)
@@ -300,16 +316,82 @@ function NicknameModule:BroadcastFullDatabase(channel)
     self:Broadcast("NICK_DATABASE_RESPONSE", channel, version, myBtag, dataToSend)
 end
 
+function NicknameModule:BroadcastDatabasePatch(channel, incomingPlayerStates)
+    EnsureDB()
+    local patchData = {}
+    local myBtag = GetPlayerBattleTag()
+    local playersDB = ACT.db.profile.players or {}
+    local authData = self.authoritativeData or {}
+
+    local sourceData = {}
+    if channel == "GUILD" then
+        for btag, data in pairs(playersDB) do
+            if authData[btag] or btag == myBtag then
+                sourceData[btag] = data
+            end
+        end
+    elseif channel == "PARTY" or channel == "RAID" then
+        if myBtag and playersDB[myBtag] then
+            sourceData[myBtag] = playersDB[myBtag]
+        end
+    end
+
+    for btag, data in pairs(sourceData) do
+        local charString = ""
+        if data.characters and next(data.characters) then
+            local sortedChars = {}
+            for charName, charData in pairs(data.characters) do
+                if not charData.deleted then table.insert(sortedChars, charName) end
+            end
+            table.sort(sortedChars)
+            charString = table.concat(sortedChars, ",")
+        end
+        local fullStateString = (data.nickname or "") .. "|" .. charString
+        local localStateHash = self:GenerateSimpleHash(fullStateString)
+
+        if not incomingPlayerStates[btag] or incomingPlayerStates[btag] ~= localStateHash then
+            patchData[btag] = data
+        end
+    end
+
+    if not next(patchData) then
+        return
+    end
+
+    local version = ACT.db.profile.dataVersion or 0
+    self:Broadcast("NICK_DATABASE_PATCH", channel, version, myBtag, patchData)
+end
+
 function NicknameModule:BroadcastSyncRequest()
     local groupChannel = GetGroupChannel()
     EnsureDB()
     local myVersion = ACT.db.profile.dataVersion or 0
     local myChecksum = self:GenerateDatabaseChecksum()
 
-    if groupChannel then
-        self:Broadcast("NICK_SYNC_REQUEST", groupChannel, myVersion, myChecksum)
+    local playerStates = {}
+    local myBtag = GetPlayerBattleTag()
+
+    for btag, pData in pairs(ACT.db.profile.players) do
+        if self.authoritativeData[btag] or btag == myBtag then
+            local charString = ""
+            if pData.characters and next(pData.characters) then
+                local sortedChars = {}
+                for charName, charData in pairs(pData.characters) do
+                    if not charData.deleted then table.insert(sortedChars, charName) end
+                end
+                table.sort(sortedChars)
+                charString = table.concat(sortedChars, ",")
+            end
+
+            local fullStateString = (pData.nickname or "") .. "|" .. charString
+            playerStates[btag] = self:GenerateSimpleHash(fullStateString)
+        end
     end
-    self:Broadcast("NICK_SYNC_REQUEST", "GUILD", myVersion, myChecksum)
+
+    if groupChannel then
+        self:Broadcast("NICK_SYNC_REQUEST", groupChannel, myVersion, myChecksum, playerStates)
+    end
+    self:Broadcast("NICK_SYNC_REQUEST", "GUILD", myVersion, myChecksum, playerStates)
 end
 
 function NicknameModule:BroadcastSelfUpdate()
@@ -329,18 +411,44 @@ end
 
 function NicknameModule:EventHandler(event, sender, channel, ...)
     if event == "NICK_SYNC_REQUEST" then
-        local incomingVersion, incomingChecksum = ...
+        local incomingVersion, incomingChecksum, incomingPlayerStates = ...
         EnsureDB()
         local myVersion = ACT.db.profile.dataVersion or 0
         local myChecksum = self:GenerateDatabaseChecksum()
 
         if myVersion > incomingVersion or (myVersion == incomingVersion and myChecksum ~= incomingChecksum) then
-            self:BroadcastFullDatabase(channel)
+            if type(incomingPlayerStates) == "table" then
+                self:BroadcastDatabasePatch(channel, incomingPlayerStates)
+            else
+                self:BroadcastFullDatabase(channel)
+            end
         end
     elseif event == "NICK_DATABASE_RESPONSE" then
         local incomingVersion, senderBtag, incomingPlayers = ...
         if type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table' then
             self:MergeData(incomingVersion, senderBtag, incomingPlayers)
+        end
+    elseif event == "NICK_DATABASE_PATCH" then
+        local incomingVersion, senderBtag, patchData = ...
+        if type(incomingVersion) == 'number' and type(patchData) == 'table' then
+            local hasChanged = false
+            for btag, data in pairs(patchData) do
+                ACT.db.profile.players[btag] = data
+                hasChanged = true
+            end
+
+            if hasChanged then
+                if (ACT.db.profile.dataVersion or 0) < incomingVersion then
+                    ACT.db.profile.dataVersion = incomingVersion
+                end
+
+                if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+                    C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
+                end
+                if self.configPanel and self.configPanel:IsShown() then
+                    self:RefreshContent()
+                end
+            end
         end
     elseif event == "NICK_PLAYER_UPDATE" then
         local btag, playerData = ...
