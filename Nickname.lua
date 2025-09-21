@@ -425,30 +425,52 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
         end
     elseif event == "NICK_DATABASE_RESPONSE" then
         local incomingVersion, senderBtag, incomingPlayers = ...
+        if not (type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table') then
+            return
+        end
 
-        local canMerge = true
-        if ACT.db.profile.strictMode and not ACT.db.profile.pugMode then
-            if not self.authoritativeData[senderBtag] then
-                canMerge = false
+        local dataToMerge = {}
+        local canMerge = false
+
+        if channel == "GUILD" then
+            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[senderBtag]) then
+                canMerge = true
+                dataToMerge = incomingPlayers
+            end
+        elseif ACT.db.profile.pugMode and (channel == "PARTY" or channel == "RAID") then
+            canMerge = true
+            if incomingPlayers[senderBtag] then
+                dataToMerge[senderBtag] = incomingPlayers[senderBtag]
             end
         end
 
-        if canMerge and type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(incomingPlayers) == 'table' then
-            self:MergeData(incomingVersion, senderBtag, incomingPlayers)
+        if canMerge and next(dataToMerge) then
+            self:MergeData(incomingVersion, senderBtag, dataToMerge)
         end
     elseif event == "NICK_DATABASE_PATCH" then
         local incomingVersion, senderBtag, patchData = ...
+        if not (type(incomingVersion) == 'number' and type(senderBtag) == 'string' and type(patchData) == 'table') then
+            return
+        end
 
-        local canMerge = true
-        if ACT.db.profile.strictMode and not ACT.db.profile.pugMode then
-            if not self.authoritativeData[senderBtag] then
-                canMerge = false
+        local dataToPatch = {}
+        local canPatch = false
+
+        if channel == "GUILD" then
+            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[senderBtag]) then
+                canPatch = true
+                dataToPatch = patchData
+            end
+        elseif ACT.db.profile.pugMode and (channel == "PARTY" or channel == "RAID") then
+            canPatch = true
+            if patchData[senderBtag] then
+                dataToPatch[senderBtag] = patchData[senderBtag]
             end
         end
 
-        if canMerge and type(incomingVersion) == 'number' and type(patchData) == 'table' then
+        if canPatch and next(dataToPatch) then
             local hasChanged = false
-            for btag, data in pairs(patchData) do
+            for btag, data in pairs(dataToPatch) do
                 ACT.db.profile.players[btag] = data
                 hasChanged = true
             end
