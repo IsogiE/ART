@@ -10,7 +10,9 @@ NicknameModule.activePopup = nil
 NicknameModule.pugModeWipePopup = nil
 NicknameModule.authoritativeData = {}
 
-if not NicknameAPI then NicknameAPI = {} end
+if not NicknameAPI then
+    NicknameAPI = {}
+end
 
 NicknameModule.localWAVersion = "N/A"
 
@@ -208,7 +210,7 @@ function NicknameModule:Broadcast(event, channel, ...)
     end
 
     local message = event .. DELIMITER ..
-        LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ ... })))
+                        LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({...})))
     AceComm:SendCommMessage(COMM_PREFIX, message, channel)
 end
 
@@ -249,30 +251,43 @@ end
 AceComm:RegisterComm(COMM_PREFIX, ReceiveComm)
 
 local function ReceiveVersionComm(prefix, message, channel, sender)
-    if InCombatLockdown() or prefix ~= COMM_PREFIX_VER then return end
+    if InCombatLockdown() or prefix ~= COMM_PREFIX_VER then
+        return
+    end
 
     local event, payload = strsplit(DELIMITER, message, 2)
-    if not event or not payload then return end
+    if not event or not payload then
+        return
+    end
 
     local decompressed = LibDeflate:DecompressDeflate(LibDeflate:DecodeForWoWAddonChannel(payload))
-    if not decompressed then return end
+    if not decompressed then
+        return
+    end
 
     local success, args = LibSerialize:Deserialize(decompressed)
-    if not success or type(args) ~= "table" then return end
+    if not success or type(args) ~= "table" then
+        return
+    end
 
     if event == "VER_REQ" then
         local myVersion = NicknameModule.localWAVersion or "N/A"
         local myBtag = GetPlayerBattleTag()
-        if not myBtag then return end
+        if not myBtag then
+            return
+        end
 
-        local reply_message = "VER_RES" ..
-            DELIMITER ..
-            LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ myVersion, myBtag })))
+        local reply_message = "VER_RES" .. DELIMITER ..
+                                  LibDeflate:EncodeForWoWAddonChannel(
+                LibDeflate:CompressDeflate(LibSerialize:Serialize({myVersion, myBtag})))
         AceComm:SendCommMessage(COMM_PREFIX_VER, reply_message, "WHISPER", sender)
     elseif event == "VER_RES" then
         local version, btag = unpack(args)
         if NicknameModule.waVersionData and type(version) ~= 'nil' and type(btag) == 'string' then
-            NicknameModule.waVersionData[btag] = { version = version, sender = sender }
+            NicknameModule.waVersionData[btag] = {
+                version = version,
+                sender = sender
+            }
             if NicknameModule.activePopup and NicknameModule.activePopup.isVersionCheckPopup then
                 NicknameModule:RefreshVersionCheckPopupContent()
             end
@@ -283,9 +298,11 @@ end
 AceComm:RegisterComm(COMM_PREFIX_VER, ReceiveVersionComm)
 
 function NicknameModule:BroadcastVersionCheck(event, channel, ...)
-    if InCombatLockdown() or not channel then return end
-    local message = event ..
-        DELIMITER .. LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({ ... })))
+    if InCombatLockdown() or not channel then
+        return
+    end
+    local message = event .. DELIMITER ..
+                        LibDeflate:EncodeForWoWAddonChannel(LibDeflate:CompressDeflate(LibSerialize:Serialize({...})))
     AceComm:SendCommMessage(COMM_PREFIX_VER, message, channel)
 end
 
@@ -341,7 +358,9 @@ function NicknameModule:BroadcastDatabasePatch(channel, incomingPlayerStates)
         if data.characters and next(data.characters) then
             local sortedChars = {}
             for charName, charData in pairs(data.characters) do
-                if not charData.deleted then table.insert(sortedChars, charName) end
+                if not charData.deleted then
+                    table.insert(sortedChars, charName)
+                end
             end
             table.sort(sortedChars)
             charString = table.concat(sortedChars, ",")
@@ -377,7 +396,9 @@ function NicknameModule:BroadcastSyncRequest()
             if pData.characters and next(pData.characters) then
                 local sortedChars = {}
                 for charName, charData in pairs(pData.characters) do
-                    if not charData.deleted then table.insert(sortedChars, charName) end
+                    if not charData.deleted then
+                        table.insert(sortedChars, charName)
+                    end
                 end
                 table.sort(sortedChars)
                 charString = table.concat(sortedChars, ",")
@@ -469,24 +490,7 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
         end
 
         if canPatch and next(dataToPatch) then
-            local hasChanged = false
-            for btag, data in pairs(dataToPatch) do
-                ACT.db.profile.players[btag] = data
-                hasChanged = true
-            end
-
-            if hasChanged then
-                if (ACT.db.profile.dataVersion or 0) < incomingVersion then
-                    ACT.db.profile.dataVersion = incomingVersion
-                end
-
-                if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-                    C_Timer.After(0.1, NicknameAPI.RefreshAllIntegrations)
-                end
-                if self.configPanel and self.configPanel:IsShown() then
-                    self:RefreshContent()
-                end
-            end
+            self:MergeData(incomingVersion, senderBtag, dataToPatch)
         end
     elseif event == "NICK_PLAYER_UPDATE" then
         local btag, playerData = ...
@@ -513,9 +517,9 @@ function NicknameModule:EventHandler(event, sender, channel, ...)
             end
             self.killswitchPopup = UI:CreateTextPopup("Killswitch Activated", sender ..
                 " has triggered a killswitch! All nicknames have been wiped.", "Reload Now", "Later", function()
-                    ReloadUI()
-                end, function()
-                end)
+                ReloadUI()
+            end, function()
+            end)
             self.killswitchPopup:SetScript("OnHide", function()
                 self.killswitchPopup = nil
             end)
@@ -574,7 +578,8 @@ function NicknameModule:MergeData(incomingVersion, senderBtag, incomingPlayers)
         local localData = ACT.db.profile.players[btag]
 
         if not localData then
-            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[btag]) or ACT.db.profile.pugMode then
+            if not ACT.db.profile.strictMode or (self.authoritativeData and self.authoritativeData[btag]) or
+                ACT.db.profile.pugMode then
                 ACT.db.profile.players[btag] = incomingData
                 hasChanged = true
             end
@@ -803,15 +808,15 @@ function NicknameModule:HandleDeletePlayer(btag, isStreamerMode, data)
     local displayName = isStreamerMode and (data.nickname or "this player") or btag
     local popup = UI:CreateTextPopup("Confirm Local Delete", "Locally delete all data for " .. displayName ..
         "? This will not affect other users.", "Delete Locally", "Cancel", function()
-            ACT.db.profile.players[btag] = nil
-            if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
-                NicknameAPI.RefreshAllIntegrations()
-            end
-            self:RefreshContent()
-            self.deleteConfirmationPopup = nil
-        end, function()
-            self.deleteConfirmationPopup = nil
-        end)
+        ACT.db.profile.players[btag] = nil
+        if NicknameAPI and NicknameAPI.RefreshAllIntegrations then
+            NicknameAPI.RefreshAllIntegrations()
+        end
+        self:RefreshContent()
+        self.deleteConfirmationPopup = nil
+    end, function()
+        self.deleteConfirmationPopup = nil
+    end)
     popup:SetScript("OnHide", function()
         self.deleteConfirmationPopup = nil
     end)
@@ -880,7 +885,7 @@ function NicknameModule:CreateConfigPanel(parent)
     end)
     streamerCheckbox.Text:SetText("Streamer Mode")
 
-    for _, cb in ipairs({ integrationCheckbox, streamerCheckbox }) do
+    for _, cb in ipairs({integrationCheckbox, streamerCheckbox}) do
         cb:SetSize(22, 22)
         cb.Text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
         cb.Text:ClearAllPoints()
@@ -908,18 +913,17 @@ function NicknameModule:CreateConfigPanel(parent)
         ACT.db.profile.pugMode = isEnabled
 
         if not isEnabled then
-            if not UI then return end
+            if not UI then
+                return
+            end
 
             if NicknameModule.pugModeWipePopup and NicknameModule.pugModeWipePopup:IsShown() then
                 return
             end
 
-            local popup = UI:CreateTextPopup(
-                "Confirm Pug Data Wipe",
+            local popup = UI:CreateTextPopup("Confirm Pug Data Wipe",
                 "Disabling Pug Mode will remove all nicknames that are not part of the guild WA. This cannot be undone. Are you sure?",
-                "Yes",
-                "Cancel",
-                function()
+                "Yes", "Cancel", function()
                     local myBtag = GetPlayerBattleTag()
                     local playersDB = ACT.db.profile.players
                     local authData = NicknameModule.authoritativeData or {}
@@ -941,12 +945,10 @@ function NicknameModule:CreateConfigPanel(parent)
                         end
                         NicknameModule:RefreshContent()
                     end
-                end,
-                function()
+                end, function()
                     self:SetChecked(true)
                     ACT.db.profile.pugMode = true
-                end
-            )
+                end)
             popup:SetScript("OnHide", function()
                 NicknameModule.pugModeWipePopup = nil
             end)
@@ -1029,7 +1031,7 @@ function NicknameModule:RefreshContent()
         return
     end
 
-    for _, child in ipairs({ self.scrollChild:GetChildren() }) do
+    for _, child in ipairs({self.scrollChild:GetChildren()}) do
         child:Hide()
         table.insert(self.rowPool, child)
     end
@@ -1186,7 +1188,7 @@ function NicknameModule:CreateManageHiddenPopup()
 
     local function refreshHiddenList()
         scrollChild:SetHeight(0)
-        for _, child in ipairs({ scrollChild:GetChildren() }) do
+        for _, child in ipairs({scrollChild:GetChildren()}) do
             child:Hide()
         end
         local y = -10
@@ -1270,7 +1272,7 @@ function NicknameModule:CreateAuthDeletePopup()
         selectedBtag = btagDropdown.selectedValue
         selectedChars = {}
         scrollChild:SetHeight(0)
-        for _, child in ipairs({ scrollChild:GetChildren() }) do
+        for _, child in ipairs({scrollChild:GetChildren()}) do
             child:Hide()
         end
         if not selectedBtag then
@@ -1332,7 +1334,9 @@ function NicknameModule:RefreshVersionCheckPopupContent()
     end
 
     local scrollChild = popup.scrollChild
-    if not scrollChild.lines then scrollChild.lines = {} end
+    if not scrollChild.lines then
+        scrollChild.lines = {}
+    end
 
     for _, line in ipairs(scrollChild.lines) do
         line:Hide()
@@ -1341,9 +1345,16 @@ function NicknameModule:RefreshVersionCheckPopupContent()
     local sortedResults = {}
     for btag, data in pairs(self.waVersionData or {}) do
         local nick = (ACT.db.profile.players[btag] and ACT.db.profile.players[btag].nickname) or btag
-        table.insert(sortedResults, { btag = btag, nick = nick, version = data.version, sender = data.sender })
+        table.insert(sortedResults, {
+            btag = btag,
+            nick = nick,
+            version = data.version,
+            sender = data.sender
+        })
     end
-    table.sort(sortedResults, function(a, b) return a.nick:lower() < b.nick:lower() end)
+    table.sort(sortedResults, function(a, b)
+        return a.nick:lower() < b.nick:lower()
+    end)
 
     local y = -10
     local lineIndex = 0
@@ -1612,7 +1623,9 @@ function NicknameModule:MergeAuthoritativeData(version, defaults)
             end
         end
 
-        if unionSize == 0 then return 1 end
+        if unionSize == 0 then
+            return 1
+        end
         return intersectionSize / unionSize
     end
 
