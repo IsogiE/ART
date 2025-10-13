@@ -19,12 +19,22 @@ Libs\AceEvent-3.0\AceEvent-3.0.xml
 Libs\AceAddon-3.0\AceAddon-3.0.xml
 libs\AceConsole-3.0\AceConsole-3.0.xml
 
-API.lua
-
 UI.lua
 Core.lua
+
 Home.lua
-Nickname.lua
+
+Nicknames\Nickname.lua
+Nicknames\Blizzard.lua
+Nicknames\Cell.lua
+Nicknames\ElvUI.lua
+Nicknames\Grid2.lua
+Nicknames\MRT.lua
+Nicknames\SUF.lua
+Nicknames\VuhDo.lua
+Nicknames\WeakAuras.lua
+Nicknames\LiquidAPI.lua
+
 RaidGroups.lua
 Macros.lua
 Marks.lua
