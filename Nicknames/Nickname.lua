@@ -239,32 +239,26 @@ function NicknameModule:CreateConfigPanel(parent)
     local integrations = {{
         key = "Blizzard",
         name = "Blizzard Raid Frames"
-    }, 
-    {
+    }, {
         key = "Cell",
         name = "Cell"
-    }, 
-    {
+    }, {
         key = "ElvUI",
         name = "ElvUI"
-    }, 
-    {
+    }, {
         key = "Grid2",
         name = "Grid2"
-    }, 
-    {
+    }, {
         key = "MRT",
         name = "Method Raid Tools"
-    }, 
-    {
+    }, {
         key = "ShadowedUnitFrames",
         name = "Shadowed Unit Frames"
-    }, 
-    {
+    }, {
         key = "VuhDo",
         name = "VuhDo"
     }, {
-        
+
         key = "WeakAuras",
         name = "WeakAuras"
     }}
@@ -286,7 +280,7 @@ function NicknameModule:CreateConfigPanel(parent)
         local text = checkButton:CreateFontString(nil, "ARTWORK", "GameFontNormal")
         text:SetText(data.name)
         text:SetPoint("LEFT", checkButton, "RIGHT", 5, 0)
-        checkButton.Text = text 
+        checkButton.Text = text
 
         addOnNameToCheckButton[data.key] = checkButton
 

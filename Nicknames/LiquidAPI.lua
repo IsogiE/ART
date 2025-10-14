@@ -1,5 +1,4 @@
 -- Might as well keep it supported for now till prepatch, and in case they somehow keep using it in the future
-
 -- Thanks Ironi <3
 local unitIDs = {
     player = true,
@@ -48,7 +47,7 @@ local LiquidAPI = {
             unit = ACT:GetCharacterInGroup(characterName)
             if not unit then
                 for i = 1, GetNumGroupMembers() do
-                    local currentUnit = "raid"..i
+                    local currentUnit = "raid" .. i
                     if UnitExists(currentUnit) then
                         local name = UnitNameUnmodified(currentUnit)
                         if name and name:lower() == lowerCharName then
@@ -59,7 +58,7 @@ local LiquidAPI = {
                 end
             end
         end
-        
+
         local displayName
         if unit and ACT and ACT.GetNickname then
             displayName = ACT:GetNickname(unit)
@@ -74,13 +73,15 @@ local LiquidAPI = {
         if not unit then
             return displayName, "%s", ""
         end
-        
+
         local classFileName = UnitClassBase(unit)
-        local colorStr = (classFileName and RAID_CLASS_COLORS[classFileName] and RAID_CLASS_COLORS[classFileName].colorStr) or "ffffffff"
+        local colorStr = (classFileName and RAID_CLASS_COLORS[classFileName] and
+                             RAID_CLASS_COLORS[classFileName].colorStr) or "ffffffff"
         local colorFormat = string.format("|c%s%%s|r", colorStr)
 
         local role = UnitGroupRolesAssigned(unit)
-        local roleAtlas = (role == "TANK" and "Role-Tank-SM") or (role == "HEALER" and "Role-Healer-SM") or (role == "DAMAGER" and "Role-DPS-SM")
+        local roleAtlas = (role == "TANK" and "Role-Tank-SM") or (role == "HEALER" and "Role-Healer-SM") or
+                              (role == "DAMAGER" and "Role-DPS-SM")
         local roleIcon = roleAtlas and CreateAtlasMarkup(roleAtlas, atlasSize or 12, atlasSize or 12) or ""
 
         return displayName, colorFormat, roleIcon, RAID_CLASS_COLORS[classFileName] or {}
@@ -97,7 +98,7 @@ local LiquidAPI = {
             local characterName = UnitNameUnmodified(unit)
             local guid = UnitGUID(unit)
             local classFileName = UnitClassBase(unit)
-            
+
             if characterName and guid and classFileName and RAID_CLASS_COLORS[classFileName] then
                 local colorFormat = string.format("|c%s%%s|r", RAID_CLASS_COLORS[classFileName].colorStr)
                 return characterName, colorFormat, guid
@@ -115,7 +116,7 @@ local LiquidAPI = {
 
         local chars = {}
         local found = false
-        
+
         for i = 1, GetNumGroupMembers() do
             local unit = "raid" .. i
             if UnitExists(unit) and ACT and ACT.HasNickname and ACT:HasNickname(unit) then
