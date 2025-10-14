@@ -184,9 +184,13 @@ function WeakAuraUpdaterModule:ShowImportPopup(senderFullName, waString, totalCh
     end
 
     local displayName
-    if _G.NicknameAPI and NicknameAPI.GetNicknameByCharacter then
-        displayName = NicknameAPI:GetNicknameByCharacter(senderFullName)
+    if senderFullName and ACT and ACT.GetCharacterInGroup and ACT.GetNickname then
+        local unit = ACT:GetCharacterInGroup(senderFullName)
+        if unit then
+            displayName = ACT:GetNickname(unit)
+        end
     end
+
     if not displayName then
         displayName = senderFullName:match("([^-]+)") or senderFullName
     end

@@ -119,84 +119,112 @@ function RaidMarksModule:OnUpdate(elapsed)
     self.tmr = 0
 
     local function resolveUnit(nameText)
+        if not nameText or nameText == "" then
+            return nil
+        end
+
+        -- Normalize for comparisons
+        local lowerName = nameText:lower()
+
+        -- 1. If it's a valid unit ID already
         if UnitExists(nameText) then
             return nameText
         end
 
-        local characters = NicknameAPI:GetAllCharactersByNickname(nameText)
-        if not characters or #characters == 0 then
-            local charactersTable = LiquidAPI:GetCharacters(nameText)
-            if charactersTable then
-                characters = {}
-                for charName, _ in pairs(charactersTable) do
-                    table.insert(characters, charName)
-                end
-            else
-                return nil
-            end
+        -- 2. Try resolving via ACT fast-path (may require exact match)
+        local nicknameUnit = ACT:GetCharacterInGroup(nameText)
+        if nicknameUnit and UnitExists(nicknameUnit) then
+            return nicknameUnit
         end
 
-        local function findUnitInGroup(unitId)
-            if not UnitExists(unitId) then
-                return nil
-            end
-
-            local unitName = UnitName(unitId)
-            if not unitName then
-                return nil
-            end
-
-            local fullUnitName, realm = UnitFullName(unitId)
-            if not fullUnitName then
-                return nil
-            end
-
-            for _, charName in ipairs(characters) do
-                local charNameLower = charName:lower()
-                local unitNameLower = unitName:lower()
-                local fullUnitNameLower = fullUnitName:lower()
-
-                if charNameLower == unitNameLower then
-                    return unitId
+        -- 3. Case-insensitive scan of group using ACT:GetRawNickname(unit)
+        local function scanGroupForRawNickname()
+            -- check player
+            if UnitExists("player") then
+                local rn = ACT:GetRawNickname("player")
+                if rn and rn:lower() == lowerName then
+                    return "player"
                 end
+            end
 
-                if realm then
-                    local fullNameWithRealm = (fullUnitName .. "-" .. realm):lower()
-                    if charNameLower == fullNameWithRealm then
-                        return unitId
+            if IsInRaid() then
+                for i = 1, 40 do
+                    local unit = "raid" .. i
+                    if UnitExists(unit) then
+                        local rn = ACT:GetRawNickname(unit)
+                        if rn and rn:lower() == lowerName then
+                            return unit
+                        end
                     end
                 end
-
-                if charNameLower == fullUnitNameLower then
-                    return unitId
-                end
-
-                local simpleCharName = charNameLower:match("^([^-]+)")
-                if simpleCharName and simpleCharName == unitNameLower then
-                    return unitId
+            elseif IsInGroup() then
+                for i = 1, 4 do
+                    local unit = "party" .. i
+                    if UnitExists(unit) then
+                        local rn = ACT:GetRawNickname(unit)
+                        if rn and rn:lower() == lowerName then
+                            return unit
+                        end
+                    end
                 end
             end
 
             return nil
         end
 
-        local playerUnit = findUnitInGroup("player")
-        if playerUnit then
-            return playerUnit
+        local rawNickUnit = scanGroupForRawNickname()
+        if rawNickUnit then
+            return rawNickUnit
         end
 
-        if IsInRaid() then
-            for i = 1, 40 do
-                local unit = findUnitInGroup("raid" .. i)
-                if unit then
-                    return unit
+        -- 4. Try resolving as a direct character name in the group (case-insensitive)
+        local function scanGroupForCharacterName()
+            if UnitExists("player") then
+                local fullName = UnitNameUnmodified("player")
+                if fullName and fullName:lower() == lowerName then
+                    return "player"
                 end
             end
-        elseif IsInGroup() then
-            for i = 1, 4 do
-                local unit = findUnitInGroup("party" .. i)
-                if unit then
-                    return unit
+
+            if IsInRaid() then
+                for i = 1, 40 do
+                    local unit = "raid" .. i
+                    if UnitExists(unit) then
+                        local fullName = UnitNameUnmodified(unit)
+                        if fullName and fullName:lower() == lowerName then
+                            return unit
+                        end
+                    end
+                end
+            elseif IsInGroup() then
+                for i = 1, 4 do
+                    local unit = "party" .. i
+                    if UnitExists(unit) then
+                        local fullName = UnitNameUnmodified(unit)
+                        if fullName and fullName:lower() == lowerName then
+                            return unit
+                        end
+                    end
+                end
+            end
+
+            return nil
+        end
+
+        local charUnit = scanGroupForCharacterName()
+        if charUnit then
+            return charUnit
+        end
+
+        -- 5. Optional LiquidAPI fallback (legacy support)
+        if LiquidAPI and LiquidAPI.GetCharacters then
+            local charactersTable = LiquidAPI:GetCharacters(nameText)
+            if charactersTable then
+                for charName, _ in pairs(charactersTable) do
+                    local unit = resolveUnit(charName)
+                    if unit then
+                        return unit
+                    end
                 end
             end
         end
@@ -204,6 +232,7 @@ function RaidMarksModule:OnUpdate(elapsed)
         return nil
     end
 
+    -- 6. Iterate over the 8 mark slots
     for i = 1, 8 do
         local row = self.rows[i]
         if row and row.editBox then

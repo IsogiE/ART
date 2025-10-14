@@ -92,6 +92,20 @@ function VersionCheckerModule:SendVersionCheck()
     end
 end
 
+local function FindUnitByName(fullName)
+    for i = 1, GetNumGroupMembers() do
+        local unit = "raid" .. i
+        if UnitIsPlayer(unit) and UnitNameUnmodified(unit) == fullName then
+            return unit
+        end
+    end
+    if UnitIsPlayer("player") and UnitNameUnmodified("player") == fullName then
+        return "player"
+    end
+    return nil
+end
+
+
 function VersionCheckerModule:SendVersionResponse(target)
     if not VACT.VersionCheck.version then
         return
@@ -101,13 +115,18 @@ function VersionCheckerModule:SendVersionResponse(target)
 end
 
 function VersionCheckerModule:OnCommReceived(prefix, message, distribution, sender)
-    if prefix ~= PREFIX then
-        return
-    end
+    if prefix ~= PREFIX then return end
 
     local command, data = strsplit(":", message)
     local playerName = sender
-    local nickname = NicknameAPI:GetNicknameByCharacter(playerName)
+    local unit = FindUnitByName(playerName)
+
+    local nickname
+    if unit and ACT:HasNickname(unit) then
+        nickname = ACT:GetNickname(unit)
+    else
+        nickname = playerName
+    end
 
     if command == CMD_CHECK then
         VACT.VersionCheck.responses[playerName] = {
@@ -131,7 +150,14 @@ function VersionCheckerModule:CheckForNonResponders()
 
     local function addNonResponder(playerName, status)
         if not VACT.VersionCheck.responses[playerName] then
-            local nickname = NicknameAPI:GetNicknameByCharacter(playerName)
+            local unit = FindUnitByName(playerName)
+            local nickname
+            if unit and ACT:HasNickname(unit) then
+                nickname = ACT:GetNickname(unit)
+            else
+                nickname = playerName
+            end
+
             VACT.VersionCheck.responses[playerName] = {
                 ver = status,
                 nickname = nickname

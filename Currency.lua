@@ -59,6 +59,19 @@ function CurrencyCheckerModule:SendCurrencyResponse(target, currencyID)
     AceComm:SendCommMessage(PREFIX, message, "WHISPER", target)
 end
 
+local function FindUnitByName(fullName)
+    for i = 1, GetNumGroupMembers() do
+        local unit = "raid" .. i
+        if UnitIsPlayer(unit) and UnitNameUnmodified(unit) == fullName then
+            return unit
+        end
+    end
+    if UnitIsPlayer("player") and UnitNameUnmodified("player") == fullName then
+        return "player"
+    end
+    return nil
+end
+
 function CurrencyCheckerModule:OnCommReceived(prefix, message, distribution, sender)
     if prefix ~= PREFIX then
         return
@@ -66,7 +79,14 @@ function CurrencyCheckerModule:OnCommReceived(prefix, message, distribution, sen
 
     local command, data = strsplit(":", message, 2)
     local playerName = sender
-    local nickname = NicknameAPI:GetNicknameByCharacter(playerName)
+    local unit = FindUnitByName(playerName)
+
+    local nickname
+    if unit and ACT:HasNickname(unit) then
+        nickname = ACT:GetNickname(unit)
+    else
+        nickname = playerName
+    end
 
     if command == CMD_CHECK then
         local currencyID = tonumber(data)
@@ -89,7 +109,12 @@ function CurrencyCheckerModule:CheckForNonResponders()
 
     local function addNonResponder(playerName, status)
         if not VACT.CurrencyCheck.responses[playerName] then
-            local nickname = NicknameAPI:GetNicknameByCharacter(playerName)
+            local nickname
+            if unit and ACT:HasNickname(unit) then
+                nickname = ACT:GetNickname(unit)
+            else
+                nickname = playerName
+            end
             VACT.CurrencyCheck.responses[playerName] = {
                 amount = status,
                 nickname = nickname
