@@ -141,3 +141,5 @@ NicknameModule.nicknameFunctions["Blizzard"] = {
     Update = Update,
     Init = Init
 }
+
+Init()
