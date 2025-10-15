@@ -40,7 +40,7 @@ local function Update(unit, ...)
         if findAndApplyUpdate("player") then
             return
         end
-        for i = 1, GetNumPartyMembers() do
+        for i = 1, GetNumSubgroupMembers() do
             if findAndApplyUpdate("party" .. i) then
                 return
             end
@@ -72,7 +72,7 @@ local function UpdateAll()
         end
     elseif IsInGroup() then
         updateAllIndicators("player")
-        for i = 1, GetNumPartyMembers() do
+        for i = 1, GetNumSubgroupMembers() do
             updateAllIndicators("party" .. i)
         end
     else
