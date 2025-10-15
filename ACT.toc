@@ -25,6 +25,7 @@ Core.lua
 Home.lua
 
 Nicknames\Nickname.lua
+Nicknames\Comms.lua
 Nicknames\Blizzard.lua
 Nicknames\Cell.lua
 Nicknames\ElvUI.lua
