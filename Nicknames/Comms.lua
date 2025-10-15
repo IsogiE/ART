@@ -80,6 +80,39 @@ local function DeleteNicknameDataForInvalidGUIDs()
     end
 end
 
+local function ValidateNicknameDatabase()
+    if not ACT_CharacterDB or not ACT_CharacterDB.nicknames then
+        return
+    end
+
+    local activeGroupMembers = {}
+    -- Add self to the list of members to keep
+    local selfRealmName = GetRealmIncludedName("player")
+    if selfRealmName then
+        activeGroupMembers[selfRealmName] = true
+    end
+
+    -- If in a group, build a list of all current characters
+    if IsInGroup() then
+        for i = 1, GetNumGroupMembers() do
+            local unit = "raid" .. i
+            if UnitExists(unit) then
+                local memberRealmName = GetRealmIncludedName(unit)
+                if memberRealmName then
+                    activeGroupMembers[memberRealmName] = true
+                end
+            end
+        end
+    end
+
+    -- Iterate through the saved nicknames and remove anyone not in the current group
+    for characterRealm, _ in pairs(ACT_CharacterDB.nicknames) do
+        if not activeGroupMembers[characterRealm] then
+            ACT_CharacterDB.nicknames[characterRealm] = nil
+        end
+    end
+end
+
 -- Get current player's nickname data
 local function GetPlayerNicknameData()
     if not NicknameModule.isInitialized or not ACT_CharacterDB or not ACT_CharacterDB.nicknames then
@@ -307,6 +340,9 @@ local function OnEvent(self, event, ...)
         BroadcastNicknameData()
         RequestNicknameData(chatType)
     elseif event == "PLAYER_ENTERING_WORLD" then
+        -- Validate the database to remove stale entries from previous sessions
+        ValidateNicknameDatabase()
+
         if IsInGroup() then
             BroadcastNicknameData()
 
@@ -343,21 +379,6 @@ local function OnEvent(self, event, ...)
                 ACT_CharacterDB.nicknames[playerRealmName] = currentPlayerNickname
             end
         end
-    elseif event == "PLAYER_LOGOUT" then
-        local playerGUID = UnitGUID("player")
-
-        if ACT_CharacterDB and ACT_CharacterDB.nicknames and playerRealmName then
-            local currentPlayerNickname = ACT_CharacterDB.nicknames[playerRealmName]
-
-            -- Wipe the table
-            for characterRealm in pairs(ACT_CharacterDB.nicknames) do
-                ACT_CharacterDB.nicknames[characterRealm] = nil
-            end
-
-            if currentPlayerNickname then
-                ACT_CharacterDB.nicknames[playerRealmName] = currentPlayerNickname
-            end
-        end
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- When combat ends, send any pending broadcasts
         if broadcastPending then
@@ -374,7 +395,6 @@ commsFrame:RegisterEvent("GROUP_FORMED")
 commsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 commsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 commsFrame:RegisterEvent("GROUP_LEFT")
-commsFrame:RegisterEvent("PLAYER_LOGOUT")
 commsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 commsFrame:SetScript("OnEvent", OnEvent)
 
