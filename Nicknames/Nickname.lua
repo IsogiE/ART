@@ -17,6 +17,17 @@ local integrations_db
 
 local InitializeIntegrations
 
+local function RealmIncludedName(unit)
+    local name, realm = UnitNameUnmodified(unit)
+    if not realm or realm == "" then
+        realm = GetRealmName()
+    end
+    if not realm then
+        return
+    end
+    return string.format("%s-%s", name, realm)
+end
+
 local function InitializeDatabase()
     if not ACT.db or not ACT.db.profile then
         return
@@ -28,9 +39,19 @@ local function InitializeDatabase()
     if not ACT.db.profile.nickname_integrations then
         ACT.db.profile.nickname_integrations = {}
     end
+    if ACT.db.profile.nickname == nil then
+        ACT.db.profile.nickname = nil
+    end
 
     db = ACT.db.profile.nicknames
     integrations_db = ACT.db.profile.nickname_integrations
+
+    local playerRealmName = RealmIncludedName("player")
+    local currentPlayerNickname = ACT.db.profile.nickname
+
+    if playerRealmName and currentPlayerNickname then
+        db[playerRealmName] = currentPlayerNickname
+    end
 
     ACT_CharacterDB = {
         nicknames = db
@@ -90,17 +111,6 @@ function NicknameModule:UpdateCheckButtons()
     end
 end
 
-local function RealmIncludedName(unit)
-    local name, realm = UnitNameUnmodified(unit)
-    if not realm or realm == "" then
-        realm = GetRealmName()
-    end
-    if not realm then
-        return
-    end
-    return string.format("%s-%s", name, realm)
-end
-
 function NicknameModule:UpdateNicknameForUnit(unit, nickname)
     if not NicknameModule.isInitialized or not db then
         return
@@ -115,7 +125,16 @@ function NicknameModule:UpdateNicknameForUnit(unit, nickname)
         nickname = nil
     end
 
-    local oldNickname = db[realmIncludedName]
+    local oldNickname = ACT:GetRawNickname(unit)
+
+    if oldNickname == nickname then
+        return
+    end
+
+    if unit == "player" then
+        ACT.db.profile.nickname = nickname
+    end
+    db[realmIncludedName] = nickname
 
     if oldNickname then
         nicknameToCharacterCache[oldNickname] = nil
@@ -124,8 +143,6 @@ function NicknameModule:UpdateNicknameForUnit(unit, nickname)
         nicknameToCharacterCache[nickname] = unit
     end
 
-    db[realmIncludedName] = nickname
-
     for _, functions in pairs(self.nicknameFunctions) do
         if functions.Update then
             functions.Update(unit, realmIncludedName, oldNickname, nickname)
@@ -133,7 +150,7 @@ function NicknameModule:UpdateNicknameForUnit(unit, nickname)
     end
 end
 
--- API to build integrations from (making it available for now pending w/e happens in midnight, so other things can hook into it)
+-- Stuff for integrations to use 
 function ACT:HasNickname(unit)
     if not NicknameModule.isInitialized or not db then
         return false
@@ -235,7 +252,6 @@ function NicknameModule:CreateConfigPanel(parent)
     local integrationsLabel = UI:CreateLabel(configPanel, "Enable Nickname Integrations", 14)
     integrationsLabel:SetPoint("TOPLEFT", nicknameEditBoxFrame, "BOTTOMLEFT", 0, -25)
 
-    -- Addon Checkboxes
     local integrations = {{
         key = "Blizzard",
         name = "Blizzard Raid Frames"
