@@ -38,7 +38,6 @@ Nicknames\LiquidAPI.lua
 
 RaidGroups.lua
 Macros.lua
-Marks.lua
 SplitHelper.lua
 AddonChecker.lua
 VersionChecker.lua
