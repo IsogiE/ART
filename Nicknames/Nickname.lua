@@ -125,7 +125,7 @@ function NicknameModule:UpdateNicknameForUnit(unit, nickname)
         nickname = nil
     end
 
-    local oldNickname = ACT:GetRawNickname(unit)
+    local oldNickname = db[realmIncludedName]
 
     if oldNickname == nickname then
         return
@@ -323,7 +323,7 @@ function NicknameModule:CreateConfigPanel(parent)
             return
         end
 
-        configPanel.nicknameEditBox:SetText(ACT:GetRawNickname("player"))
+        configPanel.nicknameEditBox:SetText(ACT.db.profile.nickname)
 
         for addOnName, checkButton in pairs(addOnNameToCheckButton) do
             checkButton:SetChecked(integrations_db[addOnName] or false)
