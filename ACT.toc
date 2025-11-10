@@ -4,10 +4,9 @@
 ## Author: Isogi, Jaf
 ## Notes: Advance Custom Tools
 ## SavedVariables: ACTDB, VACT
-## Version: @project-version@
+## Version: Beta 1
 ## DefaultState: Enable
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
-## Dependencies: WeakAuras
 ## OptionalDeps: ElvUI, Grid2, MRT, Cell
 ## Category: Advance
 
