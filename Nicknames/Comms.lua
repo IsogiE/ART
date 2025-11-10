@@ -8,12 +8,13 @@ local LibSerialize = LibStub("LibSerialize")
 local LibDeflate = LibStub("LibDeflate")
 local AceComm = LibStub("AceComm-3.0")
 
--- Throttling
+-- Throttling & Combat lockdown
 local BROADCAST_DELAY = 2
 local BROADCAST_INTERVAL = 3
 local broadcastQueued = false
 local lastBroadcastTime = 0
 local broadcastPending = false
+local receiveQueue = {}
 
 -- Cache
 local guidToNicknameData = {}
@@ -211,9 +212,9 @@ local function UpdateNicknameDataForUnit(unit, nicknameData, isFromComms)
     end
 end
 
--- Receive nickname data from another player
-local function ReceiveNicknameData(_, payload, _, sender)
-    if UnitIsUnit(sender, "player") then
+local function ProcessReceivedNicknameData(payload, sender)
+    -- Check if sender is valid and still exists
+    if not sender or UnitIsUnit(sender, "player") or not UnitExists(sender) then
         return
     end
 
@@ -238,6 +239,23 @@ local function ReceiveNicknameData(_, payload, _, sender)
     end
 
     UpdateNicknameDataForUnit(sender, nicknameData, true)
+end
+
+local function ReceiveNicknameData(_, payload, _, sender)
+    if UnitIsUnit(sender, "player") then
+        return
+    end
+
+    if UnitAffectingCombat("player") then
+        -- Queue if in combat
+        table.insert(receiveQueue, {
+            payload = payload,
+            sender = sender
+        })
+    else
+        -- Not in combat, so we process 
+        ProcessReceivedNicknameData(payload, sender)
+    end
 end
 
 -- Request nickname data from group
@@ -384,6 +402,14 @@ local function OnEvent(self, event, ...)
         if broadcastPending then
             broadcastPending = false
             BroadcastNicknameData()
+        end
+
+        -- Process any queued received data
+        if #receiveQueue > 0 then
+            for _, data in ipairs(receiveQueue) do
+                ProcessReceivedNicknameData(data.payload, data.sender)
+            end
+            wipe(receiveQueue)
         end
     end
 end
