@@ -197,7 +197,13 @@ function ACT:OnInitialize()
                 KeepPosInGroup = true
             },
             useNicknameIntegration = true,
-            weakauraUpdater = {}
+            weakauraUpdater = {},
+            macros = {
+                focusMarker = { marker = 1 },
+                worldMarker = { marker = 5 },
+                markTarget = { marker = 1 },
+                focusTarget = {}
+            }
         }
     }, true)
 
