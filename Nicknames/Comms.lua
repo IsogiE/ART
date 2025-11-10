@@ -21,6 +21,18 @@ local guidToNicknameData = {}
 local guidToUnitName = {}
 local playerRealmName = nil
 
+local function GetGroupUnit(index)
+    if IsInRaid() then
+        return "raid" .. index
+    else
+        if index == GetNumGroupMembers() then
+            return "player"
+        else
+            return "party" .. index
+        end
+    end
+end
+
 -- Check if we already have nickname data for other members in our current group
 local function IsCachePopulatedForGroup()
     if not IsInGroup() then
@@ -29,7 +41,7 @@ local function IsCachePopulatedForGroup()
 
     local playerGUID = UnitGUID("player")
     for i = 1, GetNumGroupMembers() do
-        local unit = "raid" .. i
+        local unit = GetGroupUnit(i)
         -- If unit exists, is not our character, and we have data for them, populate cache
         if UnitExists(unit) then
             local guid = UnitGUID(unit)
@@ -96,7 +108,7 @@ local function ValidateNicknameDatabase()
     -- If in a group, build a list of all current characters
     if IsInGroup() then
         for i = 1, GetNumGroupMembers() do
-            local unit = "raid" .. i
+            local unit = GetGroupUnit(i)
             if UnitExists(unit) then
                 local memberRealmName = GetRealmIncludedName(unit)
                 if memberRealmName then
