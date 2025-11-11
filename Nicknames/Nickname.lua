@@ -323,7 +323,7 @@ function NicknameModule:CreateConfigPanel(parent)
             return
         end
 
-        configPanel.nicknameEditBox:SetText(ACT.db.profile.nickname)
+        configPanel.nicknameEditBox:SetText(ACT.db.profile.nickname or "")
 
         for addOnName, checkButton in pairs(addOnNameToCheckButton) do
             checkButton:SetChecked(integrations_db[addOnName] or false)
