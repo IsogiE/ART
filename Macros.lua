@@ -272,11 +272,10 @@ function MacrosModule:UpdateFocusMarkerMacro()
     end
 
     local macroText =
-        "/focus " .. target .. "\n/run if not GetRaidTargetIndex(\"focus\") then SetRaidTarget(\"focus\"," ..
-            settings.marker .. ") end"
-    local icon = 136062
-    MacrosModule:UpdateMacro("ACT FocusMark", icon, macroText)
-end
+            "/focus " .. target .. "\n/tm [@focus] " .. settings.marker
+        local icon = 136062
+        MacrosModule:UpdateMacro("ACT FocusMark", icon, macroText)
+    end
 
 function MacrosModule:UpdateWorldMarkerMacro()
     if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then
