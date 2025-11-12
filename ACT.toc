@@ -42,3 +42,4 @@ AddonChecker.lua
 VersionChecker.lua
 Currency.lua
 WAUpdater.lua
+Resources.lua
