@@ -30,10 +30,21 @@ end
 
 local function get_world_marker_options(dropdown)
     local options = {}
+    local worldMarkerToIcon = {
+        [1] = 6,
+        [2] = 4,
+        [3] = 3,
+        [4] = 7,
+        [5] = 1,
+        [6] = 2,
+        [7] = 5,
+        [8] = 8
+    }
 
     for i = 1, 8 do
         local markerID = i
-        local iconString = GetIconString("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. i)
+        local iconID = worldMarkerToIcon[i]
+        local iconString = GetIconString("Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. iconID)
         table.insert(options, {
             value = markerID,
             text = iconString,
