@@ -191,6 +191,7 @@ function ACT:OnInitialize()
         profile = {
             nickname = "",
             nicknames = {},
+            prd = {},
             nicknamesWiped = false,
             defaultNicknames = "",
             splits = {
