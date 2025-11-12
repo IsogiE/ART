@@ -12,7 +12,9 @@ local defaults = {
     textureName = "Blizzard",
     frameStrata = "BACKGROUND",
     showPowerBorder = true,
-    powerBorderColor = {0, 0, 0, 1}
+    powerBorderColor = {0, 0, 0, 1},
+    fontSize = 12,
+    fontFace = "Friz Quadrata TT"
 }
 
 local function GetAvailableTextures()
@@ -32,6 +34,25 @@ local function GetAvailableTextures()
     end
     
     return textures
+end
+
+local function GetAvailableFonts()
+    local LSM = LibStub("LibSharedMedia-3.0", true)
+    if not LSM then
+        return {{text = "Friz Quadrata TT", value = "Friz Quadrata TT"}}
+    end
+    
+    local fonts = {}
+    local fontList = LSM:List("font")
+    
+    for _, fontName in ipairs(fontList) do
+        table.insert(fonts, {
+            text = fontName,
+            value = fontName
+        })
+    end
+    
+    return fonts
 end
 
 local function CreatePowerBarBorder(powerBar)
@@ -95,6 +116,61 @@ local function UpdatePowerBarBorder(powerBar, settings)
     end
 end
 
+local function CreatePowerText(powerBar, settings)
+    local fontFace = settings.fontFace or "Friz Quadrata TT"
+    local fontSize = settings.fontSize or 12
+    local fontPath = nil
+        
+    local LSM = LibStub("LibSharedMedia-3.0", true)
+    if LSM then
+        local success, result = pcall(function() return LSM:Fetch("font", fontFace) end)
+        if success and result and type(result) == "string" then
+            fontPath = result
+        end
+    end
+    
+    if not fontPath then
+        fontPath = "Fonts\\FRIZQT__.TTF"
+    end
+    
+    if powerBar.customPowerText then
+        local currentFont = powerBar.customPowerText:GetFont()
+        
+        if currentFont ~= fontPath then
+            powerBar.customPowerText:Hide()
+            powerBar.customPowerText:SetText("")
+            powerBar.customPowerText = nil
+        else
+            powerBar.customPowerText:SetFont(fontPath, fontSize, "OUTLINE")
+            return powerBar.customPowerText
+        end
+    end
+    
+    local powerText = powerBar:CreateFontString(nil, "OVERLAY")
+    powerText:SetPoint("CENTER", powerBar, "CENTER", 0, 0)
+    powerText:SetFont(fontPath, fontSize, "OUTLINE")
+    
+    powerBar.customPowerText = powerText
+    
+    return powerText
+end
+
+local function UpdatePowerText(powerBar)
+    if not powerBar.customPowerText then
+        return
+    end
+    
+    local powerType = UnitPowerType("player")
+    local current = UnitPower("player", powerType)
+    local max = UnitPowerMax("player", powerType)
+    
+    if max > 0 then
+        powerBar.customPowerText:SetText(string.format("%d / %d", current, max))
+    else
+        powerBar.customPowerText:SetText("")
+    end
+end
+
 function PRDModule:GetConfigSize()
     return 800, 600
 end
@@ -141,23 +217,15 @@ function PRDModule:ApplySettings()
                     end
                 end
                 
-                if settings.showResourceText then
-                    if PlayerFrame and PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText then
-                        local manaText = PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText
-                        manaText:ClearAllPoints()
-                        manaText:SetPoint("CENTER", PersonalResourceDisplayFrame.PowerBar, "CENTER", 0, 0)
+                if settings.showResourceText and PersonalResourceDisplayFrame.PowerBar then
+                    CreatePowerText(PersonalResourceDisplayFrame.PowerBar, settings)
+                    UpdatePowerText(PersonalResourceDisplayFrame.PowerBar)
+                    if PersonalResourceDisplayFrame.PowerBar.customPowerText then
+                        PersonalResourceDisplayFrame.PowerBar.customPowerText:Show()
                     end
                 else
-                    if PlayerFrame and PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText then
-                        local manaText = PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText
-                        manaText:ClearAllPoints()
-                        manaText:SetPoint("CENTER", PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar, "CENTER", 0, 0)
+                    if PersonalResourceDisplayFrame.PowerBar and PersonalResourceDisplayFrame.PowerBar.customPowerText then
+                        PersonalResourceDisplayFrame.PowerBar.customPowerText:Hide()
                     end
                 end
             end
@@ -179,21 +247,15 @@ function PRDModule:ApplySettings()
                         end
                     end
                     
+                    if PersonalResourceDisplayFrame.PowerBar.customPowerText then
+                        PersonalResourceDisplayFrame.PowerBar.customPowerText:Hide()
+                    end
+                    
                     if PersonalResourceDisplayFrame.PowerBar.BorderLeft then PersonalResourceDisplayFrame.PowerBar.BorderLeft:Show() end
                     if PersonalResourceDisplayFrame.PowerBar.BorderRight then PersonalResourceDisplayFrame.PowerBar.BorderRight:Show() end
                     if PersonalResourceDisplayFrame.PowerBar.BorderTop then PersonalResourceDisplayFrame.PowerBar.BorderTop:Show() end
                     if PersonalResourceDisplayFrame.PowerBar.BorderBottom then PersonalResourceDisplayFrame.PowerBar.BorderBottom:Show() end
                     if PersonalResourceDisplayFrame.PowerBar.Border then PersonalResourceDisplayFrame.PowerBar.Border:Show() end
-                end
-                
-                if PlayerFrame and PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain then
-                    if PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar 
-                       and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText then
-                        local manaText = PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar.ManaBarText
-                        manaText:ClearAllPoints()
-                        manaText:SetPoint("CENTER", PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar, "CENTER", 0, 0)
-                    end
                 end
             end
         end
@@ -367,19 +429,66 @@ function PRDModule:CreateConfigPanel(parent)
     textureDropdown.button.text:SetText(currentTextureName)
     textureDropdown.selectedValue = currentTextureName
 
-    yOffset = yOffset - 43
+    yOffset = yOffset - 50
+
+    local fontLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    fontLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    fontLabel:SetText("Font Type:")
+
+    yOffset = yOffset - 30
+
+    local fontDropdown = UI:CreateDropdown(configPanel, 300, 30)
+    fontDropdown:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    
+    local availableFonts = GetAvailableFonts()
+    
+    local fontDropdownOptions = {}
+    for _, fontInfo in ipairs(availableFonts) do
+        table.insert(fontDropdownOptions, {
+            text = fontInfo.text,
+            value = fontInfo.value,
+            onClick = function()
+                ACT.db.profile.prd.fontFace = fontInfo.value
+                fontDropdown.button.text:SetText(fontInfo.text)
+                fontDropdown.selectedValue = fontInfo.value
+                PRDModule:ApplySettings()
+            end
+        })
+    end
+    
+    UI:SetDropdownOptions(fontDropdown, fontDropdownOptions)
+    
+    local currentFontFace = ACT.db.profile.prd.fontFace or "Friz Quadrata TT"
+    fontDropdown.button.text:SetText(currentFontFace)
+    fontDropdown.selectedValue = currentFontFace
+
+    yOffset = yOffset - 50
+
+    local fontSizeLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    fontSizeLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    fontSizeLabel:SetText("Font Size: " .. ACT.db.profile.prd.fontSize)
+
+    local fontSizeSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    fontSizeSlider:SetPoint("TOPLEFT", fontSizeLabel, "BOTTOMLEFT", 0, -10)
+    fontSizeSlider:SetMinMaxValues(8, 32)
+    fontSizeSlider:SetValue(ACT.db.profile.prd.fontSize)
+    fontSizeSlider:SetValueStep(1)
+    fontSizeSlider:SetObeyStepOnDrag(true)
+    fontSizeSlider:SetWidth(300)
+    
+    fontSizeSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        ACT.db.profile.prd.fontSize = value
+        fontSizeLabel:SetText("Font Size: " .. value)
+        PRDModule:ApplySettings()
+    end)
+
+    yOffset = yOffset - 60
 
     local warningText = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     warningText:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    warningText:SetText("|cffff0000Note:|r Changes are applied immediately (out of combat only)")
+    warningText:SetText("|cffff0000Note:|r Changes must be applied out of combat")
     warningText:SetJustifyH("LEFT")
-    
-    yOffset = yOffset - 20
-    
-    local textNote = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    textNote:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    textNote:SetText("|cffffff00Tip:|r Set Status Text to 'Numeric Value' in Interface > Display options")
-    textNote:SetJustifyH("LEFT")
 
     self.configPanel = configPanel
     
@@ -394,11 +503,21 @@ if ACT and ACT.RegisterModule then
     local eventFrame = CreateFrame("Frame")
     eventFrame:RegisterEvent("PLAYER_LOGIN")
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    eventFrame:SetScript("OnEvent", function(self, event)
+    eventFrame:RegisterEvent("UNIT_POWER_UPDATE")
+    eventFrame:RegisterEvent("UNIT_MAXPOWER")
+    
+    eventFrame:SetScript("OnEvent", function(self, event, ...)
         if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
             C_Timer.After(1, function()
                 PRDModule:ApplySettings()
             end)
+        elseif event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER" then
+            local unit = ...
+            if unit == "player" then
+                if PersonalResourceDisplayFrame and PersonalResourceDisplayFrame.PowerBar then
+                    UpdatePowerText(PersonalResourceDisplayFrame.PowerBar)
+                end
+            end
         end
     end)
 end
