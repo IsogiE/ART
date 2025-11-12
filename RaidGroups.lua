@@ -2,6 +2,7 @@ local RaidGroups = {}
 local classColorCache = {}
 
 RaidGroups.title = "Raid Groups"
+RaidGroups.pendingUpdate = false
 RaidGroups.currentListType = nil
 RaidGroups.listPopulated = false
 RaidGroups.guildCache = nil
@@ -1931,10 +1932,19 @@ function RaidGroups:ApplyPreset(presetString)
     self:UpdateNameList(self.currentListType)
 end
 
+-- Play safe for now and just lock down group_roster_update
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
 eventFrame:SetScript("OnEvent", function(self, event, ...)
+    
     if event == "GROUP_ROSTER_UPDATE" and RaidGroups then
+        if InCombatLockdown() then
+             RaidGroups.pendingUpdate = true
+             return
+        end
+
         if RaidGroups.configPanel and RaidGroups.configPanel:IsShown() then
             RaidGroups:UpdateNameList(RaidGroups.currentListType)
         end
@@ -1947,6 +1957,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 RaidGroups.db.processTimer = nil
                 RaidGroups:ProcessRoster()
             end)
+        end
+    
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        if RaidGroups.pendingUpdate then
+            RaidGroups:UpdateNameList(RaidGroups.currentListType)
+            RaidGroups.pendingUpdate = false
         end
     end
 end)

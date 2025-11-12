@@ -189,6 +189,7 @@ end
 function ACT:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("ACTDB", {
         profile = {
+            nickname = "",
             nicknames = {},
             nicknamesWiped = false,
             defaultNicknames = "",
@@ -197,9 +198,20 @@ function ACT:OnInitialize()
                 KeepPosInGroup = true
             },
             useNicknameIntegration = true,
-            weakauraUpdater = {}
+            weakauraUpdater = {},
+            macros = {
+                focusMarker = { marker = 1 },
+                worldMarker = { marker = 5 },
+                markTarget = { marker = 1 },
+                focusTarget = {}
+            }
         }
     }, true)
+
+    local LSM = LibStub("LibSharedMedia-3.0")
+    if LSM then
+        LSM:Register("statusbar", "Clean", "Interface\\AddOns\\ACT\\media\\Statusbar_Clean.blp")
+    end
 
     if ACT.db.profile.defaultNicknames and ACT.db.profile.defaultNicknames ~= "" then
         for _, mod in ipairs(self.modules) do
