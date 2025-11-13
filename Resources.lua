@@ -185,6 +185,20 @@ local function SetupHealthBarHook()
     end
 end
 
+local function SetupClassFrameHook()
+    if prdClassFrame then
+        if not prdClassFrame.hooked then
+            hooksecurefunc(prdClassFrame, "Show", function(self)
+                local settings = ACT.db.profile.prd
+                if settings.enabled then
+                    self:Hide()
+                end
+            end)
+            prdClassFrame.hooked = true
+        end
+    end
+end
+
 function PRDModule:GetConfigSize()
     return 800, 600
 end
@@ -200,6 +214,11 @@ function PRDModule:ApplySettings()
                 if PersonalResourceDisplayFrame.HealthBarsContainer then
                     PersonalResourceDisplayFrame.HealthBarsContainer:Hide()
                     SetupHealthBarHook()
+                end
+                
+                if prdClassFrame then
+                    prdClassFrame:Hide()
+                    SetupClassFrameHook()
                 end
                 
                 if PersonalResourceDisplayFrame.PowerBar then
