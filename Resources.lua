@@ -171,6 +171,20 @@ local function UpdatePowerText(powerBar)
     end
 end
 
+local function SetupHealthBarHook()
+    if PersonalResourceDisplayFrame and PersonalResourceDisplayFrame.HealthBarsContainer then
+        if not PersonalResourceDisplayFrame.HealthBarsContainer.hooked then
+            hooksecurefunc(PersonalResourceDisplayFrame.HealthBarsContainer, "Show", function(self)
+                local settings = ACT.db.profile.prd
+                if settings.enabled then
+                    self:Hide()
+                end
+            end)
+            PersonalResourceDisplayFrame.HealthBarsContainer.hooked = true
+        end
+    end
+end
+
 function PRDModule:GetConfigSize()
     return 800, 600
 end
@@ -185,6 +199,7 @@ function PRDModule:ApplySettings()
                 
                 if PersonalResourceDisplayFrame.HealthBarsContainer then
                     PersonalResourceDisplayFrame.HealthBarsContainer:Hide()
+                    SetupHealthBarHook()
                 end
                 
                 if PersonalResourceDisplayFrame.PowerBar then
