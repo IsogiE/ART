@@ -11,6 +11,7 @@
 ## Category: Advance
 
 embeds.xml
+libs\LibEditMode\embed.xml
 libs\AceComm-3.0\AceComm-3.0.xml
 libs\AceTimer-3.0\AceTimer-3.0.xml
 Libs\AceDB-3.0\AceDB-3.0.xml
