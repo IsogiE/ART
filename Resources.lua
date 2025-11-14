@@ -268,6 +268,19 @@ function PRDModule:GetConfigSize()
 end
 
 function PRDModule:ApplySettings()
+    if not ACT.db.profile.prd then
+        ACT.db.profile.prd = {}
+    end
+    for k, v in pairs(defaults) do
+        if ACT.db.profile.prd[k] == nil then
+            if type(v) == "table" then
+                ACT.db.profile.prd[k] = CopyTable(v)
+            else
+                ACT.db.profile.prd[k] = v
+            end
+        end
+    end
+
     if not InCombatLockdown() then
         local settings = ACT.db.profile.prd
         
@@ -285,9 +298,12 @@ function PRDModule:ApplySettings()
                         SetupClassFrame()
                     else
                         prdClassFrame:Hide()
-                        if LibStub and LibStub("LibEditMode", true) and prdClassFrame.editModeRegistered then
-                            LibStub("LibEditMode"):RemoveFrame(prdClassFrame)
-                            prdClassFrame.editModeRegistered = false
+                        if LibStub then
+                            local LibEditMode = LibStub("LibEditMode", true)
+                            if LibEditMode and LibEditMode.RemoveFrame and prdClassFrame.editModeRegistered then
+                                LibEditMode:RemoveFrame(prdClassFrame)
+                                prdClassFrame.editModeRegistered = false
+                            end
                         end
                     end
                 end
@@ -337,19 +353,25 @@ function PRDModule:ApplySettings()
         else
             if PersonalResourceDisplayFrame then
                 PersonalResourceDisplayFrame:SetFrameStrata("MEDIUM")
+                
                 if PersonalResourceDisplayFrame.HealthBarsContainer then
                     PersonalResourceDisplayFrame.HealthBarsContainer:Show()
-                    local currentWidth = PersonalResourceDisplayFrame.HealthBarsContainer:GetWidth()
-                    PersonalResourceDisplayFrame.HealthBarsContainer:SetSize(currentWidth, 30)
                 end
                 
                 if prdClassFrame then
                     prdClassFrame:Show()
+                    if LibStub then
+                        local LibEditMode = LibStub("LibEditMode", true)
+                        if LibEditMode and LibEditMode.RemoveFrame and prdClassFrame.editModeRegistered then
+                            LibEditMode:RemoveFrame(prdClassFrame)
+                            prdClassFrame.editModeRegistered = false
+                        end
+                    end
                 end
                 
                 if PersonalResourceDisplayFrame.PowerBar then
                     PersonalResourceDisplayFrame.PowerBar:Show()
-                    PersonalResourceDisplayFrame.PowerBar:SetSize(200, 20)
+                    PersonalResourceDisplayFrame.PowerBar:SetSize(200, 20) 
                     
                     if PersonalResourceDisplayFrame.PowerBar.customBorders then
                         for _, border in pairs(PersonalResourceDisplayFrame.PowerBar.customBorders) do
@@ -367,6 +389,14 @@ function PRDModule:ApplySettings()
                     if PersonalResourceDisplayFrame.PowerBar.BorderBottom then PersonalResourceDisplayFrame.PowerBar.BorderBottom:Show() end
                     if PersonalResourceDisplayFrame.PowerBar.Border then PersonalResourceDisplayFrame.PowerBar.Border:Show() end
                 end
+
+                if PersonalResourceDisplayFrame.PowerBar and PersonalResourceDisplayFrame.PowerBar.Texture then
+                    PersonalResourceDisplayFrame.PowerBar.Texture:SetTexture(nil)
+                end
+                
+                if PersonalResourceDisplayFrame.HealthBarsContainer and PersonalResourceDisplayFrame.HealthBarsContainer.healthBar and PersonalResourceDisplayFrame.HealthBarsContainer.healthBar.barTexture then
+                    PersonalResourceDisplayFrame.HealthBarsContainer.healthBar.barTexture:SetTexture(nil)
+                end
             end
         end
     end
@@ -379,20 +409,6 @@ function PRDModule:CreateConfigPanel(parent)
         self.configPanel:SetAllPoints(parent)
         self.configPanel:Show()
         return
-    end
-
-    if not ACT.db.profile.prd then
-        ACT.db.profile.prd = {}
-    end
-    
-    for k, v in pairs(defaults) do
-        if ACT.db.profile.prd[k] == nil then
-            if type(v) == "table" then
-                ACT.db.profile.prd[k] = CopyTable(v)
-            else
-                ACT.db.profile.prd[k] = v
-            end
-        end
     end
 
     local configPanel = CreateFrame("Frame", nil, parent)
@@ -414,8 +430,44 @@ function PRDModule:CreateConfigPanel(parent)
     enableLabel:SetText("Enable PRD Modifications")
     
     enableCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.prd.enabled = self:GetChecked()
-        PRDModule:ApplySettings()
+        local isChecked = self:GetChecked()
+
+        if isChecked then
+            ACT.db.profile.prd.enabled = true
+            PRDModule:ApplySettings()
+        else
+            
+            local function onAcceptReload()
+                ACT.db.profile.prd.enabled = false
+                PRDModule:ApplySettings()
+                if PRDModule.reloadPopup then
+                    PRDModule.reloadPopup:Hide()
+                end
+                ReloadUI()
+            end
+            
+            local function onCancelReload()
+                ACT.db.profile.prd.enabled = false
+                PRDModule:ApplySettings()
+                if PRDModule.reloadPopup then
+                    PRDModule.reloadPopup:Hide()
+                end
+            end
+            
+            PRDModule.reloadPopup = UI:CreateTextPopup(
+                "Reload Required",
+                "Disabling this module requires a UI reload to fully restore Blizzard defaults. Reload now?",
+                "Reload Now",
+                "Later",
+                onAcceptReload,
+                onCancelReload,
+                PRDModule.reloadPopup
+            )
+            
+            PRDModule.reloadPopup:Show()
+            
+            self:SetChecked(true)
+        end
     end)
 
     yOffset = yOffset - 50
@@ -617,9 +669,7 @@ function PRDModule:CreateConfigPanel(parent)
     warningText:SetJustifyH("LEFT")
 
     self.configPanel = configPanel
-    
-    PRDModule:ApplySettings()
-    
+        
     return configPanel
 end
 
@@ -634,22 +684,45 @@ if ACT and ACT.RegisterModule then
     eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
     
     eventFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
-                PRDModule:ApplySettings()
-                    if ACT.db.profile.prd.showClassFrame then
-                        SetupClassFrame()
+        if event == "PLAYER_LOGIN" then
+            if not ACT.db.profile.prd then
+                ACT.db.profile.prd = {}
+            end
+            for k, v in pairs(defaults) do
+                if ACT.db.profile.prd[k] == nil then
+                    if type(v) == "table" then
+                        ACT.db.profile.prd[k] = CopyTable(v)
+                    else
+                        ACT.db.profile.prd[k] = v
                     end
-        elseif event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER" then
+                end
+            end
+        end
+
+        if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.prd then
+            return
+        end
+        local settings = ACT.db.profile.prd
+
+        if not settings.enabled then
+            return
+        end
+        
+        if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
+            PRDModule:ApplySettings()
+            
+        elseif (event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER") then
             local unit = ...
             if unit == "player" then
                 if PersonalResourceDisplayFrame and PersonalResourceDisplayFrame.PowerBar then
                     UpdatePowerText(PersonalResourceDisplayFrame.PowerBar)
                 end
             end
+            
         elseif event == "EDIT_MODE_LAYOUTS_UPDATED" then
-                if ACT.db.profile.prd.showClassFrame then
-                    SetupClassFrame()
-                end
+            if settings.showClassFrame then
+                SetupClassFrame()
+            end
         end
     end)
 end
