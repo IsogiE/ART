@@ -14,7 +14,14 @@ local defaults = {
     showPowerBorder = true,
     powerBorderColor = {0, 0, 0, 1},
     fontSize = 12,
-    fontFace = "Friz Quadrata TT"
+    fontFace = "Friz Quadrata TT",
+    classFramePosition = {
+        point = "CENTER",
+        relativePoint = "CENTER",
+        x = 0,
+        y = 0
+    },
+    showClassFrame = true
 }
 
 local function GetAvailableTextures()
@@ -185,17 +192,74 @@ local function SetupHealthBarHook()
     end
 end
 
-local function SetupClassFrameHook()
-    if prdClassFrame then
-        if not prdClassFrame.hooked then
-            hooksecurefunc(prdClassFrame, "Show", function(self)
-                local settings = ACT.db.profile.prd
-                if settings.enabled then
-                    self:Hide()
-                end
-            end)
-            prdClassFrame.hooked = true
+local function OnClassFramePositionChanged(frame, layoutName, point, x, y)
+    local settings = ACT.db.profile.prd
+    settings.classFramePosition = settings.classFramePosition or {}
+    settings.classFramePosition.point = point
+    settings.classFramePosition.x = x
+    settings.classFramePosition.y = y
+    
+    frame:ClearAllPoints()
+    frame:SetPoint(point, UIParent, point, x, y)
+end
+
+local function ApplyClassFramePosition()
+    if not prdClassFrame then
+        return
+    end
+    
+    local settings = ACT.db.profile.prd
+    local position = settings.classFramePosition or defaults.classFramePosition
+    
+    if position.point and position.x and position.y then
+        prdClassFrame:ClearAllPoints()
+        prdClassFrame:SetPoint(position.point, UIParent, position.point, position.x, position.y)
+    else
+        prdClassFrame:ClearAllPoints()
+        prdClassFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    end
+end
+
+local function SetupClassFrame()
+    if not prdClassFrame then
+        return
+    end
+    
+    prdClassFrame:SetParent(UIParent)
+    prdClassFrame:Show()
+    
+    ApplyClassFramePosition()
+    
+    if LibStub and LibStub("LibEditMode", true) then
+        local LibEditMode = LibStub("LibEditMode")
+        
+        if not prdClassFrame.editModeRegistered then
+            local point, _, relativePoint, x, y = prdClassFrame:GetPoint()
+            local defaultPosition = {
+                point = point or "CENTER",
+                x = x or 0,
+                y = y or 0
+            }
+            
+            LibEditMode:AddFrame(
+                prdClassFrame, 
+                OnClassFramePositionChanged, 
+                defaultPosition
+            )
+            
+            prdClassFrame.editModeName = "Class Resource Frame"
+            prdClassFrame.editModeRegistered = true
         end
+    end
+    
+    if not prdClassFrame.hooked then
+        hooksecurefunc(prdClassFrame, "Hide", function(self)
+            local settings = ACT.db.profile.prd
+            if settings.enabled and settings.showClassFrame and not self:IsShown() then
+                self:Show()
+            end
+        end)
+        prdClassFrame.hooked = true
     end
 end
 
@@ -217,8 +281,15 @@ function PRDModule:ApplySettings()
                 end
                 
                 if prdClassFrame then
-                    prdClassFrame:Hide()
-                    SetupClassFrameHook()
+                    if settings.showClassFrame then
+                        SetupClassFrame()
+                    else
+                        prdClassFrame:Hide()
+                        if LibStub and LibStub("LibEditMode", true) and prdClassFrame.editModeRegistered then
+                            LibStub("LibEditMode"):RemoveFrame(prdClassFrame)
+                            prdClassFrame.editModeRegistered = false
+                        end
+                    end
                 end
                 
                 if PersonalResourceDisplayFrame.PowerBar then
@@ -271,6 +342,11 @@ function PRDModule:ApplySettings()
                     local currentWidth = PersonalResourceDisplayFrame.HealthBarsContainer:GetWidth()
                     PersonalResourceDisplayFrame.HealthBarsContainer:SetSize(currentWidth, 30)
                 end
+                
+                if prdClassFrame then
+                    prdClassFrame:Show()
+                end
+                
                 if PersonalResourceDisplayFrame.PowerBar then
                     PersonalResourceDisplayFrame.PowerBar:Show()
                     PersonalResourceDisplayFrame.PowerBar:SetSize(200, 20)
@@ -311,7 +387,11 @@ function PRDModule:CreateConfigPanel(parent)
     
     for k, v in pairs(defaults) do
         if ACT.db.profile.prd[k] == nil then
-            ACT.db.profile.prd[k] = v
+            if type(v) == "table" then
+                ACT.db.profile.prd[k] = CopyTable(v)
+            else
+                ACT.db.profile.prd[k] = v
+            end
         end
     end
 
@@ -361,7 +441,7 @@ function PRDModule:CreateConfigPanel(parent)
     end)
 
     local resourceTextCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-    resourceTextCheckbox:SetPoint("LEFT", powerLabel, "RIGHT", 30, 0)
+    resourceTextCheckbox:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 250, yOffset)
     resourceTextCheckbox:SetSize(24, 24)
     resourceTextCheckbox:SetChecked(ACT.db.profile.prd.showResourceText)
     
@@ -387,6 +467,20 @@ function PRDModule:CreateConfigPanel(parent)
     
     powerBorderCheckbox:SetScript("OnClick", function(self)
         ACT.db.profile.prd.showPowerBorder = self:GetChecked()
+        PRDModule:ApplySettings()
+    end)
+
+    local classFrameCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    classFrameCheckbox:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 250, yOffset)
+    classFrameCheckbox:SetSize(24, 24)
+    classFrameCheckbox:SetChecked(ACT.db.profile.prd.showClassFrame)
+    
+    local classFrameLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    classFrameLabel:SetPoint("LEFT", classFrameCheckbox, "RIGHT", 5, 0)
+    classFrameLabel:SetText("Show Class Resources")
+    
+    classFrameCheckbox:SetScript("OnClick", function(self)
+        ACT.db.profile.prd.showClassFrame = self:GetChecked()
         PRDModule:ApplySettings()
     end)
 
@@ -517,10 +611,8 @@ function PRDModule:CreateConfigPanel(parent)
         PRDModule:ApplySettings()
     end)
 
-    yOffset = yOffset - 60
-
     local warningText = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    warningText:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    warningText:SetPoint("TOPLEFT", fontSizeSlider, "BOTTOMLEFT", 0, -20)
     warningText:SetText("|cffff0000Note:|r Changes must be applied out of combat")
     warningText:SetJustifyH("LEFT")
 
@@ -539,12 +631,14 @@ if ACT and ACT.RegisterModule then
     eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
     eventFrame:RegisterEvent("UNIT_POWER_UPDATE")
     eventFrame:RegisterEvent("UNIT_MAXPOWER")
+    eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
     
     eventFrame:SetScript("OnEvent", function(self, event, ...)
         if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
-            C_Timer.After(1, function()
                 PRDModule:ApplySettings()
-            end)
+                    if ACT.db.profile.prd.showClassFrame then
+                        SetupClassFrame()
+                    end
         elseif event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER" then
             local unit = ...
             if unit == "player" then
@@ -552,6 +646,10 @@ if ACT and ACT.RegisterModule then
                     UpdatePowerText(PersonalResourceDisplayFrame.PowerBar)
                 end
             end
+        elseif event == "EDIT_MODE_LAYOUTS_UPDATED" then
+                if ACT.db.profile.prd.showClassFrame then
+                    SetupClassFrame()
+                end
         end
     end)
 end
