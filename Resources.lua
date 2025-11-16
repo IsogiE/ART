@@ -8,6 +8,7 @@ local defaults = {
     powerHeight = 20,
     showPower = true,
     showResourceText = false,
+    showPowerAsPercent = false,
     texture = "",
     textureName = "Blizzard",
     frameStrata = "BACKGROUND",
@@ -166,13 +167,19 @@ local function UpdatePowerText(powerBar)
     if not powerBar.customPowerText then
         return
     end
-    
+
+    local settings = ACT.db.profile.prd
     local powerType = UnitPowerType("player")
-    local current = UnitPower("player", powerType)
     local max = UnitPowerMax("player", powerType)
     
     if max > 0 then
-        powerBar.customPowerText:SetText(string.format("%d / %d", current, max))
+        if settings.showPowerAsPercent then
+            local percent = UnitPowerPercent("player", powerType, false, true)
+            powerBar.customPowerText:SetText(string.format("%.0f%%", percent))
+        else
+            local current = UnitPower("player", powerType)
+            powerBar.customPowerText:SetText(string.format("%d / %d", current, max))
+        end
     else
         powerBar.customPowerText:SetText("")
     end
@@ -470,7 +477,7 @@ function PRDModule:CreateConfigPanel(parent)
         end
     end)
 
-    yOffset = yOffset - 50
+    yOffset = yOffset - 40
 
     local powerHeader = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     powerHeader:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
@@ -500,13 +507,38 @@ function PRDModule:CreateConfigPanel(parent)
     local resourceTextLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     resourceTextLabel:SetPoint("LEFT", resourceTextCheckbox, "RIGHT", 5, 0)
     resourceTextLabel:SetText("Show Power Text")
+
+    local powerPercentCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    powerPercentCheckbox:SetPoint("TOPLEFT", resourceTextLabel, "BOTTOMLEFT", 10, -5)
+    powerPercentCheckbox:SetSize(24, 24)
+    powerPercentCheckbox:SetChecked(ACT.db.profile.prd.showPowerAsPercent)
     
+    local powerPercentLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    powerPercentLabel:SetPoint("LEFT", powerPercentCheckbox, "RIGHT", 5, 0)
+    powerPercentLabel:SetText("Show as %")
+    
+    powerPercentCheckbox:SetEnabled(ACT.db.profile.prd.showResourceText)
+
     resourceTextCheckbox:SetScript("OnClick", function(self)
-        ACT.db.profile.prd.showResourceText = self:GetChecked()
+        local isChecked = self:GetChecked()
+        ACT.db.profile.prd.showResourceText = isChecked
+        
+        powerPercentCheckbox:SetEnabled(isChecked)
+        
+        if not isChecked then
+            powerPercentCheckbox:SetChecked(false)
+            ACT.db.profile.prd.showPowerAsPercent = false
+        end
+        
+        PRDModule:ApplySettings()
+    end)
+    
+    powerPercentCheckbox:SetScript("OnClick", function(self)
+        ACT.db.profile.prd.showPowerAsPercent = self:GetChecked()
         PRDModule:ApplySettings()
     end)
 
-    yOffset = yOffset - 40
+    yOffset = yOffset - 20 - 30
 
     local powerBorderCheckbox = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     powerBorderCheckbox:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
