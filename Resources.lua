@@ -169,16 +169,31 @@ local function UpdatePowerText(powerBar)
     end
 
     local settings = ACT.db.profile.prd
-    local powerType = UnitPowerType("player")
-    local max = UnitPowerMax("player", powerType)
     
-    if max > 0 then
-        if settings.showPowerAsPercent then
-            local percent = UnitPowerPercent("player", powerType, false, true)
+    local powerType = UnitPowerType("player")
+    
+    if settings.showPowerAsPercent and UnitPowerPercent and CurveConstants then
+        local percent = UnitPowerPercent("player", powerType, false, CurveConstants.ScaleTo100)
+        
+        if percent then
             powerBar.customPowerText:SetText(string.format("%.0f%%", percent))
+            return
+        end
+    end
+
+    local max = UnitPowerMax("player", powerType)
+    local current = UnitPower("player", powerType)
+    
+    if max and max > 0 then
+        if settings.showPowerAsPercent then
+            local success, percent = pcall(function() return (current / max) * 100 end)
+            if success then
+                powerBar.customPowerText:SetText(string.format("%.0f%%", percent))
+            else
+                powerBar.customPowerText:SetText("")
+            end
         else
-            local current = UnitPower("player", powerType)
-            powerBar.customPowerText:SetText(string.format("%d / %d", current, max))
+            powerBar.customPowerText:SetText(string.format("%d", current, max))
         end
     else
         powerBar.customPowerText:SetText("")
@@ -258,16 +273,6 @@ local function SetupClassFrame()
             prdClassFrame.editModeRegistered = true
         end
     end
-    
-    if not prdClassFrame.hooked then
-        hooksecurefunc(prdClassFrame, "Hide", function(self)
-            local settings = ACT.db.profile.prd
-            if settings.enabled and settings.showClassFrame and not self:IsShown() then
-                self:Show()
-            end
-        end)
-        prdClassFrame.hooked = true
-    end
 end
 
 function PRDModule:GetConfigSize()
@@ -301,17 +306,29 @@ function PRDModule:ApplySettings()
                 end
                 
                 if prdClassFrame then
+                    if not prdClassFrame.visibilityHooksRegistered then
+                        hooksecurefunc(prdClassFrame, "Show", function(self)
+                            local s = ACT.db.profile.prd
+                            if s.enabled and not s.showClassFrame then
+                                self:Hide()
+                            end
+                        end)
+                        
+                        hooksecurefunc(prdClassFrame, "Hide", function(self)
+                            local s = ACT.db.profile.prd
+                            if s.enabled and s.showClassFrame and not self:IsShown() then
+                                self:Show()
+                            end
+                        end)
+                        
+                        prdClassFrame.visibilityHooksRegistered = true
+                        prdClassFrame.hooked = true
+                    end
+
                     if settings.showClassFrame then
                         SetupClassFrame()
                     else
                         prdClassFrame:Hide()
-                        if LibStub then
-                            local LibEditMode = LibStub("LibEditMode", true)
-                            if LibEditMode and LibEditMode.RemoveFrame and prdClassFrame.editModeRegistered then
-                                LibEditMode:RemoveFrame(prdClassFrame)
-                                prdClassFrame.editModeRegistered = false
-                            end
-                        end
                     end
                 end
                 
@@ -367,13 +384,6 @@ function PRDModule:ApplySettings()
                 
                 if prdClassFrame then
                     prdClassFrame:Show()
-                    if LibStub then
-                        local LibEditMode = LibStub("LibEditMode", true)
-                        if LibEditMode and LibEditMode.RemoveFrame and prdClassFrame.editModeRegistered then
-                            LibEditMode:RemoveFrame(prdClassFrame)
-                            prdClassFrame.editModeRegistered = false
-                        end
-                    end
                 end
                 
                 if PersonalResourceDisplayFrame.PowerBar then
