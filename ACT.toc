@@ -30,10 +30,8 @@ Nicknames\Blizzard.lua
 Nicknames\Cell.lua
 Nicknames\ElvUI.lua
 Nicknames\Grid2.lua
-Nicknames\MRT.lua
 Nicknames\SUF.lua
 Nicknames\VuhDo.lua
-Nicknames\WeakAuras.lua
 Nicknames\LiquidAPI.lua
 
 RaidGroups.lua
