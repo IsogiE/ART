@@ -107,19 +107,17 @@ local function GetRoster()
 end
 
 local addonAbbreviations = {
-    AuraUpdater = "AU",
     BigWigs = "BW",
     NorthernSkyRaidTools = "NSR",
     RCLootCouncil = "RCLC",
     SharedMedia_Causese = "SMC",
-    TimelineReminders = "TR",
-    WeakAuras = "WA"
+    TimelineReminders = "TR"
 }
 
 local AddonCheckerModule = {}
 AddonCheckerModule.title = "Addon Checker"
-AddonCheckerModule.addonsToCheck = {"AuraUpdater", "BigWigs", "NorthernSkyRaidTools", "RCLootCouncil",
-                                    "SharedMedia_Causese", "TimelineReminders", "WeakAuras"}
+AddonCheckerModule.addonsToCheck = {"BigWigs", "NorthernSkyRaidTools", "RCLootCouncil",
+                                    "SharedMedia_Causese", "TimelineReminders"}
 AddonCheckerModule.responses = {}
 AddonCheckerModule.rowFramePool = {}
 AddonCheckerModule.rowFrames = {}
