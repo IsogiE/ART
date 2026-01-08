@@ -3,11 +3,15 @@ CircleModule.title = "Character Marker"
 
 local defaults = {
     enabled = false,
+    shape = "Circle",
     size = 60,
     alpha = 0.5,
     color = {1, 0, 0, 1},
     posX = 0,
     posY = 0,
+    border = false,
+    borderWidth = 2,
+    borderColor = {0, 0, 0, 1},
 }
 
 local function CreateNumBox(parent, width, height, initialValue, onCommit)
@@ -77,7 +81,8 @@ function CircleModule:ApplySettings()
         
         self.circleFrame.texture = self.circleFrame:CreateTexture(nil, "ARTWORK")
         self.circleFrame.texture:SetAllPoints()
-        self.circleFrame.texture:SetTexture("Interface\\AddOns\\ACT\\media\\Aura72")
+        
+        self.circleFrame.borderTexture = self.circleFrame:CreateTexture(nil, "BACKGROUND")
     end
 
     if settings.enabled then
@@ -88,8 +93,29 @@ function CircleModule:ApplySettings()
         self.circleFrame:ClearAllPoints()
         self.circleFrame:SetPoint("CENTER", UIParent, "CENTER", settings.posX, settings.posY)
         
+        local texturePath = "Interface\\AddOns\\ACT\\media\\textures\\Aura72"
+        if settings.shape == "Square" then
+            texturePath = "Interface\\AddOns\\ACT\\media\\textures\\Aura74"
+        end
+
         local r, g, b, a = unpack(settings.color)
+        self.circleFrame.texture:SetTexture(texturePath)
         self.circleFrame.texture:SetVertexColor(r, g, b)
+
+        if settings.border then
+            local br, bg, bb, ba = unpack(settings.borderColor or defaults.borderColor)
+            local bWidth = settings.borderWidth or 2
+            
+            self.circleFrame.borderTexture:Show()
+            self.circleFrame.borderTexture:SetTexture(texturePath)
+            self.circleFrame.borderTexture:SetVertexColor(br, bg, bb, ba)
+            
+            self.circleFrame.borderTexture:ClearAllPoints()
+            self.circleFrame.borderTexture:SetPoint("TOPLEFT", self.circleFrame, "TOPLEFT", -bWidth, bWidth)
+            self.circleFrame.borderTexture:SetPoint("BOTTOMRIGHT", self.circleFrame, "BOTTOMRIGHT", bWidth, -bWidth)
+        else
+            self.circleFrame.borderTexture:Hide()
+        end
     else
         self.circleFrame:Hide()
     end
@@ -120,7 +146,7 @@ function CircleModule:CreateConfigPanel(parent)
     
     local enableLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     enableLabel:SetPoint("LEFT", enableCheckbox, "RIGHT", 5, 0)
-    enableLabel:SetText("Enable Circle")
+    enableLabel:SetText("Enable Marker")
 
     enableCheckbox:SetScript("OnClick", function(self)
         ACT.db.profile.circle.enabled = self:GetChecked()
@@ -295,7 +321,7 @@ function CircleModule:CreateConfigPanel(parent)
 
     local colorLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     colorLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    colorLabel:SetText("Color")
+    colorLabel:SetText("Shape Color")
 
     local colorButton = CreateFrame("Button", nil, configPanel, "BackdropTemplate")
     colorButton:SetSize(40, 24)
@@ -308,7 +334,7 @@ function CircleModule:CreateConfigPanel(parent)
     colorButton:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 
     local function UpdateButtonColor()
-        local c = ACT.db.profile.circle.color
+        local c = ACT.db.profile.circle.color or defaults.color
         if c then
             colorButton:SetBackdropColor(c[1], c[2], c[3], 1)
         end
@@ -329,6 +355,147 @@ function CircleModule:CreateConfigPanel(parent)
             cancelFunc = function(restore)
                 ACT.db.profile.circle.color = {restore.r, restore.g, restore.b, 1}
                 UpdateButtonColor()
+                CircleModule:ApplySettings()
+            end
+        })
+    end)
+
+    yOffset = yOffset - 50
+
+    local shapeLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    shapeLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    shapeLabel:SetText("Shape")
+
+    local circleCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    circleCheck:SetPoint("LEFT", shapeLabel, "RIGHT", 20, 0)
+    circleCheck:SetSize(20, 20)
+    
+    local circleLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    circleLabel:SetPoint("LEFT", circleCheck, "RIGHT", 5, 0)
+    circleLabel:SetText("Circle")
+
+    local squareCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    squareCheck:SetPoint("LEFT", circleLabel, "RIGHT", 20, 0)
+    squareCheck:SetSize(20, 20)
+
+    local squareLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    squareLabel:SetPoint("LEFT", squareCheck, "RIGHT", 5, 0)
+    squareLabel:SetText("Square")
+
+    local function UpdateShapeChecks()
+        local s = ACT.db.profile.circle.shape or defaults.shape
+        circleCheck:SetChecked(s == "Circle")
+        squareCheck:SetChecked(s == "Square")
+    end
+    UpdateShapeChecks()
+
+    circleCheck:SetScript("OnClick", function()
+        ACT.db.profile.circle.shape = "Circle"
+        UpdateShapeChecks()
+        CircleModule:ApplySettings()
+    end)
+
+    squareCheck:SetScript("OnClick", function()
+        ACT.db.profile.circle.shape = "Square"
+        UpdateShapeChecks()
+        CircleModule:ApplySettings()
+    end)
+
+    yOffset = yOffset - 40
+
+    local borderCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    borderCheck:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    borderCheck:SetSize(24, 24)
+    borderCheck:SetChecked(ACT.db.profile.circle and ACT.db.profile.circle.border)
+    
+    local borderLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    borderLabel:SetPoint("LEFT", borderCheck, "RIGHT", 5, 0)
+    borderLabel:SetText("Enable Border")
+
+    borderCheck:SetScript("OnClick", function(self)
+        ACT.db.profile.circle.border = self:GetChecked()
+        CircleModule:ApplySettings()
+    end)
+
+    yOffset = yOffset - 40
+
+    local bWidthSlider, bWidthInput
+    local currentBWidth = ACT.db.profile.circle and ACT.db.profile.circle.borderWidth or defaults.borderWidth
+
+    local bWidthLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    bWidthLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    bWidthLabel:SetText("Border Width")
+
+    bWidthInput = CreateNumBox(configPanel, 50, 20, currentBWidth, function(val)
+        if val < 1 then val = 1 end
+        if val > 20 then val = 20 end
+
+        ACT.db.profile.circle.borderWidth = val
+        bWidthInput:SetText(val)
+        
+        if bWidthSlider then 
+            bWidthSlider:SetValue(val) 
+        end
+        CircleModule:ApplySettings()
+    end)
+    bWidthInput:SetPoint("LEFT", bWidthLabel, "RIGHT", 10, 0)
+
+    bWidthSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    bWidthSlider:SetPoint("TOPLEFT", bWidthLabel, "BOTTOMLEFT", 0, -10)
+    bWidthSlider:SetMinMaxValues(1, 20)
+    bWidthSlider:SetValue(currentBWidth)
+    bWidthSlider:SetValueStep(1)
+    bWidthSlider:SetObeyStepOnDrag(true)
+    bWidthSlider:SetWidth(200)
+
+    bWidthSlider:SetScript("OnValueChanged", function(self, value)
+        local val = math.floor(value)
+        ACT.db.profile.circle.borderWidth = val
+        
+        if bWidthInput and not bWidthInput:HasFocus() then
+            bWidthInput:SetText(val)
+        end
+        CircleModule:ApplySettings()
+    end)
+
+    yOffset = yOffset - 50
+
+    local bColorLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    bColorLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
+    bColorLabel:SetText("Border Color")
+
+    local bColorButton = CreateFrame("Button", nil, configPanel, "BackdropTemplate")
+    bColorButton:SetSize(40, 24)
+    bColorButton:SetPoint("LEFT", bColorLabel, "RIGHT", 20, 0)
+    bColorButton:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1
+    })
+    bColorButton:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
+
+    local function UpdateBorderButtonColor()
+        local c = ACT.db.profile.circle.borderColor or defaults.borderColor
+        if c then
+            bColorButton:SetBackdropColor(c[1], c[2], c[3], 1)
+        end
+    end
+    UpdateBorderButtonColor()
+
+    bColorButton:SetScript("OnClick", function()
+        local c = ACT.db.profile.circle.borderColor or defaults.borderColor
+        ColorPickerFrame:SetupColorPickerAndShow({
+            r = c[1], g = c[2], b = c[3],
+            hasOpacity = false,
+            swatchFunc = function()
+                local r, g, b = ColorPickerFrame:GetColorRGB()
+                ACT.db.profile.circle.borderColor = {r, g, b, 1}
+                UpdateBorderButtonColor()
+                CircleModule:ApplySettings()
+            end,
+            cancelFunc = function(restore)
+                ACT.db.profile.circle.borderColor = {restore.r, restore.g, restore.b, 1}
+                UpdateBorderButtonColor()
                 CircleModule:ApplySettings()
             end
         })
