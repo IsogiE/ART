@@ -75,7 +75,7 @@ function CircleModule:ApplySettings()
     local settings = ACT.db.profile.circle
 
     if not self.circleFrame then
-        self.circleFrame = CreateFrame("Frame", "ACT_ScreenCircle", UIParent)
+        self.circleFrame = CreateFrame("Frame", "ACT_ScreenCircle", UIParent, "BackdropTemplate")
         self.circleFrame:SetIgnoreParentScale(true)
         self.circleFrame:SetFrameStrata("MEDIUM")
         
@@ -93,29 +93,37 @@ function CircleModule:ApplySettings()
         self.circleFrame:ClearAllPoints()
         self.circleFrame:SetPoint("CENTER", UIParent, "CENTER", settings.posX, settings.posY)
         
-        local texturePath = "Interface\\AddOns\\ACT\\media\\textures\\Aura72"
-        if settings.shape == "Square" then
-            texturePath = "Interface\\AddOns\\ACT\\media\\textures\\Aura74"
-        end
-
-        local r, g, b, a = unpack(settings.color)
-        self.circleFrame.texture:SetTexture(texturePath)
+        local r, g, b, _ = unpack(settings.color)
         self.circleFrame.texture:SetVertexColor(r, g, b)
 
+        self.circleFrame:SetBackdrop(nil)
+
         if settings.border then
+            self.circleFrame.borderTexture:Show()
+            
             local br, bg, bb, ba = unpack(settings.borderColor or defaults.borderColor)
             local bWidth = settings.borderWidth or 2
             
-            self.circleFrame.borderTexture:Show()
-            self.circleFrame.borderTexture:SetTexture(texturePath)
             self.circleFrame.borderTexture:SetVertexColor(br, bg, bb, ba)
             
+            local borderSize = settings.size + (bWidth * 2)
+            self.circleFrame.borderTexture:SetSize(borderSize, borderSize)
+            
             self.circleFrame.borderTexture:ClearAllPoints()
-            self.circleFrame.borderTexture:SetPoint("TOPLEFT", self.circleFrame, "TOPLEFT", -bWidth, bWidth)
-            self.circleFrame.borderTexture:SetPoint("BOTTOMRIGHT", self.circleFrame, "BOTTOMRIGHT", bWidth, -bWidth)
+            self.circleFrame.borderTexture:SetPoint("CENTER", self.circleFrame, "CENTER", 0, 0)
         else
             self.circleFrame.borderTexture:Hide()
         end
+
+        if settings.shape == "Square" then
+            self.circleFrame.texture:SetTexture("Interface\\Buttons\\WHITE8x8")
+            self.circleFrame.borderTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
+        else
+            local circleTex = "Interface\\AddOns\\ACT\\media\\textures\\Aura72"
+            self.circleFrame.texture:SetTexture(circleTex)
+            self.circleFrame.borderTexture:SetTexture(circleTex)
+        end
+
     else
         self.circleFrame:Hide()
     end
@@ -165,13 +173,9 @@ function CircleModule:CreateConfigPanel(parent)
     sizeInput = CreateNumBox(configPanel, 50, 20, currentSize, function(val)
         if val < 10 then val = 10 end
         if val > 300 then val = 300 end
-        
         ACT.db.profile.circle.size = val
         sizeInput:SetText(val)
-        
-        if sizeSlider then 
-            sizeSlider:SetValue(val) 
-        end
+        if sizeSlider then sizeSlider:SetValue(val) end
         CircleModule:ApplySettings()
     end)
     sizeInput:SetPoint("LEFT", sizeLabel, "RIGHT", 10, 0)
@@ -183,14 +187,10 @@ function CircleModule:CreateConfigPanel(parent)
     sizeSlider:SetValueStep(1)
     sizeSlider:SetObeyStepOnDrag(true)
     sizeSlider:SetWidth(200)
-    
     sizeSlider:SetScript("OnValueChanged", function(self, value)
         local val = math.floor(value)
         ACT.db.profile.circle.size = val
-        
-        if sizeInput and not sizeInput:HasFocus() then
-            sizeInput:SetText(val)
-        end
+        if sizeInput and not sizeInput:HasFocus() then sizeInput:SetText(val) end
         CircleModule:ApplySettings()
     end)
 
@@ -206,13 +206,9 @@ function CircleModule:CreateConfigPanel(parent)
     xPosInput = CreateNumBox(configPanel, 60, 20, currentX, function(val)
         if val < -1000 then val = -1000 end
         if val > 1000 then val = 1000 end
-
         ACT.db.profile.circle.posX = val
         xPosInput:SetText(val)
-        
-        if xPosSlider then 
-            xPosSlider:SetValue(val) 
-        end
+        if xPosSlider then xPosSlider:SetValue(val) end
         CircleModule:ApplySettings()
     end)
     xPosInput:SetPoint("LEFT", xPosLabel, "RIGHT", 10, 0)
@@ -224,14 +220,10 @@ function CircleModule:CreateConfigPanel(parent)
     xPosSlider:SetValueStep(1)
     xPosSlider:SetObeyStepOnDrag(true)
     xPosSlider:SetWidth(200)
-
     xPosSlider:SetScript("OnValueChanged", function(self, value)
         local val = math.floor(value)
         ACT.db.profile.circle.posX = val
-        
-        if xPosInput and not xPosInput:HasFocus() then
-            xPosInput:SetText(val)
-        end
+        if xPosInput and not xPosInput:HasFocus() then xPosInput:SetText(val) end
         CircleModule:ApplySettings()
     end)
 
@@ -247,13 +239,9 @@ function CircleModule:CreateConfigPanel(parent)
     yPosInput = CreateNumBox(configPanel, 60, 20, currentY, function(val)
         if val < -1000 then val = -1000 end
         if val > 1000 then val = 1000 end
-
         ACT.db.profile.circle.posY = val
         yPosInput:SetText(val)
-        
-        if yPosSlider then 
-            yPosSlider:SetValue(val) 
-        end
+        if yPosSlider then yPosSlider:SetValue(val) end
         CircleModule:ApplySettings()
     end)
     yPosInput:SetPoint("LEFT", yPosLabel, "RIGHT", 10, 0)
@@ -265,14 +253,10 @@ function CircleModule:CreateConfigPanel(parent)
     yPosSlider:SetValueStep(1)
     yPosSlider:SetObeyStepOnDrag(true)
     yPosSlider:SetWidth(200)
-
     yPosSlider:SetScript("OnValueChanged", function(self, value)
         local val = math.floor(value)
         ACT.db.profile.circle.posY = val
-        
-        if yPosInput and not yPosInput:HasFocus() then
-            yPosInput:SetText(val)
-        end
+        if yPosInput and not yPosInput:HasFocus() then yPosInput:SetText(val) end
         CircleModule:ApplySettings()
     end)
 
@@ -288,14 +272,10 @@ function CircleModule:CreateConfigPanel(parent)
     alphaInput = CreateNumBox(configPanel, 50, 20, math.ceil(currentAlpha * 100), function(val)
         if val < 10 then val = 10 end
         if val > 100 then val = 100 end
-
         local floatVal = val / 100
         ACT.db.profile.circle.alpha = floatVal
         alphaInput:SetText(val)
-        
-        if alphaSlider then 
-            alphaSlider:SetValue(floatVal) 
-        end
+        if alphaSlider then alphaSlider:SetValue(floatVal) end
         CircleModule:ApplySettings()
     end)
     alphaInput:SetPoint("LEFT", alphaLabel, "RIGHT", 10, 0)
@@ -307,13 +287,9 @@ function CircleModule:CreateConfigPanel(parent)
     alphaSlider:SetValueStep(0.05)
     alphaSlider:SetObeyStepOnDrag(true)
     alphaSlider:SetWidth(200)
-
     alphaSlider:SetScript("OnValueChanged", function(self, value)
         ACT.db.profile.circle.alpha = value
-        
-        if alphaInput and not alphaInput:HasFocus() then
-            alphaInput:SetText(math.ceil(value * 100))
-        end
+        if alphaInput and not alphaInput:HasFocus() then alphaInput:SetText(math.ceil(value * 100)) end
         CircleModule:ApplySettings()
     end)
 
@@ -326,18 +302,12 @@ function CircleModule:CreateConfigPanel(parent)
     local colorButton = CreateFrame("Button", nil, configPanel, "BackdropTemplate")
     colorButton:SetSize(40, 24)
     colorButton:SetPoint("LEFT", colorLabel, "RIGHT", 20, 0)
-    colorButton:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1
-    })
+    colorButton:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8", edgeFile="Interface\\Buttons\\WHITE8x8", edgeSize=1})
     colorButton:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 
     local function UpdateButtonColor()
         local c = ACT.db.profile.circle.color or defaults.color
-        if c then
-            colorButton:SetBackdropColor(c[1], c[2], c[3], 1)
-        end
+        if c then colorButton:SetBackdropColor(c[1], c[2], c[3], 1) end
     end
     UpdateButtonColor()
 
@@ -369,7 +339,6 @@ function CircleModule:CreateConfigPanel(parent)
     local circleCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     circleCheck:SetPoint("LEFT", shapeLabel, "RIGHT", 20, 0)
     circleCheck:SetSize(20, 20)
-    
     local circleLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     circleLabel:SetPoint("LEFT", circleCheck, "RIGHT", 5, 0)
     circleLabel:SetText("Circle")
@@ -377,7 +346,6 @@ function CircleModule:CreateConfigPanel(parent)
     local squareCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     squareCheck:SetPoint("LEFT", circleLabel, "RIGHT", 20, 0)
     squareCheck:SetSize(20, 20)
-
     local squareLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     squareLabel:SetPoint("LEFT", squareCheck, "RIGHT", 5, 0)
     squareLabel:SetText("Square")
@@ -394,7 +362,6 @@ function CircleModule:CreateConfigPanel(parent)
         UpdateShapeChecks()
         CircleModule:ApplySettings()
     end)
-
     squareCheck:SetScript("OnClick", function()
         ACT.db.profile.circle.shape = "Square"
         UpdateShapeChecks()
@@ -429,13 +396,9 @@ function CircleModule:CreateConfigPanel(parent)
     bWidthInput = CreateNumBox(configPanel, 50, 20, currentBWidth, function(val)
         if val < 1 then val = 1 end
         if val > 20 then val = 20 end
-
         ACT.db.profile.circle.borderWidth = val
         bWidthInput:SetText(val)
-        
-        if bWidthSlider then 
-            bWidthSlider:SetValue(val) 
-        end
+        if bWidthSlider then bWidthSlider:SetValue(val) end
         CircleModule:ApplySettings()
     end)
     bWidthInput:SetPoint("LEFT", bWidthLabel, "RIGHT", 10, 0)
@@ -447,14 +410,10 @@ function CircleModule:CreateConfigPanel(parent)
     bWidthSlider:SetValueStep(1)
     bWidthSlider:SetObeyStepOnDrag(true)
     bWidthSlider:SetWidth(200)
-
     bWidthSlider:SetScript("OnValueChanged", function(self, value)
         local val = math.floor(value)
         ACT.db.profile.circle.borderWidth = val
-        
-        if bWidthInput and not bWidthInput:HasFocus() then
-            bWidthInput:SetText(val)
-        end
+        if bWidthInput and not bWidthInput:HasFocus() then bWidthInput:SetText(val) end
         CircleModule:ApplySettings()
     end)
 
@@ -467,18 +426,12 @@ function CircleModule:CreateConfigPanel(parent)
     local bColorButton = CreateFrame("Button", nil, configPanel, "BackdropTemplate")
     bColorButton:SetSize(40, 24)
     bColorButton:SetPoint("LEFT", bColorLabel, "RIGHT", 20, 0)
-    bColorButton:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1
-    })
+    bColorButton:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8x8", edgeFile="Interface\\Buttons\\WHITE8x8", edgeSize=1})
     bColorButton:SetBackdropBorderColor(0.5, 0.5, 0.5, 1)
 
     local function UpdateBorderButtonColor()
         local c = ACT.db.profile.circle.borderColor or defaults.borderColor
-        if c then
-            bColorButton:SetBackdropColor(c[1], c[2], c[3], 1)
-        end
+        if c then bColorButton:SetBackdropColor(c[1], c[2], c[3], 1) end
     end
     UpdateBorderButtonColor()
 
@@ -507,7 +460,6 @@ end
 
 if ACT and ACT.RegisterModule then
     ACT:RegisterModule(CircleModule)
-
     local f = CreateFrame("Frame")
     f:RegisterEvent("PLAYER_LOGIN")
     f:SetScript("OnEvent", function()
