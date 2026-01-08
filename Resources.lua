@@ -25,6 +25,50 @@ local defaults = {
     showClassFrame = true
 }
 
+local function CreateNumBox(parent, width, height, initialValue, onCommit)
+    local box = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
+    box:SetSize(width, height)
+    box:SetAutoFocus(false)
+    box:SetFontObject("GameFontHighlightSmall")
+    box:SetJustifyH("CENTER")
+    box:SetTextInsets(5, 5, 5, 5)
+    
+    box:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1
+    })
+    box:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    box:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    
+    box:SetText(tostring(initialValue))
+
+    box:SetScript("OnEditFocusGained", function(self)
+        self:SetBackdropColor(0.2, 0.2, 0.2, 1)
+        self:SetBackdropBorderColor(0.6, 0.6, 0.6, 1)
+    end)
+    box:SetScript("OnEditFocusLost", function(self)
+        self:SetBackdropColor(0.1, 0.1, 0.1, 1)
+        self:SetBackdropBorderColor(0.3, 0.3, 0.3, 1)
+    end)
+
+    box:SetScript("OnEnterPressed", function(self)
+        local val = tonumber(self:GetText())
+        if val then
+            onCommit(val)
+            self:ClearFocus()
+        else
+            self:ClearFocus()
+        end
+    end)
+    
+    box:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
+
+    return box
+end
+
 local function GetAvailableTextures()
     local LSM = LibStub("LibSharedMedia-3.0", true)
     if not LSM then
@@ -580,14 +624,31 @@ function PRDModule:CreateConfigPanel(parent)
 
     yOffset = yOffset - 40
 
+    local powerWidthSlider, powerWidthInput
+    local currentPowerWidth = ACT.db.profile.prd.powerWidth
+
     local powerWidthLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     powerWidthLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    powerWidthLabel:SetText("Power Width: " .. ACT.db.profile.prd.powerWidth)
+    powerWidthLabel:SetText("Power Width")
 
-    local powerWidthSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    powerWidthInput = CreateNumBox(configPanel, 50, 20, currentPowerWidth, function(val)
+        if val < 50 then val = 50 end
+        if val > 500 then val = 500 end
+        
+        ACT.db.profile.prd.powerWidth = val
+        powerWidthInput:SetText(val)
+        
+        if powerWidthSlider then
+            powerWidthSlider:SetValue(val)
+        end
+        PRDModule:ApplySettings()
+    end)
+    powerWidthInput:SetPoint("LEFT", powerWidthLabel, "RIGHT", 10, 0)
+
+    powerWidthSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
     powerWidthSlider:SetPoint("TOPLEFT", powerWidthLabel, "BOTTOMLEFT", 0, -10)
     powerWidthSlider:SetMinMaxValues(50, 500)
-    powerWidthSlider:SetValue(ACT.db.profile.prd.powerWidth)
+    powerWidthSlider:SetValue(currentPowerWidth)
     powerWidthSlider:SetValueStep(1)
     powerWidthSlider:SetObeyStepOnDrag(true)
     powerWidthSlider:SetWidth(300)
@@ -595,20 +656,40 @@ function PRDModule:CreateConfigPanel(parent)
     powerWidthSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
         ACT.db.profile.prd.powerWidth = value
-        powerWidthLabel:SetText("Power Width: " .. value)
+        
+        if powerWidthInput and not powerWidthInput:HasFocus() then
+            powerWidthInput:SetText(value)
+        end
         PRDModule:ApplySettings()
     end)
 
     yOffset = yOffset - 60
 
+    local powerHeightSlider, powerHeightInput
+    local currentPowerHeight = ACT.db.profile.prd.powerHeight
+
     local powerHeightLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     powerHeightLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    powerHeightLabel:SetText("Power Height: " .. ACT.db.profile.prd.powerHeight)
+    powerHeightLabel:SetText("Power Height")
 
-    local powerHeightSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    powerHeightInput = CreateNumBox(configPanel, 50, 20, currentPowerHeight, function(val)
+        if val < 10 then val = 10 end
+        if val > 100 then val = 100 end
+        
+        ACT.db.profile.prd.powerHeight = val
+        powerHeightInput:SetText(val)
+        
+        if powerHeightSlider then
+            powerHeightSlider:SetValue(val)
+        end
+        PRDModule:ApplySettings()
+    end)
+    powerHeightInput:SetPoint("LEFT", powerHeightLabel, "RIGHT", 10, 0)
+
+    powerHeightSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
     powerHeightSlider:SetPoint("TOPLEFT", powerHeightLabel, "BOTTOMLEFT", 0, -10)
     powerHeightSlider:SetMinMaxValues(10, 100)
-    powerHeightSlider:SetValue(ACT.db.profile.prd.powerHeight)
+    powerHeightSlider:SetValue(currentPowerHeight)
     powerHeightSlider:SetValueStep(1)
     powerHeightSlider:SetObeyStepOnDrag(true)
     powerHeightSlider:SetWidth(300)
@@ -616,7 +697,10 @@ function PRDModule:CreateConfigPanel(parent)
     powerHeightSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
         ACT.db.profile.prd.powerHeight = value
-        powerHeightLabel:SetText("Power Height: " .. value)
+        
+        if powerHeightInput and not powerHeightInput:HasFocus() then
+            powerHeightInput:SetText(value)
+        end
         PRDModule:ApplySettings()
     end)
 
@@ -686,14 +770,31 @@ function PRDModule:CreateConfigPanel(parent)
 
     yOffset = yOffset - 50
 
+    local fontSizeSlider, fontSizeInput
+    local currentFontSize = ACT.db.profile.prd.fontSize
+
     local fontSizeLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     fontSizeLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
-    fontSizeLabel:SetText("Font Size: " .. ACT.db.profile.prd.fontSize)
+    fontSizeLabel:SetText("Font Size")
 
-    local fontSizeSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    fontSizeInput = CreateNumBox(configPanel, 50, 20, currentFontSize, function(val)
+        if val < 8 then val = 8 end
+        if val > 32 then val = 32 end
+        
+        ACT.db.profile.prd.fontSize = val
+        fontSizeInput:SetText(val)
+        
+        if fontSizeSlider then
+            fontSizeSlider:SetValue(val)
+        end
+        PRDModule:ApplySettings()
+    end)
+    fontSizeInput:SetPoint("LEFT", fontSizeLabel, "RIGHT", 10, 0)
+
+    fontSizeSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
     fontSizeSlider:SetPoint("TOPLEFT", fontSizeLabel, "BOTTOMLEFT", 0, -10)
     fontSizeSlider:SetMinMaxValues(8, 32)
-    fontSizeSlider:SetValue(ACT.db.profile.prd.fontSize)
+    fontSizeSlider:SetValue(currentFontSize)
     fontSizeSlider:SetValueStep(1)
     fontSizeSlider:SetObeyStepOnDrag(true)
     fontSizeSlider:SetWidth(300)
@@ -701,7 +802,10 @@ function PRDModule:CreateConfigPanel(parent)
     fontSizeSlider:SetScript("OnValueChanged", function(self, value)
         value = math.floor(value)
         ACT.db.profile.prd.fontSize = value
-        fontSizeLabel:SetText("Font Size: " .. value)
+        
+        if fontSizeInput and not fontSizeInput:HasFocus() then
+            fontSizeInput:SetText(value)
+        end
         PRDModule:ApplySettings()
     end)
 
