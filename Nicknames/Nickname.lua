@@ -265,18 +265,11 @@ function NicknameModule:CreateConfigPanel(parent)
         key = "Grid2",
         name = "Grid2"
     }, {
-        key = "MRT",
-        name = "Method Raid Tools"
-    }, {
         key = "ShadowedUnitFrames",
         name = "Shadowed Unit Frames"
     }, {
         key = "VuhDo",
         name = "VuhDo"
-    }, {
-
-        key = "WeakAuras",
-        name = "WeakAuras"
     }}
 
     wipe(addOnNameToCheckButton) -- Clear the table in case the UI is ever rebuilt
