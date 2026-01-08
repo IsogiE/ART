@@ -42,5 +42,5 @@ SplitHelper.lua
 AddonChecker.lua
 VersionChecker.lua
 Currency.lua
-WAUpdater.lua
+Circle.lua
 Resources.lua
