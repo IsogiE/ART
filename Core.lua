@@ -191,9 +191,45 @@ function ACT:OnInitialize()
         profile = {
             nickname = "",
             nicknames = {},
-            prd = {},
             nicknamesWiped = false,
             defaultNicknames = "",
+            
+            circle = {
+                enabled = false,
+                shape = "Circle",
+                size = 60,
+                alpha = 0.5,
+                color = {1, 0, 0, 1},
+                posX = 0,
+                posY = 0,
+                border = false,
+                borderWidth = 2,
+                borderColor = {0, 0, 0, 1},
+            },
+
+            prd = {
+                enabled = false,
+                powerWidth = 200,
+                powerHeight = 20,
+                showPower = true,
+                showResourceText = false,
+                showPowerAsPercent = false,
+                texture = "",
+                textureName = "Blizzard",
+                frameStrata = "BACKGROUND",
+                showPowerBorder = true,
+                powerBorderColor = {0, 0, 0, 1},
+                fontSize = 12,
+                fontFace = "Friz Quadrata TT",
+                classFramePosition = {
+                    point = "CENTER",
+                    relativePoint = "CENTER",
+                    x = 0,
+                    y = 0
+                },
+                showClassFrame = true
+            },
+
             splits = {
                 profiles = {},
                 KeepPosInGroup = true
