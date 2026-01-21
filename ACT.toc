@@ -36,6 +36,7 @@ Nicknames\VuhDo.lua
 Nicknames\LiquidAPI.lua
 
 Tools\BCM.lua
+Tools\Whisper.lua
 
 RaidGroups.lua
 Macros.lua
