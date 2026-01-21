@@ -8,96 +8,88 @@ local BCM = {}
 ACT.BCM = BCM
 
 local BCM_TARGET_VIEWER = "EssentialCooldownViewer"
-local BCM_UPDATE_THROTTLE = 0.5
-local bcmTimer = 0
 
-local bcmWorker = CreateFrame("Frame", "ACT_BCM_Worker", UIParent)
-bcmWorker:Hide()
+local function GetCenteredXOffsets(count, itemWidth, padding)
+    if count <= 0 then return {} end
+    
+    local totalWidth = (count * itemWidth) + ((count - 1) * padding)
+    local startX = (-totalWidth / 2) + (itemWidth / 2)
+    
+    local offsets = {}
+    for i = 1, count do
+        offsets[i] = startX + (i - 1) * (itemWidth + padding)
+    end
+    return offsets
+end
 
-local function GetVisualSortedIcons(viewer)
+local function GetSortedIcons(viewer)
     local icons = {}
     for _, child in ipairs({viewer:GetChildren()}) do
-        if child:IsShown() and child.Icon then 
+        if child:IsShown() and (child.icon or child.Icon or child.cooldown or child.Cooldown) then
             table.insert(icons, child)
         end
     end
 
     table.sort(icons, function(a, b)
-        local ay = a:GetTop() or 0
-        local by = b:GetTop() or 0
-        local ax = a:GetLeft() or 0
-        local bx = b:GetLeft() or 0
-
-        if math.abs(ay - by) > 5 then
-            return ay > by 
-        end
-        return ax < bx
+        return (a.layoutIndex or 0) < (b.layoutIndex or 0)
     end)
     return icons
 end
 
 local function UpdateLayout(viewer)
-    local icons = GetVisualSortedIcons(viewer)
+    if not ACT.db or not ACT.db.profile.bcm_settings or not ACT.db.profile.bcm_settings.essential_centering then 
+        return 
+    end
+
+    local icons = GetSortedIcons(viewer)
     if #icons == 0 then return end
 
-    local iconSize = icons[1]:GetWidth()
-    local padding = viewer.iconPadding 
-    local maxColumns = viewer.stride
+    local iconWidth = icons[1]:GetWidth()
+    local iconHeight = icons[1]:GetHeight()
+    local padding = viewer.iconPadding
     
+    local stride = viewer.stride or #icons 
+    if stride < 1 then stride = #icons end
+
     local rows = {}
-    local currentRow = {}
-    
-    for _, icon in ipairs(icons) do
-        table.insert(currentRow, icon)
-        if #currentRow >= maxColumns then
-            table.insert(rows, currentRow)
-            currentRow = {}
-        end
+    for i, icon in ipairs(icons) do
+        local rowIndex = math.floor((i - 1) / stride) + 1
+        if not rows[rowIndex] then rows[rowIndex] = {} end
+        table.insert(rows[rowIndex], icon)
     end
-    if #currentRow > 0 then table.insert(rows, currentRow) end
 
-    local startY = 0 
-    for _, rowIcons in ipairs(rows) do
+    for rowIndex, rowIcons in ipairs(rows) do
         local count = #rowIcons
+        local xOffsets = GetCenteredXOffsets(count, iconWidth, padding)
         
-        local rowWidth = (count * iconSize) + ((count - 1) * padding)
-        local startX = -(rowWidth / 2) + (iconSize / 2)
+        local yOffset = -(rowIndex - 1) * (iconHeight + padding)
+        yOffset = yOffset - (iconHeight / 2)
 
-        for _, icon in ipairs(rowIcons) do
+        for i, icon in ipairs(rowIcons) do
+            local x = xOffsets[i]
             icon:ClearAllPoints()
-            icon:SetPoint("CENTER", viewer, "TOP", startX, startY - (iconSize / 2))
-            
-            startX = startX + iconSize + padding
+            icon:SetPoint("CENTER", viewer, "TOP", x, yOffset)
         end
-        
-        startY = startY - (iconSize + padding)
     end
 end
 
-bcmWorker:SetScript("OnUpdate", function(self, elapsed)
-    bcmTimer = bcmTimer + elapsed
-    if bcmTimer < BCM_UPDATE_THROTTLE then return end
-    bcmTimer = 0
-    
+function BCM:Initialize()
     local viewer = _G[BCM_TARGET_VIEWER]
-    if viewer and viewer:IsShown() then
-        UpdateLayout(viewer)
-    end
-end)
+    if not viewer then return end
 
-function BCM:UpdateState()
-    if not ACT.db or not ACT.db.profile or not ACT.db.profile.bcm_settings then return end
-    
-    local enabled = ACT.db.profile.bcm_settings.essential_centering
-    if enabled then
-        bcmWorker:Show()
-    else
-        bcmWorker:Hide()
+    if viewer.RefreshLayout then
+        hooksecurefunc(viewer, "RefreshLayout", function() UpdateLayout(viewer) end)
     end
+    
+    if viewer.Layout then
+        hooksecurefunc(viewer, "Layout", function() UpdateLayout(viewer) end)
+    end
+
+    UpdateLayout(viewer)
 end
 
 local initFrame = CreateFrame("Frame")
 initFrame:RegisterEvent("PLAYER_LOGIN")
 initFrame:SetScript("OnEvent", function()
-    BCM:UpdateState()
+    BCM:Initialize()
 end)
