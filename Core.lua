@@ -266,8 +266,26 @@ function ACT:OnInitialize()
     end
 end
 
+function ACT:ToggleCooldownViewer()
+    if InCombatLockdown() then return end
+
+    local CooldownViewerSettings = _G.CooldownViewerSettings
+    if CooldownViewerSettings then
+        if CooldownViewerSettings:IsShown() then
+            CooldownViewerSettings:Hide()
+        else
+            CooldownViewerSettings:Show()
+        end
+    end
+end
+
 function ACT:OnEnable()
     self:RegisterChatCommand("act", "OpenConfigCommand")
+
+    if not C_AddOns.IsAddOnLoaded("WeakAuras") then
+        self:RegisterChatCommand("cd", "ToggleCooldownViewer")
+        self:RegisterChatCommand("wa", "ToggleCooldownViewer")
+    end
 
     local LDB = LibStub("LibDataBroker-1.1"):NewDataObject("ACT", {
         type = "launcher",
