@@ -14,6 +14,7 @@ ACT.Nicknames = NicknameModule
 local db
 local integrations_db
 local bcm_db
+local whisper_db
 
 local InitializeIntegrations
 
@@ -57,6 +58,11 @@ local function InitializeDatabase()
             essential_centering = false
         }
     end
+    if not ACT.db.profile.whisper_settings then
+        ACT.db.profile.whisper_settings = {
+            enabled = false
+        }
+    end
     if ACT.db.profile.nickname == nil then
         ACT.db.profile.nickname = nil
     end
@@ -64,6 +70,7 @@ local function InitializeDatabase()
     db = ACT.db.profile.nicknames
     integrations_db = ACT.db.profile.nickname_integrations
     bcm_db = ACT.db.profile.bcm_settings
+    whisper_db = ACT.db.profile.whisper_settings
 
     local playerRealmName = RealmIncludedName("player")
     local currentPlayerNickname = ACT.db.profile.nickname
@@ -353,7 +360,7 @@ function NicknameModule:CreateConfigPanel(parent)
 
     local utilityLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     utilityLabel:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -20)
-    utilityLabel:SetText("Utility")
+    utilityLabel:SetText("Utility Settings")
 
     local bcmCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     bcmCheck:SetSize(22, 22)
@@ -382,8 +389,33 @@ function NicknameModule:CreateConfigPanel(parent)
         StaticPopup_Show("ACT_UTILITY_RELOAD")
     end)
 
+    local whisperCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    whisperCheck:SetSize(22, 22)
+    whisperCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
+    
+    whisperCheck.Text = whisperCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    whisperCheck.Text:SetText("Whisper Sound Notifications (Master Channel)")
+    whisperCheck.Text:SetPoint("LEFT", whisperCheck, "RIGHT", 5, 0)
+    
+    whisperCheck:SetScript("OnClick", function(self)
+        if not NicknameModule.isInitialized or not whisper_db then return end
+        
+        local checked = self:GetChecked()
+        whisper_db.enabled = checked
+        
+        if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then
+            ACT.WhisperNotify:UpdateState()
+        end
+        
+        if checked then
+            whisperCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            whisperCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+    end)
+
     configPanel.OnShow = function()
-        if not NicknameModule.isInitialized or not db or not integrations_db or not bcm_db then
+        if not NicknameModule.isInitialized or not db or not integrations_db or not bcm_db or not whisper_db then
             return
         end
 
@@ -402,6 +434,14 @@ function NicknameModule:CreateConfigPanel(parent)
             bcmCheck.Text:SetTextColor(1, 0.82, 0)
         else
             bcmCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        local isWhisperEnabled = whisper_db.enabled or false
+        whisperCheck:SetChecked(isWhisperEnabled)
+        if isWhisperEnabled then
+            whisperCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            whisperCheck.Text:SetTextColor(0.5, 0.5, 0.5)
         end
     end
 
