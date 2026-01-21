@@ -1,4 +1,4 @@
-## Interface: 110205, 110207, 120000, 120001
+## Interface: 120000, 120001
 
 ## Title: Advance Custom Tools
 ## Author: Isogi, Jaf
@@ -7,7 +7,7 @@
 ## Version: @project-version@
 ## DefaultState: Enable
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
-## OptionalDeps: ElvUI, Grid2, MRT, Cell
+## OptionalDeps: ElvUI, Grid2, MRT, Cell, BetterCooldownManager
 ## Category: Advance
 
 embeds.xml
@@ -24,7 +24,8 @@ Core.lua
 
 Home.lua
 
-Nicknames\Nickname.lua
+Utility.lua
+
 Nicknames\Comms.lua
 Nicknames\Blizzard.lua
 Nicknames\Cell.lua
@@ -33,6 +34,8 @@ Nicknames\Grid2.lua
 Nicknames\SUF.lua
 Nicknames\VuhDo.lua
 Nicknames\LiquidAPI.lua
+
+Tools\BCM.lua
 
 RaidGroups.lua
 Macros.lua
