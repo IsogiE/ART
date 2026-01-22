@@ -25,7 +25,7 @@ end
 local function GetSortedIcons(viewer)
     local icons = {}
     for _, child in ipairs({viewer:GetChildren()}) do
-        if child:IsShown() and (child.icon or child.Icon or child.cooldown or child.Cooldown) then
+        if child:IsShown() and (child.icon or child.Icon) then
             table.insert(icons, child)
         end
     end
@@ -51,7 +51,7 @@ local function UpdateLayout(viewer)
         return 
     end
 
-    local padding = viewer.iconPadding or 0
+    local padding = viewer.childXPadding or viewer.iconPadding or 0
     
     local stride = viewer.stride or #icons 
     if stride < 1 then stride = #icons end
