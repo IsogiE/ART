@@ -44,9 +44,14 @@ local function UpdateLayout(viewer)
     local icons = GetSortedIcons(viewer)
     if #icons == 0 then return end
 
-    local iconWidth = icons[1]:GetWidth()
-    local iconHeight = icons[1]:GetHeight()
-    local padding = viewer.iconPadding
+    local refIcon = icons[1]
+    local iconWidth, iconHeight = refIcon:GetSize()
+    
+    if not iconWidth or iconWidth <= 0 or not iconHeight or iconHeight <= 0 then
+        return 
+    end
+
+    local padding = viewer.iconPadding or 0
     
     local stride = viewer.stride or #icons 
     if stride < 1 then stride = #icons end
@@ -68,11 +73,9 @@ local function UpdateLayout(viewer)
         for i, icon in ipairs(rowIcons) do
             local x = xOffsets[i]
             
-            local currentW, currentH = icon:GetSize()
-            
             icon:ClearAllPoints()
             
-            icon:SetSize(currentW, currentH)
+            icon:SetSize(iconWidth, iconHeight)
             
             icon:SetPoint("CENTER", viewer, "TOP", x, yOffset)
         end
