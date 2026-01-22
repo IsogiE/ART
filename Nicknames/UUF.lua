@@ -22,7 +22,15 @@ local function ShortenString(text, maxChars)
 end
 
 local function GetName(unit)
-    local realName = (_G.UnitNameUnmodified and _G.UnitNameUnmodified(unit)) or UnitName(unit) or ""
+    local realName = (_G.UnitNameUnmodified and _G.UnitNameUnmodified(unit)) or UnitName(unit)
+
+    if issecretvalue and issecretvalue(realName) then
+        return realName
+    end
+    
+    if not realName or realName == "" then
+        return ""
+    end
     
     if ACT_AccountDB and ACT_AccountDB.nickname_integrations and ACT_AccountDB.nickname_integrations.UnhaltedUnitFrames then
         if ACT:HasNickname(unit) then
