@@ -67,7 +67,13 @@ local function UpdateLayout(viewer)
 
         for i, icon in ipairs(rowIcons) do
             local x = xOffsets[i]
+            
+            local currentW, currentH = icon:GetSize()
+            
             icon:ClearAllPoints()
+            
+            icon:SetSize(currentW, currentH)
+            
             icon:SetPoint("CENTER", viewer, "TOP", x, yOffset)
         end
     end
