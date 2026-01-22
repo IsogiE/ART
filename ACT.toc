@@ -7,7 +7,7 @@
 ## Version: @project-version@
 ## DefaultState: Enable
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
-## OptionalDeps: ElvUI, Grid2, MRT, Cell, BetterCooldownManager
+## OptionalDeps: ElvUI, Grid2, MRT, Cell, UnhaltedUnitFrames
 ## Category: Advance
 
 embeds.xml
