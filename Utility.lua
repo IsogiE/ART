@@ -55,9 +55,14 @@ local function InitializeDatabase()
     end
     if not ACT.db.profile.bcm_settings then
         ACT.db.profile.bcm_settings = {
-            essential_centering = false
+            essential_centering = false,
+            utility_centering = false
         }
     end
+    if ACT.db.profile.bcm_settings.utility_centering == nil then
+        ACT.db.profile.bcm_settings.utility_centering = false
+    end
+
     if not ACT.db.profile.whisper_settings then
         ACT.db.profile.whisper_settings = {
             enabled = false
@@ -389,9 +394,36 @@ function NicknameModule:CreateConfigPanel(parent)
         StaticPopup_Show("ACT_UTILITY_RELOAD")
     end)
 
+    local bcmUtilityCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    bcmUtilityCheck:SetSize(22, 22)
+    bcmUtilityCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
+    
+    bcmUtilityCheck.Text = bcmUtilityCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    bcmUtilityCheck.Text:SetText("Utility Cooldown Bar Centering")
+    bcmUtilityCheck.Text:SetPoint("LEFT", bcmUtilityCheck, "RIGHT", 5, 0)
+    
+    bcmUtilityCheck:SetScript("OnClick", function(self)
+        if not NicknameModule.isInitialized or not bcm_db then return end
+        
+        local checked = self:GetChecked()
+        bcm_db.utility_centering = checked
+        
+        if ACT.BCM and ACT.BCM.UpdateState then
+            ACT.BCM:UpdateState()
+        end
+        
+        if checked then
+            bcmUtilityCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            bcmUtilityCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        StaticPopup_Show("ACT_UTILITY_RELOAD")
+    end)
+
     local whisperCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
     whisperCheck:SetSize(22, 22)
-    whisperCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
+    whisperCheck:SetPoint("TOPLEFT", bcmUtilityCheck, "BOTTOMLEFT", 0, -5)
     
     whisperCheck.Text = whisperCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     whisperCheck.Text:SetText("Whisper Sound Notifications (Master Channel)")
@@ -434,6 +466,14 @@ function NicknameModule:CreateConfigPanel(parent)
             bcmCheck.Text:SetTextColor(1, 0.82, 0)
         else
             bcmCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        local isBCMUtilityEnabled = bcm_db.utility_centering or false
+        bcmUtilityCheck:SetChecked(isBCMUtilityEnabled)
+        if isBCMUtilityEnabled then
+            bcmUtilityCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            bcmUtilityCheck.Text:SetTextColor(0.5, 0.5, 0.5)
         end
 
         local isWhisperEnabled = whisper_db.enabled or false
