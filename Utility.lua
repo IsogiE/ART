@@ -304,8 +304,8 @@ function NicknameModule:CreateConfigPanel(parent)
         key = "Grid2",
         name = "Grid2"
     }, {
-        key = "ShadowedUnitFrames",
-        name = "Shadowed Unit Frames"
+        key = "UnhaltedUnitFrames",
+        name = "Unhalted Unit Frames"
     }, {
         key = "VuhDo",
         name = "VuhDo"
