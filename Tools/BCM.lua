@@ -7,7 +7,10 @@ if not ACT then return end
 local BCM = {}
 ACT.BCM = BCM
 
-local BCM_TARGET_VIEWER = "EssentialCooldownViewer"
+local BCM_VIEWERS = {
+    ["EssentialCooldownViewer"] = "essential_centering",
+    ["UtilityCooldownViewer"] = "utility_centering"
+}
 
 local function GetCenteredXOffsets(count, itemWidth, padding)
     if count <= 0 then return {} end
@@ -37,7 +40,12 @@ local function GetSortedIcons(viewer)
 end
 
 local function UpdateLayout(viewer)
-    if not ACT.db or not ACT.db.profile.bcm_settings or not ACT.db.profile.bcm_settings.essential_centering then 
+    if not viewer then return end
+
+    local viewerName = viewer:GetName()
+    local settingKey = BCM_VIEWERS[viewerName]
+    
+    if not settingKey or not ACT.db or not ACT.db.profile.bcm_settings or not ACT.db.profile.bcm_settings[settingKey] then 
         return 
     end
 
@@ -83,18 +91,20 @@ local function UpdateLayout(viewer)
 end
 
 function BCM:Initialize()
-    local viewer = _G[BCM_TARGET_VIEWER]
-    if not viewer then return end
+    for viewerName, _ in pairs(BCM_VIEWERS) do
+        local viewer = _G[viewerName]
+        if viewer then
+            if viewer.RefreshLayout then
+                hooksecurefunc(viewer, "RefreshLayout", function() UpdateLayout(viewer) end)
+            end
+            
+            if viewer.Layout then
+                hooksecurefunc(viewer, "Layout", function() UpdateLayout(viewer) end)
+            end
 
-    if viewer.RefreshLayout then
-        hooksecurefunc(viewer, "RefreshLayout", function() UpdateLayout(viewer) end)
+            UpdateLayout(viewer)
+        end
     end
-    
-    if viewer.Layout then
-        hooksecurefunc(viewer, "Layout", function() UpdateLayout(viewer) end)
-    end
-
-    UpdateLayout(viewer)
 end
 
 local initFrame = CreateFrame("Frame")
