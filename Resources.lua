@@ -29,12 +29,10 @@ local defaults = {
 }
 
 function PRDModule:ShowReloadPopup()
-    if self.reloadPopup then
-        self.reloadPopup:Show()
-        return
-    end
-
     local function onAccept()
+        if self.reloadPopup.prdToggleBox and self.reloadPopup.prdToggleBox:IsShown() and self.reloadPopup.prdToggleBox:GetChecked() then
+            SetCVar("nameplateShowSelf", "0")
+        end
         ReloadUI()
     end
 
@@ -42,16 +40,48 @@ function PRDModule:ShowReloadPopup()
         if self.reloadPopup then self.reloadPopup:Hide() end
     end
 
-    self.reloadPopup = UI:CreateTextPopup(
-        "Reload Required",
-        "Disabling the PRD for this spec/role requires a UI reload to fully restore Blizzard defaults. Reload now?",
-        "Reload Now",
-        "Later",
-        onAccept,
-        onCancel,
-        nil
-    )
+    if not self.reloadPopup then
+        self.reloadPopup = UI:CreateTextPopup(
+            "Reload Required",
+            "Disabling the PRD for this spec/role requires a UI reload to fully restore Blizzard defaults. Reload now?",
+            "Reload Now",
+            "Later",
+            onAccept,
+            onCancel,
+            nil
+        )
+
+        local cb = CreateFrame("CheckButton", nil, self.reloadPopup, "UICheckButtonTemplate")
+        cb:SetSize(24, 24)
+        cb:SetPoint("BOTTOMLEFT", self.reloadPopup, "BOTTOMLEFT", 20, 55)
+        
+        cb.text = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        cb.text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
+        cb.text:SetText("Also Disable Blizzard PRD?")
+        
+        self.reloadPopup.prdToggleBox = cb
+    end
+
+    local isPrdEnabled = GetCVar("nameplateShowSelf") == "1"
+    
+    if self.reloadPopup.prdToggleBox then
+        self.reloadPopup.prdToggleBox:SetShown(isPrdEnabled)
+        self.reloadPopup.prdToggleBox:SetChecked(false)
+    end
+
     self.reloadPopup:Show()
+
+    C_Timer.After(0.1, function()
+        if self.reloadPopup and self.reloadPopup:IsShown() then
+            local baseHeight = self.reloadPopup:GetHeight()
+            
+            if self.reloadPopup.prdToggleBox and self.reloadPopup.prdToggleBox:IsShown() then
+                self.reloadPopup:SetHeight(baseHeight + 40)
+            else
+                self.reloadPopup:SetHeight(baseHeight)
+            end
+        end
+    end)
 end
 
 local function CreateNumBox(parent, width, height, initialValue, onCommit)
@@ -398,6 +428,10 @@ function PRDModule:ApplySettings()
         self.isActive = isActive
 
         if isActive then
+            if GetCVar("nameplateShowSelf") == "0" then
+                SetCVar("nameplateShowSelf", "1")
+            end
+
             self.hooksInstalled = true
 
             if PersonalResourceDisplayFrame then
