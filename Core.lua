@@ -209,6 +209,9 @@ function ACT:OnInitialize()
 
             prd = {
                 enabled = false,
+                enableHealer = true,
+                enableTank = true,
+                enableDPS = true,
                 powerWidth = 200,
                 powerHeight = 20,
                 showPower = true,
