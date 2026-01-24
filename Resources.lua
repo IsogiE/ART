@@ -4,6 +4,9 @@ PRDModule.title = "Personal Resource Display"
 
 local defaults = {
     enabled = false,
+    enableHealer = true,
+    enableTank = true,
+    enableDPS = true,
     powerWidth = 200,
     powerHeight = 20,
     showPower = true,
@@ -24,6 +27,32 @@ local defaults = {
     },
     showClassFrame = true
 }
+
+function PRDModule:ShowReloadPopup()
+    if self.reloadPopup then
+        self.reloadPopup:Show()
+        return
+    end
+
+    local function onAccept()
+        ReloadUI()
+    end
+
+    local function onCancel()
+        if self.reloadPopup then self.reloadPopup:Hide() end
+    end
+
+    self.reloadPopup = UI:CreateTextPopup(
+        "Reload Required",
+        "Disabling the PRD for this spec/role requires a UI reload to fully restore Blizzard defaults. Reload now?",
+        "Reload Now",
+        "Later",
+        onAccept,
+        onCancel,
+        nil
+    )
+    self.reloadPopup:Show()
+end
 
 local function CreateNumBox(parent, width, height, initialValue, onCommit)
     local box = CreateFrame("EditBox", nil, parent, "BackdropTemplate")
@@ -105,6 +134,25 @@ local function GetAvailableFonts()
     end
     
     return fonts
+end
+
+local function ShouldEnableForRole()
+    local settings = ACT.db.profile.prd
+    local specIndex = GetSpecialization()
+    
+    if not specIndex then return true end
+    
+    local role = GetSpecializationRole(specIndex)
+    
+    if role == "HEALER" then
+        return settings.enableHealer
+    elseif role == "TANK" then
+        return settings.enableTank
+    elseif role == "DAMAGER" then
+        return settings.enableDPS
+    end
+    
+    return true
 end
 
 local function CreatePowerBarBorder(powerBar)
@@ -208,6 +256,11 @@ local function CreatePowerText(powerBar, settings)
 end
 
 local function UpdatePowerText(powerBar)
+    if not ACT.db.profile.prd.enabled or not ShouldEnableForRole() then
+        if powerBar.customPowerText then powerBar.customPowerText:Hide() end
+        return
+    end
+
     if not powerBar.customPowerText then
         return
     end
@@ -249,7 +302,7 @@ local function SetupHealthBarHook()
         if not PersonalResourceDisplayFrame.HealthBarsContainer.hooked then
             hooksecurefunc(PersonalResourceDisplayFrame.HealthBarsContainer, "Show", function(self)
                 local settings = ACT.db.profile.prd
-                if settings.enabled then
+                if settings.enabled and ShouldEnableForRole() then
                     self:Hide()
                 end
             end)
@@ -340,7 +393,13 @@ function PRDModule:ApplySettings()
     if not InCombatLockdown() then
         local settings = ACT.db.profile.prd
         
-        if settings.enabled then
+        local isActive = settings.enabled and ShouldEnableForRole()
+        
+        self.isActive = isActive
+
+        if isActive then
+            self.hooksInstalled = true
+
             if PersonalResourceDisplayFrame then
                 PersonalResourceDisplayFrame:SetFrameStrata(settings.frameStrata or "BACKGROUND")
                 
@@ -353,14 +412,14 @@ function PRDModule:ApplySettings()
                     if not prdClassFrame.visibilityHooksRegistered then
                         hooksecurefunc(prdClassFrame, "Show", function(self)
                             local s = ACT.db.profile.prd
-                            if s.enabled and not s.showClassFrame then
+                            if s.enabled and ShouldEnableForRole() and not s.showClassFrame then
                                 self:Hide()
                             end
                         end)
                         
                         hooksecurefunc(prdClassFrame, "Hide", function(self)
                             local s = ACT.db.profile.prd
-                            if s.enabled and s.showClassFrame and not self:IsShown() then
+                            if s.enabled and ShouldEnableForRole() and s.showClassFrame and not self:IsShown() then
                                 self:Show()
                             end
                         end)
@@ -419,7 +478,7 @@ function PRDModule:ApplySettings()
                 end
             end
         else
-            if PersonalResourceDisplayFrame then
+            if self.hooksInstalled and PersonalResourceDisplayFrame then
                 PersonalResourceDisplayFrame:SetFrameStrata("MEDIUM")
                 
                 if PersonalResourceDisplayFrame.HealthBarsContainer then
@@ -497,41 +556,69 @@ function PRDModule:CreateConfigPanel(parent)
             ACT.db.profile.prd.enabled = true
             PRDModule:ApplySettings()
         else
-            
-            local function onAcceptReload()
-                ACT.db.profile.prd.enabled = false
-                PRDModule:ApplySettings()
-                if PRDModule.reloadPopup then
-                    PRDModule.reloadPopup:Hide()
-                end
-                ReloadUI()
-            end
-            
-            local function onCancelReload()
-                ACT.db.profile.prd.enabled = false
-                PRDModule:ApplySettings()
-                if PRDModule.reloadPopup then
-                    PRDModule.reloadPopup:Hide()
-                end
-            end
-            
-            PRDModule.reloadPopup = UI:CreateTextPopup(
-                "Reload Required",
-                "Disabling this module requires a UI reload to fully restore Blizzard defaults. Reload now?",
-                "Reload Now",
-                "Later",
-                onAcceptReload,
-                onCancelReload,
-                PRDModule.reloadPopup
-            )
-            
-            PRDModule.reloadPopup:Show()
-            
+            ACT.db.profile.prd.enabled = false
+            PRDModule:ApplySettings()
+            PRDModule:ShowReloadPopup()
             self:SetChecked(true)
         end
     end)
+    
+    yOffset = yOffset - 30
+    
+    local roleLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    roleLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 25, yOffset)
+    roleLabel:SetText("Enable for roles:")
+    
+    yOffset = yOffset - 15
 
-    yOffset = yOffset - 40
+    local function OnRoleCheckClick(self, roleKey)
+        local wasActive = ACT.db.profile.prd.enabled and ShouldEnableForRole()
+        
+        ACT.db.profile.prd[roleKey] = self:GetChecked()
+        
+        local isActive = ACT.db.profile.prd.enabled and ShouldEnableForRole()
+        
+        PRDModule:ApplySettings()
+        
+        if wasActive and not isActive then
+            PRDModule:ShowReloadPopup()
+        end
+    end
+
+    local healCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    healCheck:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 30, yOffset)
+    healCheck:SetSize(20, 20)
+    healCheck:SetChecked(ACT.db.profile.prd.enableHealer)
+    
+    local healLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    healLabel:SetPoint("LEFT", healCheck, "RIGHT", 5, 0)
+    healLabel:SetText("Healer")
+    
+    healCheck:SetScript("OnClick", function(self) OnRoleCheckClick(self, "enableHealer") end)
+
+    local tankCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    tankCheck:SetPoint("LEFT", healLabel, "RIGHT", 20, 0)
+    tankCheck:SetSize(20, 20)
+    tankCheck:SetChecked(ACT.db.profile.prd.enableTank)
+    
+    local tankLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    tankLabel:SetPoint("LEFT", tankCheck, "RIGHT", 5, 0)
+    tankLabel:SetText("Tank")
+    
+    tankCheck:SetScript("OnClick", function(self) OnRoleCheckClick(self, "enableTank") end)
+
+    local dpsCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    dpsCheck:SetPoint("LEFT", tankLabel, "RIGHT", 20, 0)
+    dpsCheck:SetSize(20, 20)
+    dpsCheck:SetChecked(ACT.db.profile.prd.enableDPS)
+    
+    local dpsLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    dpsLabel:SetPoint("LEFT", dpsCheck, "RIGHT", 5, 0)
+    dpsLabel:SetText("DPS")
+    
+    dpsCheck:SetScript("OnClick", function(self) OnRoleCheckClick(self, "enableDPS") end)
+
+    yOffset = yOffset - 30
 
     local powerHeader = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     powerHeader:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, yOffset)
@@ -768,7 +855,7 @@ function PRDModule:CreateConfigPanel(parent)
     fontDropdown.button.text:SetText(currentFontFace)
     fontDropdown.selectedValue = currentFontFace
 
-    yOffset = yOffset - 50
+    yOffset = yOffset - 40
 
     local fontSizeSlider, fontSizeInput
     local currentFontSize = ACT.db.profile.prd.fontSize
@@ -809,11 +896,6 @@ function PRDModule:CreateConfigPanel(parent)
         PRDModule:ApplySettings()
     end)
 
-    local warningText = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    warningText:SetPoint("TOPLEFT", fontSizeSlider, "BOTTOMLEFT", 0, -20)
-    warningText:SetText("|cffff0000Note:|r Changes must be applied out of combat")
-    warningText:SetJustifyH("LEFT")
-
     self.configPanel = configPanel
         
     return configPanel
@@ -828,6 +910,7 @@ if ACT and ACT.RegisterModule then
     eventFrame:RegisterEvent("UNIT_POWER_UPDATE")
     eventFrame:RegisterEvent("UNIT_MAXPOWER")
     eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
+    eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     
     eventFrame:SetScript("OnEvent", function(self, event, ...)
         if event == "PLAYER_LOGIN" then
@@ -850,12 +933,25 @@ if ACT and ACT.RegisterModule then
         end
         local settings = ACT.db.profile.prd
 
-        if not settings.enabled then
-            return
+        if event ~= "PLAYER_SPECIALIZATION_CHANGED" then
+             if not settings.enabled or not ShouldEnableForRole() then
+                 return
+             end
         end
         
         if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
             PRDModule:ApplySettings()
+            
+        elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+            local wasActive = PRDModule.isActive
+            
+            PRDModule:ApplySettings()
+            
+            local nowActive = PRDModule.isActive
+            
+            if wasActive and not nowActive then
+                PRDModule:ShowReloadPopup()
+            end
             
         elseif (event == "UNIT_POWER_UPDATE" or event == "UNIT_MAXPOWER") then
             local unit = ...
