@@ -205,6 +205,7 @@ function ACT:OnInitialize()
                 border = false,
                 borderWidth = 2,
                 borderColor = {0, 0, 0, 1},
+                crosshairThickness = 2,
             },
 
             prd = {
