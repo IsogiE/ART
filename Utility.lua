@@ -34,6 +34,11 @@ StaticPopupDialogs["ACT_UTILITY_RELOAD"] = {
 
 local function RealmIncludedName(unit)
     local name, realm = UnitNameUnmodified(unit)
+    
+    if (name and issecretvalue(name)) or (realm and issecretvalue(realm)) then
+        return nil
+    end
+
     if not realm or realm == "" then
         realm = GetRealmName()
     end
