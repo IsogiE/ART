@@ -15,6 +15,7 @@ local db
 local integrations_db
 local bcm_db
 local whisper_db
+local cdm_db
 
 local InitializeIntegrations
 
@@ -68,6 +69,13 @@ local function InitializeDatabase()
             enabled = false
         }
     end
+
+    if not ACT.db.profile.cdm_settings then
+        ACT.db.profile.cdm_settings = {
+            global_ignore_aura_override = false
+        }
+    end
+
     if ACT.db.profile.nickname == nil then
         ACT.db.profile.nickname = nil
     end
@@ -76,6 +84,7 @@ local function InitializeDatabase()
     integrations_db = ACT.db.profile.nickname_integrations
     bcm_db = ACT.db.profile.bcm_settings
     whisper_db = ACT.db.profile.whisper_settings
+    cdm_db = ACT.db.profile.cdm_settings
 
     local playerRealmName = RealmIncludedName("player")
     local currentPlayerNickname = ACT.db.profile.nickname
@@ -96,6 +105,15 @@ local function InitializeDatabase()
 
     if ACT.BCM and ACT.BCM.UpdateState then
         ACT.BCM:UpdateState()
+    end
+    
+    if ACT.AuraOverride then
+        if ACT.AuraOverride.Initialize then
+            ACT.AuraOverride:Initialize()
+        end
+        if ACT.AuraOverride.UpdateState then
+            ACT.AuraOverride:UpdateState()
+        end
     end
 end
 
@@ -446,8 +464,33 @@ function NicknameModule:CreateConfigPanel(parent)
         end
     end)
 
+    local cdmOverrideCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    cdmOverrideCheck:SetSize(22, 22)
+    cdmOverrideCheck:SetPoint("TOPLEFT", whisperCheck, "BOTTOMLEFT", 0, -5)
+    
+    cdmOverrideCheck.Text = cdmOverrideCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cdmOverrideCheck.Text:SetText("Remove Cooldown Manager Aura Duration")
+    cdmOverrideCheck.Text:SetPoint("LEFT", cdmOverrideCheck, "RIGHT", 5, 0)
+    
+    cdmOverrideCheck:SetScript("OnClick", function(self)
+        if not NicknameModule.isInitialized or not cdm_db then return end
+        
+        local checked = self:GetChecked()
+        cdm_db.global_ignore_aura_override = checked
+        
+        if ACT.AuraOverride and ACT.AuraOverride.UpdateState then
+            ACT.AuraOverride:UpdateState()
+        end
+        
+        if checked then
+            cdmOverrideCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            cdmOverrideCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+    end)
+
     configPanel.OnShow = function()
-        if not NicknameModule.isInitialized or not db or not integrations_db or not bcm_db or not whisper_db then
+        if not NicknameModule.isInitialized or not db or not integrations_db or not bcm_db or not whisper_db or not cdm_db then
             return
         end
 
@@ -482,6 +525,14 @@ function NicknameModule:CreateConfigPanel(parent)
             whisperCheck.Text:SetTextColor(1, 0.82, 0)
         else
             whisperCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+
+        local isCDMOverrideEnabled = cdm_db.global_ignore_aura_override or false
+        cdmOverrideCheck:SetChecked(isCDMOverrideEnabled)
+        if isCDMOverrideEnabled then
+            cdmOverrideCheck.Text:SetTextColor(1, 0.82, 0)
+        else
+            cdmOverrideCheck.Text:SetTextColor(0.5, 0.5, 0.5)
         end
     end
 
