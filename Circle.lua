@@ -12,6 +12,7 @@ local defaults = {
     border = false,
     borderWidth = 2,
     borderColor = {0, 0, 0, 1},
+    crosshairThickness = 2,
 }
 
 local function CreateNumBox(parent, width, height, initialValue, onCommit)
@@ -83,6 +84,12 @@ function CircleModule:ApplySettings()
         self.circleFrame.texture:SetAllPoints()
         
         self.circleFrame.borderTexture = self.circleFrame:CreateTexture(nil, "BACKGROUND")
+
+        self.circleFrame.crosshairH = self.circleFrame:CreateTexture(nil, "ARTWORK")
+        self.circleFrame.crosshairH:SetTexture("Interface\\Buttons\\WHITE8x8")
+        
+        self.circleFrame.crosshairV = self.circleFrame:CreateTexture(nil, "ARTWORK")
+        self.circleFrame.crosshairV:SetTexture("Interface\\Buttons\\WHITE8x8")
     end
 
     if settings.enabled then
@@ -94,36 +101,61 @@ function CircleModule:ApplySettings()
         self.circleFrame:SetPoint("CENTER", UIParent, "CENTER", settings.posX, settings.posY)
         
         local r, g, b, _ = unpack(settings.color)
-        self.circleFrame.texture:SetVertexColor(r, g, b)
-
-        self.circleFrame:SetBackdrop(nil)
-
-        if settings.border then
-            self.circleFrame.borderTexture:Show()
-            
-            local br, bg, bb, ba = unpack(settings.borderColor or defaults.borderColor)
-            local bWidth = settings.borderWidth or 2
-            
-            self.circleFrame.borderTexture:SetVertexColor(br, bg, bb, ba)
-            
-            local borderSize = settings.size + (bWidth * 2)
-            self.circleFrame.borderTexture:SetSize(borderSize, borderSize)
-            
-            self.circleFrame.borderTexture:ClearAllPoints()
-            self.circleFrame.borderTexture:SetPoint("CENTER", self.circleFrame, "CENTER", 0, 0)
-        else
+        
+        if settings.shape == "Crosshair" then
+            self.circleFrame.texture:Hide()
             self.circleFrame.borderTexture:Hide()
-        end
-
-        if settings.shape == "Square" then
-            self.circleFrame.texture:SetTexture("Interface\\Buttons\\WHITE8x8")
-            self.circleFrame.borderTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
+            
+            self.circleFrame.crosshairH:Show()
+            self.circleFrame.crosshairV:Show()
+            
+            self.circleFrame.crosshairH:SetVertexColor(r, g, b)
+            self.circleFrame.crosshairV:SetVertexColor(r, g, b)
+            
+            local thickness = settings.crosshairThickness or 2
+            
+            self.circleFrame.crosshairH:SetSize(settings.size, thickness)
+            self.circleFrame.crosshairV:SetSize(thickness, settings.size)
+            
+            self.circleFrame.crosshairH:ClearAllPoints()
+            self.circleFrame.crosshairH:SetPoint("CENTER", self.circleFrame, "CENTER")
+            self.circleFrame.crosshairV:ClearAllPoints()
+            self.circleFrame.crosshairV:SetPoint("CENTER", self.circleFrame, "CENTER")
+            
         else
-            local circleTex = "Interface\\AddOns\\ACT\\media\\textures\\Aura72"
-            self.circleFrame.texture:SetTexture(circleTex)
-            self.circleFrame.borderTexture:SetTexture(circleTex)
-        end
+            self.circleFrame.crosshairH:Hide()
+            self.circleFrame.crosshairV:Hide()
+            
+            self.circleFrame.texture:Show()
+            self.circleFrame.texture:SetVertexColor(r, g, b)
+            self.circleFrame:SetBackdrop(nil)
 
+            if settings.border then
+                self.circleFrame.borderTexture:Show()
+                
+                local br, bg, bb, ba = unpack(settings.borderColor or defaults.borderColor)
+                local bWidth = settings.borderWidth or 2
+                
+                self.circleFrame.borderTexture:SetVertexColor(br, bg, bb, ba)
+                
+                local borderSize = settings.size + (bWidth * 2)
+                self.circleFrame.borderTexture:SetSize(borderSize, borderSize)
+                
+                self.circleFrame.borderTexture:ClearAllPoints()
+                self.circleFrame.borderTexture:SetPoint("CENTER", self.circleFrame, "CENTER", 0, 0)
+            else
+                self.circleFrame.borderTexture:Hide()
+            end
+
+            if settings.shape == "Square" then
+                self.circleFrame.texture:SetTexture("Interface\\Buttons\\WHITE8x8")
+                self.circleFrame.borderTexture:SetTexture("Interface\\Buttons\\WHITE8x8")
+            else
+                local circleTex = "Interface\\AddOns\\ACT\\media\\textures\\Aura72"
+                self.circleFrame.texture:SetTexture(circleTex)
+                self.circleFrame.borderTexture:SetTexture(circleTex)
+            end
+        end
     else
         self.circleFrame:Hide()
     end
@@ -350,10 +382,18 @@ function CircleModule:CreateConfigPanel(parent)
     squareLabel:SetPoint("LEFT", squareCheck, "RIGHT", 5, 0)
     squareLabel:SetText("Square")
 
+    local crosshairCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
+    crosshairCheck:SetPoint("LEFT", squareLabel, "RIGHT", 20, 0)
+    crosshairCheck:SetSize(20, 20)
+    local crosshairLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    crosshairLabel:SetPoint("LEFT", crosshairCheck, "RIGHT", 5, 0)
+    crosshairLabel:SetText("Crosshair")
+
     local function UpdateShapeChecks()
         local s = ACT.db.profile.circle.shape or defaults.shape
         circleCheck:SetChecked(s == "Circle")
         squareCheck:SetChecked(s == "Square")
+        crosshairCheck:SetChecked(s == "Crosshair")
     end
     UpdateShapeChecks()
 
@@ -364,6 +404,11 @@ function CircleModule:CreateConfigPanel(parent)
     end)
     squareCheck:SetScript("OnClick", function()
         ACT.db.profile.circle.shape = "Square"
+        UpdateShapeChecks()
+        CircleModule:ApplySettings()
+    end)
+    crosshairCheck:SetScript("OnClick", function()
+        ACT.db.profile.circle.shape = "Crosshair"
         UpdateShapeChecks()
         CircleModule:ApplySettings()
     end)
@@ -414,6 +459,37 @@ function CircleModule:CreateConfigPanel(parent)
         local val = math.floor(value)
         ACT.db.profile.circle.borderWidth = val
         if bWidthInput and not bWidthInput:HasFocus() then bWidthInput:SetText(val) end
+        CircleModule:ApplySettings()
+    end)
+
+    local chThickSlider, chThickInput
+    local currentCHThick = ACT.db.profile.circle and ACT.db.profile.circle.crosshairThickness or defaults.crosshairThickness
+
+    local chThickLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    chThickLabel:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 300, yOffset)
+    chThickLabel:SetText("Crosshair Thickness")
+
+    chThickInput = CreateNumBox(configPanel, 50, 20, currentCHThick, function(val)
+        if val < 1 then val = 1 end
+        if val > 5 then val = 5 end
+        ACT.db.profile.circle.crosshairThickness = val
+        chThickInput:SetText(val)
+        if chThickSlider then chThickSlider:SetValue(val) end
+        CircleModule:ApplySettings()
+    end)
+    chThickInput:SetPoint("LEFT", chThickLabel, "RIGHT", 10, 0)
+
+    chThickSlider = CreateFrame("Slider", nil, configPanel, "OptionsSliderTemplate")
+    chThickSlider:SetPoint("TOPLEFT", chThickLabel, "BOTTOMLEFT", 0, -10)
+    chThickSlider:SetMinMaxValues(1, 5)
+    chThickSlider:SetValue(currentCHThick)
+    chThickSlider:SetValueStep(1)
+    chThickSlider:SetObeyStepOnDrag(true)
+    chThickSlider:SetWidth(200)
+    chThickSlider:SetScript("OnValueChanged", function(self, value)
+        local val = math.floor(value)
+        ACT.db.profile.circle.crosshairThickness = val
+        if chThickInput and not chThickInput:HasFocus() then chThickInput:SetText(val) end
         CircleModule:ApplySettings()
     end)
 
