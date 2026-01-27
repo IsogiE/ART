@@ -130,6 +130,10 @@ function MacrosModule:bindKeybind(keyCombo, macroName)
             MacrosModule:UpdateMarkTargetMacro()
         elseif macroName == "MACRO ACT FocusTarget" then
             MacrosModule:UpdateFocusTargetMacro()
+        elseif macroName == "MACRO ACT Innervate" then
+            MacrosModule:UpdateInnervateMacro()
+        elseif macroName == "MACRO ACT PowerInfusion" then
+            MacrosModule:UpdatePowerInfusionMacro()
         end
 
         return true
@@ -138,7 +142,7 @@ function MacrosModule:bindKeybind(keyCombo, macroName)
     end
 end
 
-function MacrosModule:clearKeybinding(self, _, macroName)
+function MacrosModule:clearKeybinding(btn, _, macroName)
     local currentBinding = MacrosModule:getMacroKeybind(macroName)
     if currentBinding ~= "Unbound" then
         SetBinding(currentBinding, nil)
@@ -146,10 +150,9 @@ function MacrosModule:clearKeybinding(self, _, macroName)
     end
 
     MacrosModule:UpdateAllKeyBindsUI()
-
 end
 
-function MacrosModule:registerKeybinding(self, macroName, keybindName)
+function MacrosModule:registerKeybinding(btn, macroName, keybindName)
     if listening then
         return
     end
@@ -230,7 +233,7 @@ function MacrosModule:registerKeybinding(self, macroName, keybindName)
         keybindPopup:Hide()
     end)
 
-    keybindPopup.buttonToUpdate = self
+    keybindPopup.buttonToUpdate = btn
     keybindPopup.macroName = macroName
 
     keybindPopup:ClearAllPoints()
@@ -272,9 +275,7 @@ function MacrosModule:UpdateMacro(macroName, icon, macroText)
 end
 
 function MacrosModule:UpdateFocusMarkerMacro()
-    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then
-        return
-    end
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
     local settings = ACT.db.profile.macros.focusMarker
 
     local target = "[@target]"
@@ -282,16 +283,13 @@ function MacrosModule:UpdateFocusMarkerMacro()
         target = "[@mouseover,exists,nodead][]"
     end
 
-    local macroText =
-            "/focus " .. target .. "\n/tm [@focus] " .. settings.marker
-        local icon = 136062
-        MacrosModule:UpdateMacro("ACT FocusMark", icon, macroText)
-    end
+    local macroText = "/focus " .. target .. "\n/tm [@focus] " .. settings.marker
+    local icon = 136062
+    MacrosModule:UpdateMacro("ACT FocusMark", icon, macroText)
+end
 
 function MacrosModule:UpdateWorldMarkerMacro()
-    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then
-        return
-    end
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
     local settings = ACT.db.profile.macros.worldMarker
 
     local cursorTarget = ""
@@ -305,9 +303,7 @@ function MacrosModule:UpdateWorldMarkerMacro()
 end
 
 function MacrosModule:UpdateMarkTargetMacro()
-    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then
-        return
-    end
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
     local settings = ACT.db.profile.macros.markTarget
 
     local target = "[@target] "
@@ -321,9 +317,7 @@ function MacrosModule:UpdateMarkTargetMacro()
 end
 
 function MacrosModule:UpdateFocusTargetMacro()
-    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then
-        return
-    end
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
     local settings = ACT.db.profile.macros.focusTarget
 
     local target = "[@target]"
@@ -334,6 +328,44 @@ function MacrosModule:UpdateFocusTargetMacro()
     local macroText = "/focus " .. target
     local icon = 136062
     MacrosModule:UpdateMacro("ACT FocusTarget", icon, macroText)
+end
+
+function MacrosModule:UpdateInnervateMacro()
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
+    local settings = ACT.db.profile.macros.innervate
+
+    local target = ""
+    if settings.useMouseover then
+        target = "[@mouseover,help,nodead][]"
+    elseif settings.targetName and settings.targetName ~= "" then
+        target = "[@" .. settings.targetName .. "]"
+    end
+
+    local macroText = "#showtooltip Innervate\n/cast " .. target .. " Innervate"
+    MacrosModule:UpdateMacro("ACT Innervate", 136048, macroText)
+end
+
+function MacrosModule:UpdatePowerInfusionMacro()
+    if not ACT or not ACT.db or not ACT.db.profile or not ACT.db.profile.macros then return end
+    local settings = ACT.db.profile.macros.powerInfusion
+
+    local target = ""
+    if settings.useMouseover then
+        target = "[@mouseover,help,nodead][]"
+    elseif settings.targetName and settings.targetName ~= "" then
+        target = "[@" .. settings.targetName .. "]"
+    end
+
+    local macroText = "#showtooltip Power Infusion\n"
+    if settings.useTrinket1 then
+        macroText = macroText .. "/use 13\n"
+    end
+    if settings.useTrinket2 then
+        macroText = macroText .. "/use 14\n"
+    end
+    macroText = macroText .. "/cast " .. target .. " Power Infusion"
+    
+    MacrosModule:UpdateMacro("ACT PowerInfusion", 135939, macroText)
 end
 
 function MacrosModule:GetConfigSize()
@@ -368,6 +400,12 @@ function MacrosModule:UpdateAllKeyBindsUI()
     end
     if self.configPanel.focusTargetKeybind then
         self.configPanel.focusTargetKeybind.text:SetText(MacrosModule:getMacroKeybind("MACRO ACT FocusTarget"))
+    end
+    if self.configPanel.innervateKeybind then
+        self.configPanel.innervateKeybind.text:SetText(MacrosModule:getMacroKeybind("MACRO ACT Innervate"))
+    end
+    if self.configPanel.powerInfusionKeybind then
+        self.configPanel.powerInfusionKeybind.text:SetText(MacrosModule:getMacroKeybind("MACRO ACT PowerInfusion"))
     end
 end
 
@@ -414,7 +452,6 @@ function MacrosModule:CreateConfigPanel(parent)
     title:SetPoint("TOPLEFT", configPanel, "TOPLEFT", 20, 16)
     title:SetText("Macros")
 
-    -- Set Focus + Target Marker Macro (TOP LEFT)
     local focusMacroLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     focusMacroLabel:SetPoint("TOPLEFT", 20, -50)
     focusMacroLabel:SetText("Set Focus + Target Marker")
@@ -424,8 +461,7 @@ function MacrosModule:CreateConfigPanel(parent)
     self.configPanel.focusMarkerOptions = get_target_marker_options(self.configPanel.focusMacroDropdown)
     UI:SetDropdownOptions(self.configPanel.focusMacroDropdown, self.configPanel.focusMarkerOptions)
 
-    local focusMouseoverCheck = CreateFrame("CheckButton", "ACTFocusMarkerMouseoverCheck", configPanel,
-        "UICheckButtonTemplate")
+    local focusMouseoverCheck = CreateFrame("CheckButton", "ACTFocusMarkerMouseoverCheck", configPanel, "UICheckButtonTemplate")
     focusMouseoverCheck:SetPoint("LEFT", self.configPanel.focusMacroDropdown, "RIGHT", 10, 0)
     ACTFocusMarkerMouseoverCheckText:SetText("Use Mouseover?")
     focusMouseoverCheck:SetChecked(ACT.db.profile.macros.focusMarker.useMouseover)
@@ -450,7 +486,6 @@ function MacrosModule:CreateConfigPanel(parent)
         end
     end)
 
-    -- Place + Clear World Marker Macro (TOP RIGHT)
     local worldMarkerLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     worldMarkerLabel:SetPoint("TOPLEFT", focusMacroLabel, "TOPLEFT", 300, 0)
     worldMarkerLabel:SetText("Place + Clear World Marker")
@@ -460,8 +495,7 @@ function MacrosModule:CreateConfigPanel(parent)
     self.configPanel.worldMarkerOptions = get_world_marker_options(self.configPanel.worldMarkerDropdown)
     UI:SetDropdownOptions(self.configPanel.worldMarkerDropdown, self.configPanel.worldMarkerOptions)
 
-    local worldCursorCheck = CreateFrame("CheckButton", "ACTWorldMarkerCursorCheck", configPanel,
-        "UICheckButtonTemplate")
+    local worldCursorCheck = CreateFrame("CheckButton", "ACTWorldMarkerCursorCheck", configPanel, "UICheckButtonTemplate")
     worldCursorCheck:SetPoint("LEFT", self.configPanel.worldMarkerDropdown, "RIGHT", 10, 0)
     ACTWorldMarkerCursorCheckText:SetText("Use Cursor?")
     worldCursorCheck:SetChecked(ACT.db.profile.macros.worldMarker.useCursor)
@@ -486,9 +520,8 @@ function MacrosModule:CreateConfigPanel(parent)
         end
     end)
 
-    -- Mark Target (BOTTOM LEFT)
     local markTargetLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    markTargetLabel:SetPoint("TOPLEFT", focusMacroLabel, "TOPLEFT", 0, -120)
+    markTargetLabel:SetPoint("TOPLEFT", focusMacroLabel, "TOPLEFT", 0, -130)
     markTargetLabel:SetText("Mark Target")
 
     self.configPanel.markTargetDropdown = UI:CreateDropdown(configPanel, 50, 20)
@@ -496,8 +529,7 @@ function MacrosModule:CreateConfigPanel(parent)
     self.configPanel.markTargetOptions = get_mark_target_options(self.configPanel.markTargetDropdown)
     UI:SetDropdownOptions(self.configPanel.markTargetDropdown, self.configPanel.markTargetOptions)
 
-    local markTargetMouseoverCheck = CreateFrame("CheckButton", "ACTMarkTargetMouseoverCheck", configPanel,
-        "UICheckButtonTemplate")
+    local markTargetMouseoverCheck = CreateFrame("CheckButton", "ACTMarkTargetMouseoverCheck", configPanel, "UICheckButtonTemplate")
     markTargetMouseoverCheck:SetPoint("LEFT", self.configPanel.markTargetDropdown, "RIGHT", 10, 0)
     ACTMarkTargetMouseoverCheckText:SetText("Use Mouseover?")
     markTargetMouseoverCheck:SetChecked(ACT.db.profile.macros.markTarget.useMouseover)
@@ -522,16 +554,12 @@ function MacrosModule:CreateConfigPanel(parent)
         end
     end)
 
-    -- Set Focus Target (BOTTOM RIGHT)
     local focusTargetLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    focusTargetLabel:SetPoint("TOPLEFT", worldMarkerLabel, "TOPLEFT", 0, -120)
+    focusTargetLabel:SetPoint("TOPLEFT", worldMarkerLabel, "TOPLEFT", 0, -130)
     focusTargetLabel:SetText("Set Focus Target")
 
-    local focusTargetMouseoverCheck = CreateFrame("CheckButton", "ACTFocusTargetMouseoverCheck", configPanel,
-        "UICheckButtonTemplate")
+    local focusTargetMouseoverCheck = CreateFrame("CheckButton", "ACTFocusTargetMouseoverCheck", configPanel, "UICheckButtonTemplate")
     focusTargetMouseoverCheck:SetPoint("TOPLEFT", focusTargetLabel, "BOTTOMLEFT", -7, -7)
-    focusTargetMouseoverCheck:SetPoint("CENTER", markTargetMouseoverCheck, "CENTER", 0)
-
     ACTFocusTargetMouseoverCheckText:SetText("Use Mouseover?")
     focusTargetMouseoverCheck:SetChecked(ACT.db.profile.macros.focusTarget.useMouseover)
     focusTargetMouseoverCheck:SetScript("OnClick", function(self)
@@ -542,7 +570,7 @@ function MacrosModule:CreateConfigPanel(parent)
     end)
 
     local focusTargetKeybindLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    focusTargetKeybindLabel:SetPoint("TOPLEFT", markTargetKeybindLabel, "TOPLEFT", 300, 0)
+    focusTargetKeybindLabel:SetPoint("TOPLEFT", focusTargetLabel, "BOTTOMLEFT", 0, -40)
     focusTargetKeybindLabel:SetText("Set Keybind:")
 
     self.configPanel.focusTargetKeybind = UI:CreateButton(configPanel, "Loading...", 120, 20)
@@ -555,43 +583,111 @@ function MacrosModule:CreateConfigPanel(parent)
         end
     end)
 
+    local innervateLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    innervateLabel:SetPoint("TOPLEFT", markTargetLabel, "TOPLEFT", 0, -130)
+    innervateLabel:SetText("Cast Innervate")
+
+    local innervateFrame, innervateBox = UI:CreateMultilineEditBox(configPanel, 120, 30, ACT.db.profile.macros.innervate.targetName, nil)
+    innervateFrame:SetPoint("TOPLEFT", innervateLabel, "BOTTOMLEFT", 0, -10)
+    
+    innervateBox:SetScript("OnTextChanged", function(self)
+        ACT.db.profile.macros.innervate.targetName = self:GetText()
+        if MacrosModule:getMacroKeybind("MACRO ACT Innervate") ~= "Unbound" then
+            MacrosModule:UpdateInnervateMacro()
+        end
+    end)
+    
+    local innervateMouseoverCheck = CreateFrame("CheckButton", "ACTInnervateMouseoverCheck", configPanel, "UICheckButtonTemplate")
+    innervateMouseoverCheck:SetPoint("LEFT", innervateFrame, "RIGHT", 10, 0)
+    ACTInnervateMouseoverCheckText:SetText("Use Mouseover?")
+    innervateMouseoverCheck:SetChecked(ACT.db.profile.macros.innervate.useMouseover)
+    innervateMouseoverCheck:SetScript("OnClick", function(self)
+        ACT.db.profile.macros.innervate.useMouseover = self:GetChecked()
+        if MacrosModule:getMacroKeybind("MACRO ACT Innervate") ~= "Unbound" then
+            MacrosModule:UpdateInnervateMacro()
+        end
+    end)
+
+    local innervateKeybindLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    innervateKeybindLabel:SetPoint("TOPLEFT", innervateFrame, "BOTTOMLEFT", 0, -10)
+    innervateKeybindLabel:SetText("Set Keybind:")
+
+    self.configPanel.innervateKeybind = UI:CreateButton(configPanel, "Loading...", 120, 20)
+    self.configPanel.innervateKeybind:SetPoint("LEFT", innervateKeybindLabel, "RIGHT", 10, 0)
+    self.configPanel.innervateKeybind:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            MacrosModule:clearKeybinding(self, nil, "MACRO ACT Innervate")
+        else
+            MacrosModule:registerKeybinding(self, "MACRO ACT Innervate", "Innervate")
+        end
+    end)
+
+    local piLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    piLabel:SetPoint("TOPLEFT", focusTargetLabel, "TOPLEFT", 0, -130)
+    piLabel:SetText("Cast Power Infusion")
+
+    local piFrame, piBox = UI:CreateMultilineEditBox(configPanel, 120, 30, ACT.db.profile.macros.powerInfusion.targetName, nil)
+    piFrame:SetPoint("TOPLEFT", piLabel, "BOTTOMLEFT", 0, -10)
+
+    piBox:SetScript("OnTextChanged", function(self)
+        ACT.db.profile.macros.powerInfusion.targetName = self:GetText()
+        if MacrosModule:getMacroKeybind("MACRO ACT PowerInfusion") ~= "Unbound" then
+            MacrosModule:UpdatePowerInfusionMacro()
+        end
+    end)
+
+    local piMouseoverCheck = CreateFrame("CheckButton", "ACTPIMouseoverCheck", configPanel, "UICheckButtonTemplate")
+    piMouseoverCheck:SetPoint("LEFT", piFrame, "RIGHT", 10, 0)
+    ACTPIMouseoverCheckText:SetText("Use Mouseover?")
+    piMouseoverCheck:SetChecked(ACT.db.profile.macros.powerInfusion.useMouseover)
+    piMouseoverCheck:SetScript("OnClick", function(self)
+        ACT.db.profile.macros.powerInfusion.useMouseover = self:GetChecked()
+        if MacrosModule:getMacroKeybind("MACRO ACT PowerInfusion") ~= "Unbound" then
+            MacrosModule:UpdatePowerInfusionMacro()
+        end
+    end)
+
+    local piTrinket1Check = CreateFrame("CheckButton", "ACTPITrinket1Check", configPanel, "UICheckButtonTemplate")
+    piTrinket1Check:SetPoint("TOPLEFT", piFrame, "BOTTOMLEFT", -7, -5)
+    ACTPITrinket1CheckText:SetText("Trinket 1")
+    piTrinket1Check:SetChecked(ACT.db.profile.macros.powerInfusion.useTrinket1)
+    piTrinket1Check:SetScript("OnClick", function(self)
+        ACT.db.profile.macros.powerInfusion.useTrinket1 = self:GetChecked()
+        if MacrosModule:getMacroKeybind("MACRO ACT PowerInfusion") ~= "Unbound" then
+            MacrosModule:UpdatePowerInfusionMacro()
+        end
+    end)
+
+    local piTrinket2Check = CreateFrame("CheckButton", "ACTPITrinket2Check", configPanel, "UICheckButtonTemplate")
+    piTrinket2Check:SetPoint("LEFT", piTrinket1Check, "RIGHT", 70, 0)
+    ACTPITrinket2CheckText:SetText("Trinket 2")
+    piTrinket2Check:SetChecked(ACT.db.profile.macros.powerInfusion.useTrinket2)
+    piTrinket2Check:SetScript("OnClick", function(self)
+        ACT.db.profile.macros.powerInfusion.useTrinket2 = self:GetChecked()
+        if MacrosModule:getMacroKeybind("MACRO ACT PowerInfusion") ~= "Unbound" then
+            MacrosModule:UpdatePowerInfusionMacro()
+        end
+    end)
+
+    local piKeybindLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    piKeybindLabel:SetPoint("TOPLEFT", piTrinket1Check, "BOTTOMLEFT", 7, -5)
+    piKeybindLabel:SetText("Set Keybind:")
+
+    self.configPanel.powerInfusionKeybind = UI:CreateButton(configPanel, "Loading...", 120, 20)
+    self.configPanel.powerInfusionKeybind:SetPoint("LEFT", piKeybindLabel, "RIGHT", 10, 0)
+    self.configPanel.powerInfusionKeybind:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            MacrosModule:clearKeybinding(self, nil, "MACRO ACT PowerInfusion")
+        else
+            MacrosModule:registerKeybinding(self, "MACRO ACT PowerInfusion", "Power Infusion")
+        end
+    end)
+
     self:UpdateAllKeyBindsUI()
     self:UpdateDropdownDefaults()
 
     return configPanel
 end
-
-local f = CreateFrame("Frame")
-f:RegisterEvent("PLAYER_LOGIN")
-
-f:SetScript("OnEvent", function(self, event, ...)
-    if event == "PLAYER_LOGIN" then
-        if not ACT.db.profile.macros.focusMarker.useMouseover then
-            ACT.db.profile.macros.focusMarker.useMouseover = false
-        end
-        if not ACT.db.profile.macros.worldMarker.useCursor then
-            ACT.db.profile.macros.worldMarker.useCursor = false
-        end
-        if not ACT.db.profile.macros.markTarget.useMouseover then
-            ACT.db.profile.macros.markTarget.useMouseover = false
-        end
-        if not ACT.db.profile.macros.focusTarget.useMouseover then
-            ACT.db.profile.macros.focusTarget.useMouseover = false
-        end
-
-        if not ACT.db.profile.macros.focusMarker.marker then
-            ACT.db.profile.macros.focusMarker.marker = 1
-        end
-        if not ACT.db.profile.macros.worldMarker.marker then
-            ACT.db.profile.macros.worldMarker.marker = 1
-        end
-        if not ACT.db.profile.macros.markTarget.marker then
-            ACT.db.profile.macros.markTarget.marker = 1
-        end
-
-        self:UnregisterEvent("PLAYER_LOGIN")
-    end
-end)
 
 if ACT and ACT.RegisterModule then
     ACT:RegisterModule(MacrosModule)
