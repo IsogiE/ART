@@ -241,10 +241,12 @@ function ACT:OnInitialize()
             useNicknameIntegration = true,
             weakauraUpdater = {},
             macros = {
-                focusMarker = { marker = 1 },
-                worldMarker = { marker = 5 },
-                markTarget = { marker = 1 },
-                focusTarget = {}
+                focusMarker = { marker = 1, useMouseover = false },
+                worldMarker = { marker = 5, useCursor = false },
+                markTarget = { marker = 1, useMouseover = false },
+                focusTarget = { useMouseover = false },
+                innervate = { targetName = "", useMouseover = false },
+                powerInfusion = { targetName = "", useMouseover = false, useTrinket1 = false, useTrinket2 = false }
             }
         }
     }, true)
