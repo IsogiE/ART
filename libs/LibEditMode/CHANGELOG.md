@@ -1,8 +1,56 @@
 # Lib: EditMode
 
-## [12](https://github.com/p3lim-wow/LibEditMode/tree/12) (2025-12-15)
-[Full Changelog](https://github.com/p3lim-wow/LibEditMode/commits/12) [Previous Releases](https://github.com/p3lim-wow/LibEditMode/releases)
+## [14](https://github.com/p3lim-wow/LibEditMode/tree/14) (2026-01-28)
+[Full Changelog](https://github.com/p3lim-wow/LibEditMode/commits/14) [Previous Releases](https://github.com/p3lim-wow/LibEditMode/releases)
 
+- Bump version  
+- Wrong place  
+- Announce and react to external resets  
+- Propagate mouse motion events on checkboxes (#78)  
+- Try to prevent old hooks and events from running  
+- Update docs  
+- More adjustments  
+- Touchups  
+- Divider adjustments and label hiding (#76)  
+    * Fix divider alignment  
+    * Add .hideLabel option to divider  
+    * Adjust divider's font  
+    All elements use GameFontHighlightMedium, GameFontHighlightLarge is only  
+    used by the header.  
+    ---------  
+    Co-authored-by: Adrian L Lange <p3lim@users.noreply.github.com>  
+- Add widget state refreshing and expander widget (#74)  
+    * Add widget state refreshing  
+    * Lint  
+    * Styling  
+    * Styling  
+    * Add expander widget  
+    * Fix alignment  
+- Update Interface version (#72)  
+    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
+- Bump version  
+- Remove mainline requirement on TOC  
+- Apparently TBC has Edit Mode  
+- :lipstick:  
+- Provide example for callbacks  
+- :lipstick:  
+- Adjust docs with links for system enums  
+- Fix post-rename update  
+- Provide the source layout name when copying  
+    Fixes #67  
+- Rework callback triggers  
+    There were some issues with the previous logic, this should fix all of  
+    those and document how they all work (kinda)  
+- Adjust docs for subSystemID  
+- Add support for subsystems (#71)  
+    * Add support for subsystems  
+    * Add missing args  
+    * Update docs  
+- Reset dialog when closing  
+    Fixes #68  
+- Check if dialog exists (#70)  
+- Update license (#69)  
+    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
 - Bump version  
 - Bump peter-evans/create-pull-request from 7 to 8 (#64)  
     Bumps [peter-evans/create-pull-request](https://github.com/peter-evans/create-pull-request) from 7 to 8.  
@@ -148,90 +196,3 @@
 - Update dialog on all movement  
 - Lint  
 - Add per pixel adjustment via arrow keys (#33)  
-- Consider any floating point issues  
-- Disable reset position button if we're at default position  
-- Bump version  
-- Update Interface version (#31)  
-    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
-- Need to check for nil on booleans  
-    Fixes #32  
-- Add a standalone test case  
-- Bump actions/checkout from 4 to 5 (#28)  
-    Bumps [actions/checkout](https://github.com/actions/checkout) from 4 to 5.  
-    - [Release notes](https://github.com/actions/checkout/releases)  
-    - [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)  
-    - [Commits](https://github.com/actions/checkout/compare/v4...v5)  
-    ---  
-    updated-dependencies:  
-    - dependency-name: actions/checkout  
-      dependency-version: '5'  
-      dependency-type: direct:production  
-      update-type: version-update:semver-major  
-    ...  
-    Signed-off-by: dependabot[bot] <support@github.com>  
-    Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>  
-- Update Interface version (#27)  
-    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
-- Update Interface version (#26)  
-    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
-- Use GitHub for sponsorship  
-- Bump minor  
-- Update Interface version (#25)  
-    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
-- Lint  
-- Add fix for 11.2  
-- Fix release job  
-- Fix artifacts  
-- Update license (#24)  
-    Co-authored-by: p3lim <26496+p3lim@users.noreply.github.com>  
-- Use beta/PTR versions  
-- Bump p3lim/toc-interface-updater from 3 to 4 (#22)  
-    Bumps [p3lim/toc-interface-updater](https://github.com/p3lim/toc-interface-updater) from 3 to 4.  
-    - [Release notes](https://github.com/p3lim/toc-interface-updater/releases)  
-    - [Commits](https://github.com/p3lim/toc-interface-updater/compare/v3...v4)  
-    ---  
-    updated-dependencies:  
-    - dependency-name: p3lim/toc-interface-updater  
-      dependency-type: direct:production  
-      update-type: version-update:semver-major  
-    ...  
-    Signed-off-by: dependabot[bot] <support@github.com>  
-    Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>  
-- Bump peter-evans/create-pull-request from 6 to 7 (#23)  
-    Bumps [peter-evans/create-pull-request](https://github.com/peter-evans/create-pull-request) from 6 to 7.  
-    - [Release notes](https://github.com/peter-evans/create-pull-request/releases)  
-    - [Commits](https://github.com/peter-evans/create-pull-request/compare/v6...v7)  
-    ---  
-    updated-dependencies:  
-    - dependency-name: peter-evans/create-pull-request  
-      dependency-type: direct:production  
-      update-type: version-update:semver-major  
-    ...  
-    Signed-off-by: dependabot[bot] <support@github.com>  
-    Co-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>  
-- Bump minor  
-- Use multi-valued interface version  
-- Bump peter-evans/create-pull-request from 5 to 6  
-    Bumps [peter-evans/create-pull-request](https://github.com/peter-evans/create-pull-request) from 5 to 6.  
-    - [Release notes](https://github.com/peter-evans/create-pull-request/releases)  
-    - [Commits](https://github.com/peter-evans/create-pull-request/compare/v5...v6)  
-    ---  
-    updated-dependencies:  
-    - dependency-name: peter-evans/create-pull-request  
-      dependency-type: direct:production  
-      update-type: version-update:semver-major  
-    ...  
-    Signed-off-by: dependabot[bot] <support@github.com>  
-- Bump actions/upload-artifact from 3 to 4  
-    Bumps [actions/upload-artifact](https://github.com/actions/upload-artifact) from 3 to 4.  
-    - [Release notes](https://github.com/actions/upload-artifact/releases)  
-    - [Commits](https://github.com/actions/upload-artifact/compare/v3...v4)  
-    ---  
-    updated-dependencies:  
-    - dependency-name: actions/upload-artifact  
-      dependency-type: direct:production  
-      update-type: version-update:semver-major  
-    ...  
-    Signed-off-by: dependabot[bot] <support@github.com>  
-- Bump Interface version  
-- Remove old embeds and references  

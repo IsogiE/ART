@@ -1,4 +1,4 @@
-local MINOR = 12
+local MINOR = 14
 local lib, minor = LibStub('LibEditMode')
 if minor > MINOR then
 	return
@@ -26,18 +26,31 @@ function dialogMixin:Update(selection)
 	self:Layout()
 end
 
+function dialogMixin:RefreshWidgets()
+	for _, widget in next, self.Settings.widgets do
+		if widget.Refresh then
+			widget:Refresh()
+		end
+	end
+
+	self:Layout()
+end
+
 function dialogMixin:UpdateSettings()
 	internal.ReleaseAllPools()
+
+	self.Settings.widgets = table.wipe(self.Settings.widgets or {})
 
 	local settings, num = internal:GetFrameSettings(self.selection.parent)
 	if num > 0 then
 		for index, data in next, settings do
 			local pool = internal:GetPool(data.kind)
 			if pool then
-				local setting = pool:Acquire(self.Settings)
-				setting.layoutIndex = index
-				setting:Setup(data)
-				setting:Show()
+				local widget = pool:Acquire(self.Settings)
+				widget.layoutIndex = index
+				widget:Setup(data)
+
+				table.insert(self.Settings.widgets, widget)
 			end
 		end
 	end
@@ -181,6 +194,9 @@ function internal:CreateDialog()
 	local dialogClose = CreateFrame('Button', nil, dialog, 'UIPanelCloseButton')
 	dialogClose:SetPoint('TOPRIGHT')
 	dialogClose.ignoreInLayout = true
+	dialogClose:HookScript('OnClick', function()
+		dialog:Reset()
+	end)
 	dialog.Close = dialogClose
 
 	local dialogSettings = CreateFrame('Frame', nil, dialog, 'VerticalLayoutFrame')
