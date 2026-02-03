@@ -19,10 +19,16 @@ frame.text:SetPoint("CENTER")
 frame.text:SetText("0:00")
 
 local function UpdateTimer(self, elapsed)
-    local duration = GetTime() - self.startTime
-    local m = math.floor(duration / 60)
-    local s = math.floor(duration % 60)
-    self.text:SetText(string.format("%d:%02d", m, s))
+    self.timer = (self.timer or 0) + elapsed
+
+    if self.timer >= 0.2 then 
+        local duration = GetTime() - self.startTime
+        local m = math.floor(duration / 60)
+        local s = math.floor(duration % 60)
+        self.text:SetText(string.format("%d:%02d", m, s))
+        
+        self.timer = 0
+    end
 end
 
 local function UpdateVisuals()
@@ -33,6 +39,7 @@ local function UpdateVisuals()
     local fontFace = db.fontFace or "Friz Quadrata TT"
     local fontSize = db.fontSize or 20
     local fontOutline = db.fontOutline or "OUTLINE"
+    local fontJustify = db.fontJustify or "CENTER"
 
     if LSM then
         fontPath = LSM:Fetch("font", fontFace)
@@ -43,6 +50,18 @@ local function UpdateVisuals()
     end
 
     frame.text:SetFont(fontPath, fontSize, fontOutline)
+    
+    frame.text:ClearAllPoints()
+    if fontJustify == "LEFT" then
+        frame.text:SetPoint("LEFT", frame, "LEFT", 2, 0)
+        frame.text:SetJustifyH("LEFT")
+    elseif fontJustify == "RIGHT" then
+        frame.text:SetPoint("RIGHT", frame, "RIGHT", -2, 0)
+        frame.text:SetJustifyH("RIGHT")
+    else
+        frame.text:SetPoint("CENTER", frame, "CENTER", 0, 0)
+        frame.text:SetJustifyH("CENTER")
+    end
 end
 
 local function OnEvent(self, event)
@@ -80,6 +99,7 @@ function CombatTimer:UpdateState()
     if not db.fontSize then db.fontSize = 20 end
     if not db.fontFace then db.fontFace = "Friz Quadrata TT" end
     if not db.fontOutline then db.fontOutline = "OUTLINE" end
+    if not db.fontJustify then db.fontJustify = "CENTER" end
 
     UpdateVisuals()
 
@@ -163,6 +183,20 @@ function CombatTimer:UpdateState()
                         get = function() return ACT.db.profile.combat_timer.fontOutline end,
                         set = function(_, value)
                            ACT.db.profile.combat_timer.fontOutline = value
+                           UpdateVisuals()
+                        end
+                    },
+                    {
+                        kind = LEM.SettingType.Dropdown,
+                        name = "Text Justification",
+                        values = {
+                            {text = "Left", value = "LEFT"},
+                            {text = "Center", value = "CENTER"},
+                            {text = "Right", value = "RIGHT"},
+                        },
+                        get = function() return ACT.db.profile.combat_timer.fontJustify end,
+                        set = function(_, value)
+                           ACT.db.profile.combat_timer.fontJustify = value
                            UpdateVisuals()
                         end
                     }
