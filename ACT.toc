@@ -38,6 +38,7 @@ Nicknames\LiquidAPI.lua
 Tools\BCM.lua
 Tools\Whisper.lua
 Tools\AuraCDM.lua
+Tools\Combat.lua
 
 RaidGroups.lua
 Macros.lua
