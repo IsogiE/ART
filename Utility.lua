@@ -5,27 +5,20 @@ NicknameModule.isInitialized = false
 
 local addonName = ...
 
-if not ACT then
-    return
-end
+if not ACT then return end
 
 ACT.Nicknames = NicknameModule
 
-local db
-local integrations_db
-local bcm_db
-local whisper_db
-local cdm_db
-
+local initializedNicknames = {}
+local nicknameToCharacterCache = {}
+local addOnNameToCheckButton = {}
 local InitializeIntegrations
 
 StaticPopupDialogs["ACT_UTILITY_RELOAD"] = {
     text = "Changing this setting requires a UI Reload to take full effect.\nDo you want to reload now?",
     button1 = YES,
     button2 = NO,
-    OnAccept = function()
-        ReloadUI()
-    end,
+    OnAccept = function() ReloadUI() end,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
@@ -34,91 +27,53 @@ StaticPopupDialogs["ACT_UTILITY_RELOAD"] = {
 
 local function RealmIncludedName(unit)
     local name, realm = UnitNameUnmodified(unit)
-    
-    if (name and issecretvalue(name)) or (realm and issecretvalue(realm)) then
-        return nil
-    end
-
-    if not realm or realm == "" then
-        realm = GetRealmName()
-    end
-    if not realm then
-        return
-    end
+    if (name and issecretvalue(name)) or (realm and issecretvalue(realm)) then return nil end
+    if not realm or realm == "" then realm = GetRealmName() end
+    if not realm then return end
     return string.format("%s-%s", name, realm)
 end
 
 local function InitializeDatabase()
-    if not ACT.db or not ACT.db.profile then
-        return
-    end
+    if not ACT.db or not ACT.db.profile then return end
 
-    if not ACT.db.profile.nicknames then
-        ACT.db.profile.nicknames = {}
+    local profile = ACT.db.profile
+    profile.nicknames = profile.nicknames or {}
+    profile.nickname_integrations = profile.nickname_integrations or {}
+    
+    if not profile.bcm_settings then
+        profile.bcm_settings = { essential_centering = false, utility_centering = false }
     end
-    if not ACT.db.profile.nickname_integrations then
-        ACT.db.profile.nickname_integrations = {}
-    end
-    if not ACT.db.profile.bcm_settings then
-        ACT.db.profile.bcm_settings = {
-            essential_centering = false,
-            utility_centering = false
-        }
-    end
-    if ACT.db.profile.bcm_settings.utility_centering == nil then
-        ACT.db.profile.bcm_settings.utility_centering = false
-    end
+    if profile.bcm_settings.utility_centering == nil then profile.bcm_settings.utility_centering = false end
 
-    if not ACT.db.profile.whisper_settings then
-        ACT.db.profile.whisper_settings = {
-            enabled = false
-        }
-    end
+    if not profile.whisper_settings then profile.whisper_settings = { enabled = false } end
+    if not profile.cdm_settings then profile.cdm_settings = { global_ignore_aura_override = false } end
+    if not profile.combat_timer then profile.combat_timer = { enabled = false } end
 
-    if not ACT.db.profile.cdm_settings then
-        ACT.db.profile.cdm_settings = {
-            global_ignore_aura_override = false
-        }
-    end
-
-    if ACT.db.profile.nickname == nil then
-        ACT.db.profile.nickname = nil
-    end
-
-    db = ACT.db.profile.nicknames
-    integrations_db = ACT.db.profile.nickname_integrations
-    bcm_db = ACT.db.profile.bcm_settings
-    whisper_db = ACT.db.profile.whisper_settings
-    cdm_db = ACT.db.profile.cdm_settings
-
+    local db = profile.nicknames
     local playerRealmName = RealmIncludedName("player")
-    local currentPlayerNickname = ACT.db.profile.nickname
+    local currentPlayerNickname = profile.nickname
 
     if playerRealmName and currentPlayerNickname then
         db[playerRealmName] = currentPlayerNickname
     end
 
-    ACT_CharacterDB = {
-        nicknames = db
-    }
-    ACT_AccountDB = {
-        nickname_integrations = integrations_db
-    }
+    ACT_CharacterDB = { nicknames = db }
+    ACT_AccountDB = { nickname_integrations = profile.nickname_integrations }
     NicknameModule.isInitialized = true
 
     InitializeIntegrations()
 
-    if ACT.BCM and ACT.BCM.UpdateState then
-        ACT.BCM:UpdateState()
-    end
+    if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
+    if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then ACT.WhisperNotify:UpdateState() end
     
     if ACT.AuraOverride then
-        if ACT.AuraOverride.Initialize then
-            ACT.AuraOverride:Initialize()
-        end
-        if ACT.AuraOverride.UpdateState then
-            ACT.AuraOverride:UpdateState()
-        end
+        if ACT.AuraOverride.Initialize then ACT.AuraOverride:Initialize() end
+        if ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
+    end
+
+    if ACT.CombatTimer then
+        if ACT.CombatTimer.Initialize then ACT.CombatTimer:Initialize() end
+        if ACT.CombatTimer.UpdateState then ACT.CombatTimer:UpdateState() end
     end
 end
 
@@ -129,23 +84,16 @@ else
     initFrame:RegisterEvent("PLAYER_LOGIN")
     initFrame:SetScript("OnEvent", function(self, event)
         if event == "PLAYER_LOGIN" then
-            if ACT.db and ACT.db.profile then
-                InitializeDatabase()
-            end
+            if ACT.db and ACT.db.profile then InitializeDatabase() end
             self:UnregisterEvent("PLAYER_LOGIN")
         end
     end)
 end
 
 NicknameModule.nicknameFunctions = {}
-local initializedNicknames = {}
-local nicknameToCharacterCache = {}
-local addOnNameToCheckButton = {}
 
 function InitializeIntegrations()
-    if not NicknameModule.isInitialized then
-        return
-    end
+    if not NicknameModule.isInitialized then return end
     for addOnName, functions in pairs(NicknameModule.nicknameFunctions) do
         if (addOnName == "Blizzard" or C_AddOns.IsAddOnLoaded(addOnName)) and not initializedNicknames[addOnName] then
             if functions.Init then
@@ -170,36 +118,22 @@ function NicknameModule:UpdateCheckButtons()
 end
 
 function NicknameModule:UpdateNicknameForUnit(unit, nickname)
-    if not NicknameModule.isInitialized or not db then
-        return
-    end
+    if not NicknameModule.isInitialized or not ACT.db.profile.nicknames then return end
+    local db = ACT.db.profile.nicknames
     local realmIncludedName = RealmIncludedName(unit)
-    if not realmIncludedName then
-        return
-    end
+    if not realmIncludedName then return end
 
     nickname = nickname and strtrim(nickname)
-    if nickname == "" then
-        nickname = nil
-    end
+    if nickname == "" then nickname = nil end
 
     local oldNickname = db[realmIncludedName]
+    if oldNickname == nickname then return end
 
-    if oldNickname == nickname then
-        return
-    end
-
-    if unit == "player" then
-        ACT.db.profile.nickname = nickname
-    end
+    if unit == "player" then ACT.db.profile.nickname = nickname end
     db[realmIncludedName] = nickname
 
-    if oldNickname then
-        nicknameToCharacterCache[oldNickname] = nil
-    end
-    if nickname then
-        nicknameToCharacterCache[nickname] = unit
-    end
+    if oldNickname then nicknameToCharacterCache[oldNickname] = nil end
+    if nickname then nicknameToCharacterCache[nickname] = unit end
 
     for _, functions in pairs(self.nicknameFunctions) do
         if functions.Update then
@@ -208,42 +142,22 @@ function NicknameModule:UpdateNicknameForUnit(unit, nickname)
     end
 end
 
--- Stuff for integrations to use 
 function ACT:HasNickname(unit)
-    if not NicknameModule.isInitialized or not db then
-        return false
-    end
-    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then
-        return false
-    end
+    if not NicknameModule.isInitialized or not ACT.db.profile.nicknames then return false end
+    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then return false end
     local realmIncludedName = RealmIncludedName(unit)
-    if not realmIncludedName then
-        return false
-    end
-    return db[realmIncludedName] ~= nil
+    return realmIncludedName and ACT.db.profile.nicknames[realmIncludedName] ~= nil
 end
 
 function ACT:GetNickname(unit)
-    if not NicknameModule.isInitialized or not db then
-        return UnitNameUnmodified(unit)
-    end
-    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then
-        return UnitNameUnmodified(unit)
-    end
-    local realmIncludedName = RealmIncludedName(unit)
-    local nickname = db[realmIncludedName]
-    return nickname or UnitNameUnmodified(unit)
+    return ACT:GetRawNickname(unit)
 end
 
 function ACT:GetRawNickname(unit)
-    if not NicknameModule.isInitialized or not db then
-        return UnitNameUnmodified(unit)
-    end
-    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then
-        return UnitNameUnmodified(unit)
-    end
+    if not NicknameModule.isInitialized or not ACT.db.profile.nicknames then return UnitNameUnmodified(unit) end
+    if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then return UnitNameUnmodified(unit) end
     local realmIncludedName = RealmIncludedName(unit)
-    return db[realmIncludedName] or UnitNameUnmodified(unit)
+    return (realmIncludedName and ACT.db.profile.nicknames[realmIncludedName]) or UnitNameUnmodified(unit)
 end
 
 function ACT:GetCharacterInGroup(nickname)
@@ -260,7 +174,6 @@ function ACT:GetCharacterInGroup(nickname)
     return character
 end
 
--- Init for now
 local integrationInitFrame = CreateFrame("Frame")
 integrationInitFrame:RegisterEvent("ADDON_LOADED")
 integrationInitFrame:SetScript("OnEvent", function(_, event, loadedAddon)
@@ -269,9 +182,24 @@ integrationInitFrame:SetScript("OnEvent", function(_, event, loadedAddon)
     end
 end)
 
--- UI Stuff
-function NicknameModule:GetConfigSize()
-    return 800, 600
+function NicknameModule:GetConfigSize() return 800, 600 end
+
+local function CreateCheckButton(parent, label, onClick)
+    local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    check:SetSize(22, 22)
+    check.Text = check:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    check.Text:SetText(label)
+    check.Text:SetPoint("LEFT", check, "RIGHT", 5, 0)
+    check:SetScript("OnClick", function(self)
+        local checked = self:GetChecked()
+        if checked then
+            self.Text:SetTextColor(1, 0.82, 0)
+        else
+            self.Text:SetTextColor(0.5, 0.5, 0.5)
+        end
+        if onClick then onClick(checked) end
+    end)
+    return check
 end
 
 function NicknameModule:CreateConfigPanel(parent)
@@ -280,9 +208,7 @@ function NicknameModule:CreateConfigPanel(parent)
         self.configPanel:ClearAllPoints()
         self.configPanel:SetAllPoints(parent)
         self.configPanel:Show()
-        if self.configPanel.OnShow then
-            self.configPanel:OnShow()
-        end
+        if self.configPanel.OnShow then self.configPanel:OnShow() end
         return self.configPanel
     end
 
@@ -319,53 +245,21 @@ function NicknameModule:CreateConfigPanel(parent)
     integrationsLabel:SetPoint("TOPLEFT", nicknameEditBoxFrame, "BOTTOMLEFT", 0, -25)
     integrationsLabel:SetText("Enable Integrations")
 
-    local integrations = {{
-        key = "Blizzard",
-        name = "Blizzard Raid Frames"
-    }, {
-        key = "Cell",
-        name = "Cell"
-    }, {
-        key = "ElvUI",
-        name = "ElvUI"
-    }, {
-        key = "Grid2",
-        name = "Grid2"
-    }, {
-        key = "UnhaltedUnitFrames",
-        name = "Unhalted Unit Frames"
-    }, {
-        key = "VuhDo",
-        name = "VuhDo"
-    }}
+    local integrations = {
+        { key = "Blizzard", name = "Blizzard Raid Frames" },
+        { key = "Cell", name = "Cell" },
+        { key = "ElvUI", name = "ElvUI" },
+        { key = "Grid2", name = "Grid2" },
+        { key = "UnhaltedUnitFrames", name = "Unhalted Unit Frames" },
+        { key = "VuhDo", name = "VuhDo" }
+    }
 
     wipe(addOnNameToCheckButton) 
-
     local lastCheckButton
     for i, data in ipairs(integrations) do
-        local checkButton = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-        checkButton:SetSize(22, 22)
-
-        if not lastCheckButton then
-            checkButton:SetPoint("TOPLEFT", integrationsLabel, "BOTTOMLEFT", 0, -10)
-        else
-            checkButton:SetPoint("TOPLEFT", lastCheckButton, "BOTTOMLEFT", 0, -5)
-        end
-        lastCheckButton = checkButton
-
-        local text = checkButton:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        text:SetText(data.name)
-        text:SetPoint("LEFT", checkButton, "RIGHT", 5, 0)
-        checkButton.Text = text
-
-        addOnNameToCheckButton[data.key] = checkButton
-
-        checkButton:SetScript("OnClick", function(self)
-            if not NicknameModule.isInitialized or not integrations_db then
-                return
-            end
-            local checked = self:GetChecked()
-            integrations_db[data.key] = checked
+        local checkButton = CreateCheckButton(configPanel, data.name, function(checked)
+            if not NicknameModule.isInitialized or not ACT.db.profile.nickname_integrations then return end
+            ACT.db.profile.nickname_integrations[data.key] = checked
             if checked then
                 if NicknameModule.nicknameFunctions[data.key] and NicknameModule.nicknameFunctions[data.key].Enable then
                     NicknameModule.nicknameFunctions[data.key].Enable()
@@ -376,12 +270,19 @@ function NicknameModule:CreateConfigPanel(parent)
                 end
             end
         end)
+
+        if not lastCheckButton then
+            checkButton:SetPoint("TOPLEFT", integrationsLabel, "BOTTOMLEFT", 0, -10)
+        else
+            checkButton:SetPoint("TOPLEFT", lastCheckButton, "BOTTOMLEFT", 0, -5)
+        end
+        lastCheckButton = checkButton
+        addOnNameToCheckButton[data.key] = checkButton
     end
     
     local divider = configPanel:CreateTexture(nil, "ARTWORK")
     divider:SetColorTexture(1, 1, 1, 0.2)
     divider:SetHeight(1)
-    
     divider:SetPoint("TOP", lastCheckButton, "BOTTOM", 0, -20)
     divider:SetPoint("LEFT", configPanel, "LEFT", 20, 0)
     divider:SetPoint("RIGHT", configPanel, "RIGHT", -255, 0)
@@ -390,154 +291,77 @@ function NicknameModule:CreateConfigPanel(parent)
     utilityLabel:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -20)
     utilityLabel:SetText("Utility Settings")
 
-    local bcmCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-    bcmCheck:SetSize(22, 22)
+    local bcmCheck = CreateCheckButton(configPanel, "Essential Cooldown Bar Centering", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.bcm_settings then return end
+        ACT.db.profile.bcm_settings.essential_centering = checked
+        if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
+        StaticPopup_Show("ACT_UTILITY_RELOAD")
+    end)
     bcmCheck:SetPoint("TOPLEFT", utilityLabel, "BOTTOMLEFT", 0, -10)
-    
-    bcmCheck.Text = bcmCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    bcmCheck.Text:SetText("Essential Cooldown Bar Centering")
-    bcmCheck.Text:SetPoint("LEFT", bcmCheck, "RIGHT", 5, 0)
-    
-    bcmCheck:SetScript("OnClick", function(self)
-        if not NicknameModule.isInitialized or not bcm_db then return end
-        
-        local checked = self:GetChecked()
-        bcm_db.essential_centering = checked
-        
-        if ACT.BCM and ACT.BCM.UpdateState then
-            ACT.BCM:UpdateState()
-        end
-        
-        if checked then
-            bcmCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            bcmCheck.Text:SetTextColor(0.5, 0.5, 0.5)
-        end
 
+    local bcmUtilityCheck = CreateCheckButton(configPanel, "Utility Cooldown Bar Centering", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.bcm_settings then return end
+        ACT.db.profile.bcm_settings.utility_centering = checked
+        if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
         StaticPopup_Show("ACT_UTILITY_RELOAD")
     end)
-
-    local bcmUtilityCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-    bcmUtilityCheck:SetSize(22, 22)
     bcmUtilityCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
-    
-    bcmUtilityCheck.Text = bcmUtilityCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    bcmUtilityCheck.Text:SetText("Utility Cooldown Bar Centering")
-    bcmUtilityCheck.Text:SetPoint("LEFT", bcmUtilityCheck, "RIGHT", 5, 0)
-    
-    bcmUtilityCheck:SetScript("OnClick", function(self)
-        if not NicknameModule.isInitialized or not bcm_db then return end
-        
-        local checked = self:GetChecked()
-        bcm_db.utility_centering = checked
-        
-        if ACT.BCM and ACT.BCM.UpdateState then
-            ACT.BCM:UpdateState()
-        end
-        
-        if checked then
-            bcmUtilityCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            bcmUtilityCheck.Text:SetTextColor(0.5, 0.5, 0.5)
-        end
 
-        StaticPopup_Show("ACT_UTILITY_RELOAD")
+    local whisperCheck = CreateCheckButton(configPanel, "Whisper Sound Notifications (Master Channel)", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.whisper_settings then return end
+        ACT.db.profile.whisper_settings.enabled = checked
+        if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then ACT.WhisperNotify:UpdateState() end
     end)
-
-    local whisperCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-    whisperCheck:SetSize(22, 22)
     whisperCheck:SetPoint("TOPLEFT", bcmUtilityCheck, "BOTTOMLEFT", 0, -5)
-    
-    whisperCheck.Text = whisperCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    whisperCheck.Text:SetText("Whisper Sound Notifications (Master Channel)")
-    whisperCheck.Text:SetPoint("LEFT", whisperCheck, "RIGHT", 5, 0)
-    
-    whisperCheck:SetScript("OnClick", function(self)
-        if not NicknameModule.isInitialized or not whisper_db then return end
-        
-        local checked = self:GetChecked()
-        whisper_db.enabled = checked
-        
-        if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then
-            ACT.WhisperNotify:UpdateState()
-        end
-        
-        if checked then
-            whisperCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            whisperCheck.Text:SetTextColor(0.5, 0.5, 0.5)
-        end
-    end)
 
-    local cdmOverrideCheck = CreateFrame("CheckButton", nil, configPanel, "UICheckButtonTemplate")
-    cdmOverrideCheck:SetSize(22, 22)
+    local cdmOverrideCheck = CreateCheckButton(configPanel, "Remove Cooldown Manager Aura Duration", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.cdm_settings then return end
+        ACT.db.profile.cdm_settings.global_ignore_aura_override = checked
+        if ACT.AuraOverride and ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
+    end)
     cdmOverrideCheck:SetPoint("TOPLEFT", whisperCheck, "BOTTOMLEFT", 0, -5)
-    
-    cdmOverrideCheck.Text = cdmOverrideCheck:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    cdmOverrideCheck.Text:SetText("Remove Cooldown Manager Aura Duration")
-    cdmOverrideCheck.Text:SetPoint("LEFT", cdmOverrideCheck, "RIGHT", 5, 0)
-    
-    cdmOverrideCheck:SetScript("OnClick", function(self)
-        if not NicknameModule.isInitialized or not cdm_db then return end
-        
-        local checked = self:GetChecked()
-        cdm_db.global_ignore_aura_override = checked
-        
-        if ACT.AuraOverride and ACT.AuraOverride.UpdateState then
-            ACT.AuraOverride:UpdateState()
-        end
-        
-        if checked then
-            cdmOverrideCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            cdmOverrideCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+
+    local combatTimerCheck = CreateCheckButton(configPanel, "Enable Combat Timer", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.combat_timer then return end
+        ACT.db.profile.combat_timer.enabled = checked
+        if ACT.CombatTimer and ACT.CombatTimer.UpdateState then 
+            ACT.CombatTimer:UpdateState() 
         end
     end)
+    combatTimerCheck:SetPoint("TOPLEFT", cdmOverrideCheck, "BOTTOMLEFT", 0, -5)
 
     configPanel.OnShow = function()
-        if not NicknameModule.isInitialized or not db or not integrations_db or not bcm_db or not whisper_db or not cdm_db then
-            return
-        end
+        if not NicknameModule.isInitialized then return end
+        local profile = ACT.db.profile
 
         if configPanel.nicknameEditBox then
-            configPanel.nicknameEditBox:SetText(ACT.db.profile.nickname or "")
+            configPanel.nicknameEditBox:SetText(profile.nickname or "")
         end
 
         for addOnName, checkButton in pairs(addOnNameToCheckButton) do
-            checkButton:SetChecked(integrations_db[addOnName] or false)
+            local isChecked = profile.nickname_integrations and profile.nickname_integrations[addOnName] or false
+            checkButton:SetChecked(isChecked)
+            checkButton.Text:SetTextColor(isChecked and 1 or 0.5, isChecked and 0.82 or 0.5, isChecked and 0 or 0.5)
         end
         NicknameModule:UpdateCheckButtons()
         
-        local isBCMEnabled = bcm_db.essential_centering or false
-        bcmCheck:SetChecked(isBCMEnabled)
-        if isBCMEnabled then
-            bcmCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            bcmCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        local function SetState(btn, val)
+            btn:SetChecked(val)
+            btn.Text:SetTextColor(val and 1 or 0.5, val and 0.82 or 0.5, val and 0 or 0.5)
         end
 
-        local isBCMUtilityEnabled = bcm_db.utility_centering or false
-        bcmUtilityCheck:SetChecked(isBCMUtilityEnabled)
-        if isBCMUtilityEnabled then
-            bcmUtilityCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            bcmUtilityCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        if profile.bcm_settings then
+            SetState(bcmCheck, profile.bcm_settings.essential_centering)
+            SetState(bcmUtilityCheck, profile.bcm_settings.utility_centering)
         end
-
-        local isWhisperEnabled = whisper_db.enabled or false
-        whisperCheck:SetChecked(isWhisperEnabled)
-        if isWhisperEnabled then
-            whisperCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            whisperCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        if profile.whisper_settings then
+            SetState(whisperCheck, profile.whisper_settings.enabled)
         end
-
-        local isCDMOverrideEnabled = cdm_db.global_ignore_aura_override or false
-        cdmOverrideCheck:SetChecked(isCDMOverrideEnabled)
-        if isCDMOverrideEnabled then
-            cdmOverrideCheck.Text:SetTextColor(1, 0.82, 0)
-        else
-            cdmOverrideCheck.Text:SetTextColor(0.5, 0.5, 0.5)
+        if profile.cdm_settings then
+            SetState(cdmOverrideCheck, profile.cdm_settings.global_ignore_aura_override)
+        end
+        if profile.combat_timer then
+            SetState(combatTimerCheck, profile.combat_timer.enabled)
         end
     end
 
