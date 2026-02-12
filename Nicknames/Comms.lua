@@ -55,6 +55,9 @@ end
 
 local function GetRealmIncludedName(unit)
     local name, realm = UnitNameUnmodified(unit)
+    if (name and issecretvalue(name)) or (realm and issecretvalue(realm)) then
+        return nil
+    end
     if not realm or realm == "" then
         realm = GetRealmName()
     end
@@ -184,7 +187,16 @@ local function UpdateNicknameDataForUnit(unit, nicknameData, isFromComms)
 
     -- Update cache
     guidToNicknameData[GUID] = CopyTable(nicknameData)
-    guidToUnitName[GUID] = GetUnitName(unit, true)
+    
+    local safeName = GetRealmIncludedName(unit)
+    if safeName then
+        guidToUnitName[GUID] = safeName
+    else
+         local name = UnitNameUnmodified(unit)
+         if name and not issecretvalue(name) then
+             guidToUnitName[GUID] = name
+         end
+    end
 
     -- Get old nickname from database
     local realmIncludedName = GetRealmIncludedName(unit)
