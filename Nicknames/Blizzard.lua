@@ -4,6 +4,20 @@ if not NicknameModule then
     return
 end
 
+local function GetSafeUnitName(unit)
+    local name, realm = UnitNameUnmodified(unit)
+    if not name then return "" end
+    
+    if issecretvalue(name) or (realm and issecretvalue(realm)) then
+        return name
+    end
+
+    if realm and realm ~= "" then
+        return name .. "-" .. realm
+    end
+    return name
+end
+
 local function UpdateFrame(frame, force)
     if not force and
         (not ACT_AccountDB or not ACT_AccountDB.nickname_integrations or
@@ -31,7 +45,7 @@ local function UpdateFrame(frame, force)
         local nickname = ACT:GetNickname(unit)
         nameFrame:SetFormattedText(nickname)
     else
-        local name = GetUnitName(frame.unit, true)
+        local name = GetSafeUnitName(frame.unit)
         nameFrame:SetFormattedText(name)
     end
 end
