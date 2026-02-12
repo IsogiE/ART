@@ -48,6 +48,7 @@ local function InitializeDatabase()
     if not profile.whisper_settings then profile.whisper_settings = { enabled = false } end
     if not profile.cdm_settings then profile.cdm_settings = { global_ignore_aura_override = false } end
     if not profile.combat_timer then profile.combat_timer = { enabled = false } end
+    if not profile.general_pack then profile.general_pack = { enabled = false } end
 
     local db = profile.nicknames
     local playerRealmName = RealmIncludedName("player")
@@ -74,6 +75,11 @@ local function InitializeDatabase()
     if ACT.CombatTimer then
         if ACT.CombatTimer.Initialize then ACT.CombatTimer:Initialize() end
         if ACT.CombatTimer.UpdateState then ACT.CombatTimer:UpdateState() end
+    end
+
+    if ACT.GeneralPack then
+        if ACT.GeneralPack.Initialize then ACT.GeneralPack:Initialize() end
+        if ACT.GeneralPack.UpdateState then ACT.GeneralPack:UpdateState() end
     end
 end
 
@@ -248,6 +254,7 @@ function NicknameModule:CreateConfigPanel(parent)
     local integrations = {
         { key = "Blizzard", name = "Blizzard Raid Frames" },
         { key = "Cell", name = "Cell" },
+        { key = "DandersFrames", name = "Danders Frames" },
         { key = "ElvUI", name = "ElvUI" },
         { key = "Grid2", name = "Grid2" },
         { key = "UnhaltedUnitFrames", name = "Unhalted Unit Frames" },
@@ -283,12 +290,12 @@ function NicknameModule:CreateConfigPanel(parent)
     local divider = configPanel:CreateTexture(nil, "ARTWORK")
     divider:SetColorTexture(1, 1, 1, 0.2)
     divider:SetHeight(1)
-    divider:SetPoint("TOP", lastCheckButton, "BOTTOM", 0, -20)
+    divider:SetPoint("TOP", lastCheckButton, "BOTTOM", 0, -10)
     divider:SetPoint("LEFT", configPanel, "LEFT", 20, 0)
     divider:SetPoint("RIGHT", configPanel, "RIGHT", -255, 0)
 
     local utilityLabel = configPanel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    utilityLabel:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -20)
+    utilityLabel:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -10)
     utilityLabel:SetText("Utility Settings")
 
     local bcmCheck = CreateCheckButton(configPanel, "Essential Cooldown Bar Centering", function(checked)
@@ -330,6 +337,15 @@ function NicknameModule:CreateConfigPanel(parent)
     end)
     combatTimerCheck:SetPoint("TOPLEFT", cdmOverrideCheck, "BOTTOMLEFT", 0, -5)
 
+    local generalPackCheck = CreateCheckButton(configPanel, "General WA Pack Replacement", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.general_pack then return end
+        ACT.db.profile.general_pack.enabled = checked
+        if ACT.GeneralPack and ACT.GeneralPack.UpdateState then 
+            ACT.GeneralPack:UpdateState() 
+        end
+    end)
+    generalPackCheck:SetPoint("TOPLEFT", combatTimerCheck, "BOTTOMLEFT", 0, -5)
+
     configPanel.OnShow = function()
         if not NicknameModule.isInitialized then return end
         local profile = ACT.db.profile
@@ -362,6 +378,9 @@ function NicknameModule:CreateConfigPanel(parent)
         end
         if profile.combat_timer then
             SetState(combatTimerCheck, profile.combat_timer.enabled)
+        end
+        if profile.general_pack then
+            SetState(generalPackCheck, profile.general_pack.enabled)
         end
     end
 
