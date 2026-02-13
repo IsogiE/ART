@@ -142,6 +142,7 @@ function CombatTimer:UpdateState()
                         kind = LEM.SettingType.Dropdown,
                         name = "Font Face",
                         height = 300,
+                        default = "Friz Quadrata TT",
                         values = (function()
                             local t = {}
                             if LSM then
@@ -162,6 +163,7 @@ function CombatTimer:UpdateState()
                     {
                         kind = LEM.SettingType.Slider,
                         name = "Font Size",
+                        default = 20,
                         minValue = 8, 
                         maxValue = 40,
                         valueStep = 1,
@@ -174,6 +176,7 @@ function CombatTimer:UpdateState()
                     {
                         kind = LEM.SettingType.Dropdown,
                         name = "Font Outline",
+                        default = "OUTLINE",
                         values = {
                             {text = "None", value = ""},
                             {text = "Outline", value = "OUTLINE"},
@@ -189,6 +192,7 @@ function CombatTimer:UpdateState()
                     {
                         kind = LEM.SettingType.Dropdown,
                         name = "Text Justification",
+                        default = "CENTER",
                         values = {
                             {text = "Left", value = "LEFT"},
                             {text = "Center", value = "CENTER"},
