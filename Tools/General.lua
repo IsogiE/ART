@@ -530,6 +530,14 @@ local function OnEvent(self, event, ...)
         return
     end
 
+    if event == "UNIT_AURA" then
+        local unit = args[1]
+        if unit == "player" then
+            CheckAlerts()
+        end
+        return
+    end
+
     CheckAlerts()
 end
 eventFrame:SetScript("OnEvent", OnEvent)
