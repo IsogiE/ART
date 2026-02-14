@@ -10,19 +10,19 @@ local LSM = LibStub("LibSharedMedia-3.0", true)
 local LCG = LibStub("LibCustomGlow-1.0", true)
 local LGF = LibStub("LibGetFrame-1.0", true)
 
-local ALERT_COOLDOWNS = {
-    ["MakeHS"] = 120,
-    ["MakeSummon"] = 120, 
-}
-
 local MONITORED_EVENTS = {
     "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD",
     "UNIT_PET", "UPDATE_INVENTORY_DURABILITY", "BAG_UPDATE",
-    "CHAT_MSG_RAID", "CHAT_MSG_PARTY", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_PARTY_LEADER"
+    "CHAT_MSG_RAID", "CHAT_MSG_PARTY", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_PARTY_LEADER",
+    "UNIT_AURA", "READY_CHECK", "UNIT_SPELLCAST_SUCCEEDED"
+}
+
+local SPELL_IDS = {
+    SOULWELL = 29893,
+    RITUAL_OF_SUMMONING = 698,
 }
 
 local tempAlerts = {}
-local lastTriggerTimes = {}
 GeneralPack.pendingUpdate = false
 
 local anchor = CreateFrame("Frame", "ACT_GeneralPack_Anchor", UIParent)
@@ -55,13 +55,11 @@ local function GetTextFrame()
 end
 
 local function GetShortName(name)
-    if not name then return "" end
-    return string.match(name, "^([^-]+)") or name
+    return name and strsplit("-", name) or ""
 end
 
 local function NamesMatch(n1, n2)
-    if not n1 or not n2 then return false end
-    return GetShortName(n1) == GetShortName(n2)
+    return n1 and n2 and GetShortName(n1) == GetShortName(n2)
 end
 
 local function GetUnitFrame(targetUnit)
@@ -90,13 +88,6 @@ local function GetUnitFrame(targetUnit)
 
     for i = 1, 5 do
         local frame = _G["CompactPartyFrameMember"..i]
-        if frame and frame:IsVisible() and frame.unit and UnitIsUnit(frame.unit, targetUnit) then
-            return frame
-        end
-    end
-
-    for i = 1, 4 do
-        local frame = _G["PartyMemberFrame"..i]
         if frame and frame:IsVisible() and frame.unit and UnitIsUnit(frame.unit, targetUnit) then
             return frame
         end
@@ -144,19 +135,41 @@ local function CheckAlerts()
     end
 
     local textLines = {}
-    local inCombat = InCombatLockdown()
     local inInstance = IsInInstance()
-
-    -- Check for missing pet
     local _, class = UnitClass("player")
-    local petClasses = {HUNTER=true, WARLOCK=true, DEATHKNIGHT=true}
-    if petClasses[class] and not UnitExists("pet") and not UnitIsDeadOrGhost("player") then
-        if inCombat or inInstance then
-            table.insert(textLines, "|cffff0000Summon Pet!|r")
+    local needsPet = false
+
+    if not UnitIsDeadOrGhost("player") and not UnitInVehicle("player") then
+        if class == "WARLOCK" then
+            local aura = C_UnitAuras.GetPlayerAuraBySpellID(196099)
+            if not aura then needsPet = true end
+
+        elseif class == "HUNTER" then
+            local currentSpec = GetSpecialization()
+            if currentSpec then
+                local specID = GetSpecializationInfo(currentSpec)
+                if specID == 253 or specID == 255 then
+                    needsPet = true
+                elseif specID == 254 and IsPlayerSpell(1223323) then
+                    needsPet = true
+                end
+            end
+
+        elseif class == "DEATHKNIGHT" then
+            local currentSpec = GetSpecialization()
+            if currentSpec then
+                local specID = GetSpecializationInfo(currentSpec)
+                if specID == 252 then
+                    needsPet = true
+                end
+            end
         end
     end
 
-    -- Repair Reminder (atm less than 30%)
+    if needsPet and inInstance and (not UnitExists("pet") or UnitIsDead("pet")) then
+        table.insert(textLines, "|cffff0000Summon Pet!|r")
+    end
+
     for i = 1, 18 do
         local current, max = GetInventoryItemDurability(i)
         if current and max and max > 0 and (current / max) < 0.3 then
@@ -165,46 +178,49 @@ local function CheckAlerts()
         end
     end
 
-    -- Temp alerts
     local now = GetTime()
-    local hasMakeHS = false
-
     for key, data in pairs(tempAlerts) do
         if now < data.expires then
             if data.text then
                 table.insert(textLines, data.text)
             end
-            if key == "MakeHS" then hasMakeHS = true end
         else
             tempAlerts[key] = nil
         end
     end
 
-    if hasMakeHS and GetItemCount(5512) < 3 and (inCombat or inInstance) then
-         if not (tempAlerts["MakeHS"] and tempAlerts["MakeHS"].text) then
-             table.insert(textLines, "|cff00ff00Click Soulwell!|r")
-         end
-    end
-
     if #textLines > 0 then
         display.text:SetText(table.concat(textLines, "\n"))
+        
+        local fontSize = tonumber(db.fontSize or 20)
+        local lineCount = #textLines
+        local newHeight = (fontSize * lineCount) + 20 
+        anchor:SetSize(200, newHeight)
+        
         display:Show()
     elseif not (LEM and LEM:IsInEditMode()) then
         display:Hide()
     end
 end
 
-local function TriggerTempAlert(key, text, duration)
-    local now = GetTime()
-    local last = lastTriggerTimes[key] or 0
-    local cd = ALERT_COOLDOWNS[key] or 0
-
-    if (now - last) > cd then
-        tempAlerts[key] = { text = text, expires = now + duration }
-        lastTriggerTimes[key] = now
-        CheckAlerts()
-                C_Timer.After(duration + 0.5, CheckAlerts)
+local function IsSpellOnCooldown(spellID)
+    if not spellID then return true end
+    
+    local cooldownInfo = C_Spell.GetSpellCooldown(spellID)
+    if cooldownInfo and cooldownInfo.startTime and cooldownInfo.duration and (cooldownInfo.duration > 1.5) then
+        return true
     end
+    return false
+end
+
+local function TriggerTempAlert(key, text, duration, spellID)
+    if spellID and IsSpellOnCooldown(spellID) then
+        return
+    end
+    
+    tempAlerts[key] = { text = text, expires = GetTime() + duration, spellID = spellID }
+    CheckAlerts()
+    C_Timer.After(duration + 0.5, CheckAlerts)
 end
 
 local function HandleChatTrigger(msg, sender)
@@ -214,24 +230,17 @@ local function HandleChatTrigger(msg, sender)
     local isPlayer = NamesMatch(sender, UnitName("player"))
     local isWarlock = (class == "WARLOCK")
     
-    msg = string.lower(msg)
+    msg = msg:lower()
 
-    -- healthstone msg
     if msg == "hs" then
         if isWarlock and not isPlayer then
-            -- Warlock sees OTHER person ask, remind to CREATE
-            TriggerTempAlert("MakeHS", "|cffaa00ffCreate Soulwell!|r", 10)
-        elseif not isWarlock then
-            -- Non-warlock sees ANYONE ask, enable the "Click" check
-            TriggerTempAlert("MakeHS", nil, 10)
+            TriggerTempAlert("MakeHS", "|cffaa00ffCreate Soulwell!|r", 10, SPELL_IDS.SOULWELL)
         end
-        -- Warlocks typing "hs" themselves get nothing
     end
 
-    -- summon msg
     if msg == "123" then
         if isWarlock and not isPlayer then
-            TriggerTempAlert("MakeSummon", "|cffaa00ffCreate Summoning Stone!|r", 10)
+            TriggerTempAlert("MakeSummon", "|cffaa00ffCreate Summoning Stone!|r", 10, SPELL_IDS.RITUAL_OF_SUMMONING)
         end
 
         local targetUnitID = nil
@@ -255,13 +264,9 @@ local function HandleChatTrigger(msg, sender)
 
         if targetUnitID then
             local uFrame = GetUnitFrame(targetUnitID)
-            if uFrame then
-                -- Glow
-                if LCG then
-                    LCG.PixelGlow_Start(uFrame, {0, 1, 0, 1}, 8, 0.25, nil, 2, 0, 0, false, "PackGlow")
-                end
+            if uFrame and LCG then
+                LCG.PixelGlow_Start(uFrame, {0, 1, 0, 1}, 8, 0.25, nil, 2, 0, 0, false, "PackGlow")
                 
-                -- Text
                 local tFrame = GetTextFrame()
                 tFrame:ClearAllPoints()
                 tFrame:SetPoint("CENTER", uFrame, "CENTER", 0, 0)
@@ -269,7 +274,7 @@ local function HandleChatTrigger(msg, sender)
                 tFrame:Show()
 
                 C_Timer.After(10, function() 
-                    if LCG then LCG.PixelGlow_Stop(uFrame, "PackGlow") end
+                    LCG.PixelGlow_Stop(uFrame, "PackGlow")
                     tFrame:Hide()
                 end)
             end
@@ -277,24 +282,109 @@ local function HandleChatTrigger(msg, sender)
     end
 end
 
+local function IsPetPassive()
+    if not UnitExists("pet") then return false end
+    
+    for i = 1, NUM_PET_ACTION_SLOTS do
+        local name, _, _, isActive = GetPetActionInfo(i)
+        if name and (name == "PET_MODE_PASSIVE" or name == "PET_ACTION_MODE_PASSIVE") and isActive then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsSoulstoneReady()
+    local spellID = 20707
+    if not IsPlayerSpell(spellID) then return false end
+
+    local cooldownInfo = C_Spell.GetSpellCooldown(spellID)
+    if cooldownInfo and cooldownInfo.startTime and cooldownInfo.duration and (cooldownInfo.duration > 1.5) then
+        return false
+    end
+    
+    return true
+end
+
+local function DoesGroupHaveSoulstone()
+    local ssSpellID = 20707
+
+    local function HasSS(unit)
+        if not unit or not UnitExists(unit) then return false end
+        
+        for i = 1, 40 do
+            local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+            if not aura then break end
+            if aura.spellId == ssSpellID then return true end
+        end
+        return false
+    end
+
+    if HasSS("player") then return true end
+
+    if IsInRaid() then
+        for i = 1, 40 do
+            if HasSS("raid"..i) then return true end
+        end
+    elseif IsInGroup() then
+        for i = 1, 4 do
+            if HasSS("party"..i) then return true end
+        end
+    end
+
+    return false
+end
+
 local function OnEvent(self, event, ...)
     local args = {...}
 
-    if InCombatLockdown() and event ~= "PLAYER_REGEN_ENABLED" then
+    if InCombatLockdown() then
         return
     end
 
-    if event == "CHAT_MSG_RAID" or event == "CHAT_MSG_PARTY" or event == "CHAT_MSG_RAID_LEADER" or event == "CHAT_MSG_PARTY_LEADER" then
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local unit, _, spellID = args[1], args[2], args[3]
+        if unit == "player" then
+            for key, data in pairs(tempAlerts) do
+                if data.spellID and data.spellID == spellID then
+                    tempAlerts[key] = nil
+                end
+            end
+            CheckAlerts()
+        end
+        return
+    end
+
+    if event == "CHAT_MSG_RAID" or event == "CHAT_MSG_PARTY" or 
+       event == "CHAT_MSG_RAID_LEADER" or event == "CHAT_MSG_PARTY_LEADER" then
         HandleChatTrigger(args[1], args[2])
-    elseif event == "PLAYER_REGEN_ENABLED" then
+        return
+    end
+    
+    if event == "READY_CHECK" then
+        if IsPetPassive() then
+            TriggerTempAlert("PetPassive", "|cffff0000Pet is on passive!|r", 10)
+        end
+        
+        local _, class = UnitClass("player")
+        if class == "WARLOCK" and IsSoulstoneReady() and not DoesGroupHaveSoulstone() then
+            TriggerTempAlert("MissingSS", "|cffaa00ffApply Soulstone!|r", 10)
+        end
+        
+        CheckAlerts()
+        return
+    end
+    
+    if event == "PLAYER_REGEN_ENABLED" then
         if GeneralPack.pendingUpdate then
             GeneralPack.pendingUpdate = false
             GeneralPack:UpdateState()
         end
         CheckAlerts()
-    else
-        CheckAlerts()
+        return
     end
+    
+    CheckAlerts()
 end
 display:SetScript("OnEvent", OnEvent)
 
