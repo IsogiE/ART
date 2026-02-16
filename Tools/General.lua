@@ -510,12 +510,12 @@ local function OnEvent(self, event, ...)
 
     if event == "READY_CHECK" then
         if IsPetPassive() then
-            TriggerTempAlert("PetPassive", "|cffff0000Pet is on passive!|r", 5)
+            TriggerTempAlert("PetPassive", "|cffff0000Pet is on passive!|r", 10)
         end
 
         local _, class = UnitClass("player")
         if class == "WARLOCK" and IsSoulstoneReady() and not DoesGroupHaveSoulstone() then
-            TriggerTempAlert("MissingSS", "|cffaa00ffApply Soulstone!|r", 5)
+            TriggerTempAlert("MissingSS", "|cffaa00ffApply Soulstone!|r", 10)
         end
         CheckAlerts()
         return
