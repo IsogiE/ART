@@ -483,7 +483,7 @@ local function OnEvent(self, event, ...)
         local unit, _, spellID = args[1], args[2], args[3]
 
         if unit == "player" then
-            if spellID == SPELL_IDS.SOULWELL or spellID == 698 or spellID == 300569 then
+            if spellID == SPELL_IDS.SOULWELL then
                 if AC then
                     local channel = IsInRaid() and "RAID" or (IsInGroup() and "PARTY")
                     if channel then
