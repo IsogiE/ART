@@ -467,9 +467,15 @@ function GeneralPack:OnCommReceived(prefix, message, distribution, sender)
 end
 
 local function OnEvent(self, event, ...)
+    if event == "PLAYER_REGEN_DISABLED" then
+        display:Hide()
+        return
+    end
+
     if InCombatLockdown() then
         return
     end
+
     local args = {...}
 
     if event == "BAG_UPDATE" then
