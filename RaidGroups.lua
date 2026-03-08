@@ -48,7 +48,7 @@ local function GetPlayerClassColorByName(playerName)
         return RaidGroups.rosterMapping[normalizedPlayerName]
     end
 
-    local currentRealm = GetRealmName()
+    local currentRealm = GetNormalizedRealmName()
     local lowerInput = normalizedPlayerName:lower()
 
     if IsInGroup() then
@@ -859,7 +859,7 @@ function RaidGroups:CreateConfigPanel(parent)
                 })
             end
         end
-        local currentRealm = GetRealmName()
+        local currentRealm = GetNormalizedRealmName()
         for group = 1, 8 do
             for slot = 1, 5 do
                 local edit = RaidGroups.groupSlots[group][slot]
@@ -956,9 +956,9 @@ function RaidGroups:CreateConfigPanel(parent)
                 local baseName, realmName = name:match("^(.-)%-(.+)$")
                 if not baseName then
                     baseName = name
-                    realmName = GetRealmName()
+                    realmName = GetNormalizedRealmName()
                 end
-                table.insert(rosterList, baseName .. " - " .. realmName)
+                table.insert(rosterList, baseName .. "-" .. realmName)
             end
         end
         local rosterString = table.concat(rosterList, "\n")
@@ -1043,6 +1043,7 @@ function RaidGroups:CreateConfigPanel(parent)
     part3Frame:SetSize(960, 60)
     part3Frame:SetPoint("BOTTOMLEFT", configPanel, "BOTTOMLEFT", 20, 20)
 
+    local isRenamePopupOpen = false
     local savePresetButton = UI:CreateButton(configPanel, "Save Preset", 100, 30)
     savePresetButton:SetPoint("TOPLEFT", part3Frame, "TOPLEFT", 0, 0)
     savePresetButton:SetScript("OnClick", function()
@@ -1533,7 +1534,7 @@ function RaidGroups:RefreshVisibleNames()
 end
 
 function RaidGroups:UpdateNameList(listType)
-    local currentRealm = GetRealmName()
+    local currentRealm = GetNormalizedRealmName()
 
     if self.groupSlots then
         if IsInRaid() or IsInGroup() then
@@ -1707,13 +1708,9 @@ function RaidGroups:ApplyGroups(list)
 
     local UnitsInCombat = ""
     for i = 1, 40 do
-        local unit = "raid" .. i
-        if UnitAffectingCombat(unit) then
-            UnitsInCombat = UnitsInCombat .. (UnitsInCombat ~= "" and "," or "") .. UnitName(unit)
+        if UnitAffectingCombat("raid" .. i) then
+            return
         end
-    end
-    if UnitsInCombat ~= "" then
-        return
     end
 
     self.db = self.db or {}
@@ -1873,19 +1870,6 @@ function RaidGroups:ProcessRoster()
 
     self.db.needGroup = nil
     self.db.processTimer = nil
-end
-
-function RaidGroups:GeneratePresetString()
-    local presetParts = {}
-    for group = 1, 8 do
-        local names = {}
-        for slot = 1, 5 do
-            local name = self.groupSlots[group][slot].usedName or ""
-            table.insert(names, name)
-        end
-        table.insert(presetParts, "Group" .. group .. ": " .. table.concat(names, ", "))
-    end
-    return table.concat(presetParts, "; ")
 end
 
 function RaidGroups:ApplyPreset(presetString)
