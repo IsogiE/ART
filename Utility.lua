@@ -251,8 +251,9 @@ function NicknameModule:CreateConfigPanel(parent)
     integrationsLabel:SetPoint("TOPLEFT", nicknameEditBoxFrame, "BOTTOMLEFT", 0, -25)
     integrationsLabel:SetText("Enable Integrations")
 
-    local integrations = {
+local integrations = {
         { key = "Blizzard", name = "Blizzard Raid Frames" },
+        { key = "EnhanceQoL", name = "Enhance QoL" },
         { key = "Cell", name = "Cell" },
         { key = "DandersFrames", name = "Danders Frames" },
         { key = "ElvUI", name = "ElvUI" },
@@ -278,12 +279,17 @@ function NicknameModule:CreateConfigPanel(parent)
             end
         end)
 
-        if not lastCheckButton then
+        if data.key == "Blizzard" then
             checkButton:SetPoint("TOPLEFT", integrationsLabel, "BOTTOMLEFT", 0, -10)
+            blizzardCheckButton = checkButton
+            lastCheckButton = checkButton
+        elseif data.key == "EnhanceQoL" then
+            checkButton:SetPoint("LEFT", blizzardCheckButton, "RIGHT", 200, 0)
         else
             checkButton:SetPoint("TOPLEFT", lastCheckButton, "BOTTOMLEFT", 0, -5)
+            lastCheckButton = checkButton
         end
-        lastCheckButton = checkButton
+        
         addOnNameToCheckButton[data.key] = checkButton
     end
     
