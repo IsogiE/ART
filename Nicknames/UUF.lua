@@ -2,73 +2,104 @@ local addonName = ...
 local NicknameModule = ACT and ACT.Nicknames
 if not NicknameModule then return end
 
-local function GetColorHex(unit)
-    local _, class = UnitClass(unit)
-    if class then
-        local color = RAID_CLASS_COLORS[class]
-        if color then
-            return string.format("ff%02x%02x%02x", color.r * 255, color.g * 255, color.b * 255)
-        end
+local nicknameMethods = {}
+local tags
+
+local function GetColoredNickname(unit, maxChars)
+    local name = ACT:GetNickname(unit)
+
+    if name and maxChars then
+        name = string.sub(name, 1, maxChars)
     end
-    return "ffffffff"
-end
 
-local function ShortenString(text, maxChars)
-    if not text then return "" end
-    if maxChars and string.len(text) > maxChars then
-        return string.sub(text, 1, maxChars)
+    local class = UnitClassBase(unit)
+    local color = class and C_ClassColor.GetClassColor(class)
+
+    if color then
+        return color:WrapTextInColorCode(name)
+    else
+        return name
     end
-    return text
-end
-
-local function GetName(unit)
-    local realName = (_G.UnitNameUnmodified and _G.UnitNameUnmodified(unit)) or UnitName(unit)
-
-    if issecretvalue and issecretvalue(realName) then
-        return realName
-    end
-    
-    if not realName or realName == "" then
-        return ""
-    end
-    
-    if ACT_AccountDB and ACT_AccountDB.nickname_integrations and ACT_AccountDB.nickname_integrations.UnhaltedUnitFrames then
-        if ACT:HasNickname(unit) then
-            return ACT:GetRawNickname(unit)
-        end
-    end
-    
-    return realName
-end
-
-local function RegisterTags()
-    if not UUFG then return end
-
-    UUFG:AddTag("act:name", "UNIT_NAME_UPDATE", GetName, "Name", "[ACT] Nickname")
-    
-    UUFG:AddTag("act:name:colour", "UNIT_NAME_UPDATE", function(unit)
-        return string.format("|c%s%s|r", GetColorHex(unit), GetName(unit))
-    end, "Name", "[ACT] Nickname (Colored)")
-
-    UUFG:AddTag("act:name:short", "UNIT_NAME_UPDATE", function(unit)
-        return ShortenString(GetName(unit), 10)
-    end, "Name", "[ACT] Nickname (Short)")
 end
 
 local function Update()
-    if UUFG and UUFG.UpdateAllTags then
-        UUFG:UpdateAllTags()
+    if not UUFG then return end
+    if not tags then return end
+
+    for tagName in pairs(nicknameMethods) do
+        tags:RefreshMethods(tagName)
     end
 end
 
-NicknameModule.nicknameFunctions["UnhaltedUnitFrames"] = {
-    Enable = Update,
-    Disable = Update,
-    Update = Update,
-    Init = function() 
-        RegisterTags() 
-        Update() 
-    end
-}
+local function Enable()
+    if not ACT_AccountDB then ACT_AccountDB = {} end
+    if not ACT_AccountDB.nickname_integrations then ACT_AccountDB.nickname_integrations = {} end
+    ACT_AccountDB.nickname_integrations.UnhaltedUnitFrames = true
 
-RegisterTags()
+    Update()
+end
+
+local function Disable()
+    if not ACT_AccountDB then ACT_AccountDB = {} end
+    if not ACT_AccountDB.nickname_integrations then ACT_AccountDB.nickname_integrations = {} end
+    ACT_AccountDB.nickname_integrations.UnhaltedUnitFrames = false
+
+    Update()
+end
+
+local function Init()
+    if not UUFG then return end
+    if not UUFG.GetTags then return end
+
+    tags = UUFG:GetTags()
+
+    nicknameMethods = {
+        ["name"] = function(unit)
+            return ACT:GetNickname(unit)
+        end,
+        ["name:colour"] = function(unit)
+            return GetColoredNickname(unit)
+        end,
+    }
+
+    for i = 1, 25 do
+        nicknameMethods["name:short:" .. i] = function(unit)
+            local name = ACT:GetNickname(unit)
+            return name and string.sub(name, 1, i)
+        end
+    end
+
+    for i = 1, 25 do
+        nicknameMethods["name:short:" .. i .. ":colour"] = function(unit)
+            return GetColoredNickname(unit, i)
+        end
+    end
+
+    for tagName, NicknameMethod in pairs(nicknameMethods) do
+        local OriginalMethod = tags.Methods[tagName]
+
+        if OriginalMethod then
+            tags.Methods[tagName] = function(unit)
+                local useNickname = ACT_AccountDB
+                    and ACT_AccountDB.nickname_integrations
+                    and ACT_AccountDB.nickname_integrations.UnhaltedUnitFrames
+                    and ACT:HasNickname(unit)
+
+                if useNickname then
+                    return NicknameMethod(unit)
+                else
+                    return OriginalMethod(unit)
+                end
+            end
+        end
+    end
+
+    Update()
+end
+
+NicknameModule.nicknameFunctions["UnhaltedUnitFrames"] = {
+    Enable = Enable,
+    Disable = Disable,
+    Update = Update,
+    Init = Init
+}
