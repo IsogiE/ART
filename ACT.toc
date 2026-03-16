@@ -7,7 +7,7 @@
 ## Version: @project-version@
 ## DefaultState: Enable
 ## IconTexture: Interface\AddOns\ACT\media\MiniMap.tga
-## OptionalDeps: ElvUI, Grid2, MRT, Cell, UnhaltedUnitFrames, DandersFrames
+## OptionalDeps: ElvUI, Grid2, MRT, Cell, UnhaltedUnitFrames, DandersFrames, EnhanceQoL
 ## Category: Advance
 
 embeds.xml
@@ -34,6 +34,7 @@ Nicknames\Grid2.lua
 Nicknames\UUF.lua
 Nicknames\VuhDo.lua
 Nicknames\Danders.lua
+Nicknames\EQoL.lua
 Nicknames\LiquidAPI.lua
 
 Tools\BCM.lua
