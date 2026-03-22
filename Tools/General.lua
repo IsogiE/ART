@@ -190,7 +190,9 @@ local function CheckAlerts()
     end
 
     if needsPet and inInstance and (not UnitExists("pet") or UnitIsDead("pet")) then
-        table.insert(textLines, "|cffff0000Summon Pet!|r")
+        if db.showSummonPet ~= false then
+            table.insert(textLines, "|cffff0000Summon Pet!|r")
+        end
     end
 
     for i = 1, 18 do
@@ -515,7 +517,8 @@ local function OnEvent(self, event, ...)
     end
 
     if event == "READY_CHECK" then
-        if IsPetPassive() then
+        local db = ACT.db and ACT.db.profile and ACT.db.profile.general_pack
+        if IsPetPassive() and (not db or db.showPetPassive ~= false) then
             TriggerTempAlert("PetPassive", "|cffff0000Pet is on passive!|r", 10)
         end
 
@@ -634,6 +637,31 @@ local function GetEditModeSettings()
             ACT.db.profile.general_pack.fontJustify = v;
             UpdateVisuals()
         end
+    }, {
+        kind = LEM.SettingType.Checkbox,
+        name = "Show Summon Pet Alert",
+        desc = "When enabled, a reminder will be shown if your pet is missing or dead while in an instance.",
+        default = true,
+        get = function()
+            local v = ACT.db.profile.general_pack.showSummonPet
+            return v ~= false
+        end,
+        set = function(_, v)
+            ACT.db.profile.general_pack.showSummonPet = v
+            CheckAlerts()
+        end
+    }, {
+        kind = LEM.SettingType.Checkbox,
+        name = "Show Pet Passive Alert",
+        desc = "When enabled, a reminder will be shown on ready check if your pet is set to passive.",
+        default = true,
+        get = function()
+            local v = ACT.db.profile.general_pack.showPetPassive
+            return v ~= false
+        end,
+        set = function(_, v)
+            ACT.db.profile.general_pack.showPetPassive = v
+        end
     }}
 end
 
@@ -670,6 +698,8 @@ function GeneralPack:UpdateState()
     db.fontFace = db.fontFace or "Friz Quadrata TT"
     db.fontOutline = db.fontOutline or "OUTLINE"
     db.fontJustify = db.fontJustify or "CENTER"
+    if db.showSummonPet == nil then db.showSummonPet = true end
+    if db.showPetPassive == nil then db.showPetPassive = true end
 
     UpdateVisuals()
 
