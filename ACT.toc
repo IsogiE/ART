@@ -42,6 +42,7 @@ Tools\Whisper.lua
 Tools\AuraCDM.lua
 Tools\Combat.lua
 Tools\General.lua
+Tools\Hots.lua
 
 RaidGroups.lua
 Macros.lua
