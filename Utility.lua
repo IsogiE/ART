@@ -39,7 +39,7 @@ local function InitializeDatabase()
     local profile = ACT.db.profile
     profile.nicknames = profile.nicknames or {}
     profile.nickname_integrations = profile.nickname_integrations or {}
-    
+
     if not profile.bcm_settings then
         profile.bcm_settings = { essential_centering = false, utility_centering = false }
     end
@@ -49,6 +49,7 @@ local function InitializeDatabase()
     if not profile.cdm_settings then profile.cdm_settings = { global_ignore_aura_override = false } end
     if not profile.combat_timer then profile.combat_timer = { enabled = false } end
     if not profile.general_pack then profile.general_pack = { enabled = false } end
+    if not profile.hot_tracker then profile.hot_tracker = { enabled = false } end
 
     local db = profile.nicknames
     local playerRealmName = RealmIncludedName("player")
@@ -66,7 +67,7 @@ local function InitializeDatabase()
 
     if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
     if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then ACT.WhisperNotify:UpdateState() end
-    
+
     if ACT.AuraOverride then
         if ACT.AuraOverride.Initialize then ACT.AuraOverride:Initialize() end
         if ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
@@ -80,6 +81,11 @@ local function InitializeDatabase()
     if ACT.GeneralPack then
         if ACT.GeneralPack.Initialize then ACT.GeneralPack:Initialize() end
         if ACT.GeneralPack.UpdateState then ACT.GeneralPack:UpdateState() end
+    end
+
+    if ACT.HotTracker then
+        if ACT.HotTracker.Initialize then ACT.HotTracker:Initialize() end
+        if ACT.HotTracker.UpdateState then ACT.HotTracker:UpdateState() end
     end
 end
 
@@ -251,20 +257,21 @@ function NicknameModule:CreateConfigPanel(parent)
     integrationsLabel:SetPoint("TOPLEFT", nicknameEditBoxFrame, "BOTTOMLEFT", 0, -25)
     integrationsLabel:SetText("Enable Integrations")
 
-local integrations = {
-        { key = "Blizzard", name = "Blizzard Raid Frames" },
-        { key = "EnhanceQoL", name = "Enhance QoL" },
-        { key = "Cell", name = "Cell" },
-        { key = "DandersFrames", name = "Danders Frames" },
-        { key = "ElvUI", name = "ElvUI" },
-        { key = "Grid2", name = "Grid2" },
-        { key = "UnhaltedUnitFrames", name = "Unhalted Unit Frames" },
-        { key = "VuhDo", name = "VuhDo" }
+    local integrations = {
+        { key = "Blizzard",            name = "Blizzard Raid Frames" },
+        { key = "EnhanceQoL",          name = "Enhance QoL" },
+        { key = "Cell",                name = "Cell" },
+        { key = "DandersFrames",       name = "Danders Frames" },
+        { key = "ElvUI",               name = "ElvUI" },
+        { key = "Grid2",               name = "Grid2" },
+        { key = "UnhaltedUnitFrames",  name = "Unhalted Unit Frames" },
+        { key = "VuhDo",               name = "VuhDo" },
     }
 
-    wipe(addOnNameToCheckButton) 
+    wipe(addOnNameToCheckButton)
+    local blizzardCheckButton
     local lastCheckButton
-    for i, data in ipairs(integrations) do
+    for _, data in ipairs(integrations) do
         local checkButton = CreateCheckButton(configPanel, data.name, function(checked)
             if not NicknameModule.isInitialized or not ACT.db.profile.nickname_integrations then return end
             ACT.db.profile.nickname_integrations[data.key] = checked
@@ -284,15 +291,15 @@ local integrations = {
             blizzardCheckButton = checkButton
             lastCheckButton = checkButton
         elseif data.key == "EnhanceQoL" then
-            checkButton:SetPoint("LEFT", blizzardCheckButton, "RIGHT", 200, 0)
+            checkButton:SetPoint("LEFT", blizzardCheckButton, "RIGHT", 250, 0)
         else
             checkButton:SetPoint("TOPLEFT", lastCheckButton, "BOTTOMLEFT", 0, -5)
             lastCheckButton = checkButton
         end
-        
+
         addOnNameToCheckButton[data.key] = checkButton
     end
-    
+
     local divider = configPanel:CreateTexture(nil, "ARTWORK")
     divider:SetColorTexture(1, 1, 1, 0.2)
     divider:SetHeight(1)
@@ -320,14 +327,14 @@ local integrations = {
     end)
     bcmUtilityCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
 
-    local whisperCheck = CreateCheckButton(configPanel, "Whisper Sound Notifications (Master Channel)", function(checked)
+    local whisperCheck = CreateCheckButton(configPanel, "Whisper Sound Notifications", function(checked)
         if not NicknameModule.isInitialized or not ACT.db.profile.whisper_settings then return end
         ACT.db.profile.whisper_settings.enabled = checked
         if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then ACT.WhisperNotify:UpdateState() end
     end)
     whisperCheck:SetPoint("TOPLEFT", bcmUtilityCheck, "BOTTOMLEFT", 0, -5)
 
-    local cdmOverrideCheck = CreateCheckButton(configPanel, "Remove Cooldown Manager Aura Duration", function(checked)
+    local cdmOverrideCheck = CreateCheckButton(configPanel, "Remove CDM Aura Duration", function(checked)
         if not NicknameModule.isInitialized or not ACT.db.profile.cdm_settings then return end
         ACT.db.profile.cdm_settings.global_ignore_aura_override = checked
         if ACT.AuraOverride and ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
@@ -337,8 +344,8 @@ local integrations = {
     local combatTimerCheck = CreateCheckButton(configPanel, "Enable Combat Timer", function(checked)
         if not NicknameModule.isInitialized or not ACT.db.profile.combat_timer then return end
         ACT.db.profile.combat_timer.enabled = checked
-        if ACT.CombatTimer and ACT.CombatTimer.UpdateState then 
-            ACT.CombatTimer:UpdateState() 
+        if ACT.CombatTimer and ACT.CombatTimer.UpdateState then
+            ACT.CombatTimer:UpdateState()
         end
     end)
     combatTimerCheck:SetPoint("TOPLEFT", cdmOverrideCheck, "BOTTOMLEFT", 0, -5)
@@ -346,11 +353,20 @@ local integrations = {
     local generalPackCheck = CreateCheckButton(configPanel, "General WA Pack Replacement", function(checked)
         if not NicknameModule.isInitialized or not ACT.db.profile.general_pack then return end
         ACT.db.profile.general_pack.enabled = checked
-        if ACT.GeneralPack and ACT.GeneralPack.UpdateState then 
-            ACT.GeneralPack:UpdateState() 
+        if ACT.GeneralPack and ACT.GeneralPack.UpdateState then
+            ACT.GeneralPack:UpdateState()
         end
     end)
     generalPackCheck:SetPoint("TOPLEFT", combatTimerCheck, "BOTTOMLEFT", 0, -5)
+
+    local hotTrackerCheck = CreateCheckButton(configPanel, "HoT Tracker", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.hot_tracker then return end
+        ACT.db.profile.hot_tracker.enabled = checked
+        if ACT.HotTracker and ACT.HotTracker.UpdateState then
+            ACT.HotTracker:UpdateState()
+        end
+    end)
+    hotTrackerCheck:SetPoint("LEFT", bcmCheck, "RIGHT", 250, 0)
 
     configPanel.OnShow = function()
         if not NicknameModule.isInitialized then return end
@@ -366,7 +382,7 @@ local integrations = {
             checkButton.Text:SetTextColor(isChecked and 1 or 0.5, isChecked and 0.82 or 0.5, isChecked and 0 or 0.5)
         end
         NicknameModule:UpdateCheckButtons()
-        
+
         local function SetState(btn, val)
             btn:SetChecked(val)
             btn.Text:SetTextColor(val and 1 or 0.5, val and 0.82 or 0.5, val and 0 or 0.5)
@@ -387,6 +403,9 @@ local integrations = {
         end
         if profile.general_pack then
             SetState(generalPackCheck, profile.general_pack.enabled)
+        end
+        if profile.hot_tracker then
+            SetState(hotTrackerCheck, profile.hot_tracker.enabled)
         end
     end
 
