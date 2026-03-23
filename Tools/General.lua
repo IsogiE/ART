@@ -71,11 +71,14 @@ local function GetTextFrame()
 end
 
 local function GetShortName(name)
-    return name and strsplit("-", name) or ""
+    if not name or issecretvalue(name) then return "" end
+    return strsplit("-", name)
 end
 
 local function NamesMatch(n1, n2)
-    return n1 and n2 and GetShortName(n1) == GetShortName(n2)
+    if not n1 or not n2 then return false end
+    if issecretvalue(n1) or issecretvalue(n2) then return false end
+    return GetShortName(n1) == GetShortName(n2)
 end
 
 local function GetUnitFrame(targetUnit)
@@ -150,6 +153,7 @@ local function CheckAlerts()
         display:Hide()
         return
     end
+
 
     local db = ACT.db and ACT.db.profile and ACT.db.profile.general_pack
     if not db or not db.enabled then
@@ -274,6 +278,7 @@ local function HasFullHealthstone()
 end
 
 local function StopHealthstoneScan()
+    if InCombatLockdown() then return end
     if GeneralPack.timeoutTimer then
         GeneralPack.timeoutTimer:Cancel()
         GeneralPack.timeoutTimer = nil
@@ -319,6 +324,7 @@ local function IsSpellOnCooldown(spellID)
 end
 
 local function TriggerTempAlert(key, text, duration, spellID)
+    if InCombatLockdown() then return end
     if spellID and IsSpellOnCooldown(spellID) then
         return
     end
@@ -333,9 +339,9 @@ local function TriggerTempAlert(key, text, duration, spellID)
 end
 
 local function HandleChatTrigger(msg, sender)
-    if not msg or not sender then
-        return
-    end
+    if not msg or not sender then return end
+    if InCombatLockdown() then return end
+    if issecretvalue(sender) then return end
 
     local _, class = UnitClass("player")
     local isPlayer = NamesMatch(sender, UnitName("player"))
@@ -469,12 +475,10 @@ function GeneralPack:OnCommReceived(prefix, message, distribution, sender)
 end
 
 local function OnEvent(self, event, ...)
-    if event == "PLAYER_REGEN_DISABLED" then
-        display:Hide()
-        return
-    end
-
     if InCombatLockdown() then
+        if event == "PLAYER_REGEN_DISABLED" then
+            display:Hide()
+        end
         return
     end
 
