@@ -19,6 +19,8 @@ local EDITMODE_BG_FILE   = "Interface\\Buttons\\WHITE8x8"
 local DEFAULT_FONT_PATH  = "Fonts\\FRIZQT__.TTF"
 local DEFAULT_FONT_FACE  = "Friz Quadrata TT"
 
+local COMBAT_RESYNC_INTERVAL = 5
+
 local EDITMODE_BACKDROP = {
     bgFile   = EDITMODE_BG_FILE,
     edgeFile = EDITMODE_BG_FILE,
@@ -136,6 +138,7 @@ local inCombat          = false
 local ticker            = nil
 local bgBackdropApplied = false
 local unitAuraCache     = {}
+local lastCombatResync  = 0
 
 local function GetDB()
     if ACT.db and ACT.db.profile and ACT.db.profile.hot_tracker then
@@ -339,13 +342,15 @@ local function ScanGroupAuras()
     end
 
     local now = GetTime()
+
     for _, unitCache in pairs(unitAuraCache) do
+        local toRemove = {}
         for instanceID, entry in pairs(unitCache) do
             local sid    = entry.spellId
             local expiry = entry.expirationTime or 0
 
             if expiry == 0 or expiry < now or not auraData[sid] then
-                unitCache[instanceID] = nil
+                toRemove[#toRemove + 1] = instanceID
             else
                 local d = auraData[sid]
                 d.count = d.count + 1
@@ -357,6 +362,9 @@ local function ScanGroupAuras()
                     d.maxExpiry = expiry
                 end
             end
+        end
+        for _, instanceID in ipairs(toRemove) do
+            unitCache[instanceID] = nil
         end
     end
 end
@@ -495,6 +503,14 @@ local function UpdateIcons()
         end
         if not (LEM and LEM:IsInEditMode()) then display:Hide() end
         return
+    end
+
+    if inCombat then
+        local now = GetTime()
+        if now - lastCombatResync >= COMBAT_RESYNC_INTERVAL then
+            lastCombatResync = now
+            ResyncAll()
+        end
     end
 
     ScanGroupAuras()
@@ -663,6 +679,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_REGEN_DISABLED" then
         inCombat = true
+        lastCombatResync = GetTime()
         UpdateIcons()
 
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
