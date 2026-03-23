@@ -239,6 +239,11 @@ local function ExtractAura(aura)
     local fromPlayer = aura.isFromPlayerOrPlayerPet
     if IsSecretValue(fromPlayer) or not fromPlayer then return end
 
+    local sourceUnit = aura.sourceUnit
+    if sourceUnit and not IsSecretValue(sourceUnit) then
+        if not UnitIsUnit(sourceUnit, "player") then return end
+    end
+
     local sid = aura.spellId
     if IsSecretValue(sid) or type(sid) ~= "number" then return end
     if not auraData[sid] then return end
@@ -291,12 +296,12 @@ local function ResyncAll()
 end
 
 local function HandleUnitAuraEvent(unit, info)
-    if not unitAuraCache[unit] then return end
-
     if info == nil or info.isFullUpdate then
         ResyncUnit(unit, inCombat)
         return
     end
+
+    if not unitAuraCache[unit] then return end
 
     if info.removedAuraInstanceIDs then
         for _, instanceID in ipairs(info.removedAuraInstanceIDs) do
@@ -703,7 +708,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "UNIT_AURA" then
         local unit, info = ...
         if UnitIsUnit(unit, "player") then unit = "player" end
-        if unitAuraCache[unit] then
+        if unitAuraCache[unit] or (info == nil or info.isFullUpdate) then
             HandleUnitAuraEvent(unit, info)
             UpdateIcons()
         end
