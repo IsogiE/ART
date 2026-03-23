@@ -8,6 +8,25 @@ ACT.HotTracker = HotTracker
 local LEM = LibStub("LibEditMode", true)
 local LSM = LibStub("LibSharedMedia-3.0", true)
 
+local ICON_TEX_COORD     = { 0.08, 0.92, 0.08, 0.92 }
+local FALLBACK_ICON      = 134400
+local TICKER_INTERVAL    = 0.1
+local ANCHOR_DEFAULT_X   = 0
+local ANCHOR_DEFAULT_Y   = 150
+local ANCHOR_DEFAULT_W   = 200
+local ANCHOR_DEFAULT_H   = 44
+local EDITMODE_BG_FILE   = "Interface\\Buttons\\WHITE8x8"
+local DEFAULT_FONT_PATH  = "Fonts\\FRIZQT__.TTF"
+local DEFAULT_FONT_FACE  = "Friz Quadrata TT"
+
+local EDITMODE_BACKDROP = {
+    bgFile   = EDITMODE_BG_FILE,
+    edgeFile = EDITMODE_BG_FILE,
+    edgeSize = 1,
+}
+local EDITMODE_BG_COLOR     = { 0,   0.2, 0.5, 0.5 }
+local EDITMODE_BORDER_COLOR = { 0,   0.5, 1,   1   }
+
 local CLASS_SPELLS = {
     EVOKER = {
         { id = 364343, name = "Echo",           color = {0.4, 0.8, 1},   specIDs = {1468}, dbKey = "track_echo"         },
@@ -28,8 +47,8 @@ local CLASS_SPELLS = {
         { id = 194384, name = "Atonement",      color = {0.9, 0.5, 1},   specIDs = {256},  dbKey = "track_atonement"   },
     },
     PALADIN = {
-    { id = 156322, name = "Eternal Flame", color = {1, 0.8, 0.2}, specIDs = {65}, dbKey = "track_eternalflame" },
-    { id = 1244893, name = "Beacon of the Savior", color = {1, 0.8, 0.2}, specIDs = {65}, dbKey = "track_bsavior" },
+        { id = 156322,  name = "Eternal Flame",      color = {1, 0.8, 0.2}, specIDs = {65}, dbKey = "track_eternalflame" },
+        { id = 1244893, name = "Beacon of the Savior", color = {1, 0.8, 0.2}, specIDs = {65}, dbKey = "track_bsavior"   },
     },
 }
 
@@ -84,7 +103,7 @@ local DEFAULTS = {
     countAnchor    = "TOPLEFT",
     countOffsetX   = 0,
     countOffsetY   = 0,
-    countFace      = "Friz Quadrata TT",
+    countFace      = DEFAULT_FONT_FACE,
     countSize      = 11,
     countOutline   = "OUTLINE",
     countColor     = nil,
@@ -92,7 +111,7 @@ local DEFAULTS = {
     timerAnchor    = "BOTTOMRIGHT",
     timerOffsetX   = 0,
     timerOffsetY   = 0,
-    timerFace      = "Friz Quadrata TT",
+    timerFace      = DEFAULT_FONT_FACE,
     timerSize      = 10,
     timerOutline   = "OUTLINE",
     timerColor     = nil,
@@ -111,10 +130,12 @@ local DEFAULTS = {
 local auraData       = {}
 local displayEntries = {}
 local anchor, display
-local icons          = {}
-local pendingUpdate  = false
-local inCombat       = false
-local ticker         = nil
+local icons             = {}
+local pendingUpdate     = false
+local inCombat          = false
+local ticker            = nil
+local bgBackdropApplied = false
+local unitAuraCache     = {}
 
 local function GetDB()
     if ACT.db and ACT.db.profile and ACT.db.profile.hot_tracker then
@@ -140,11 +161,10 @@ local function GetColorRGBA(key)
         if type(val.GetRGBA) == "function" then
             return val:GetRGBA()
         elseif type(val) == "table" then
-            local r = val.r or val[1] or 1
-            local g = val.g or val[2] or 1
-            local b = val.b or val[3] or 1
-            local a = val.a or val[4] or 1
-            return r, g, b, a
+            return val.r or val[1] or 1,
+                   val.g or val[2] or 1,
+                   val.b or val[3] or 1,
+                   val.a or val[4] or 1
         end
     end
     local d = COLOR_DEFAULTS[key] or {1, 1, 1, 1}
@@ -175,11 +195,36 @@ local function ShouldShowDisplay()
     return true
 end
 
-local unitAuraCache = {} 
-
 local function IsSecretValue(v)
     if issecretvalue then return issecretvalue(v) end
     return false
+end
+
+local function GetGroupUnits()
+    local units      = { "player" }
+    local numMembers = GetNumGroupMembers()
+    if IsInRaid() then
+        for i = 1, numMembers do
+            local unit = "raid" .. i
+            if not UnitIsUnit(unit, "player") then
+                units[#units + 1] = unit
+            end
+        end
+    else
+        for i = 1, numMembers - 1 do
+            units[#units + 1] = "party" .. i
+        end
+    end
+    return units
+end
+
+local function GetFontPath(faceKey)
+    local face = DBVal(faceKey)
+    if LSM and face then
+        local path = LSM:Fetch("font", face)
+        if path then return path end
+    end
+    return DEFAULT_FONT_PATH
 end
 
 local function ExtractAura(aura)
@@ -197,7 +242,6 @@ local function ExtractAura(aura)
 
     local expiry = aura.expirationTime
     if IsSecretValue(expiry) or type(expiry) ~= "number" then expiry = 0 end
-
     if expiry ~= 0 and expiry < GetTime() then return end
 
     local duration = aura.duration
@@ -206,56 +250,31 @@ local function ExtractAura(aura)
     return instanceID, sid, expiry, duration
 end
 
-local function GetGroupUnits()
-    local units = { "player" }
-    local numMembers = GetNumGroupMembers()
-    
-    if numMembers > 0 then
-        if IsInRaid() then
-            for i = 1, numMembers do
-                local unit = "raid" .. i
-                if not UnitIsUnit(unit, "player") then
-                    units[#units + 1] = unit
+local function ResyncUnit(unit, useCombatSafe)
+    unitAuraCache[unit] = {}
+    if not UnitExists(unit) then return end
+
+    if useCombatSafe then
+        local result = C_UnitAuras.GetUnitAuraInstanceIDs and
+                       C_UnitAuras.GetUnitAuraInstanceIDs(unit, "HELPFUL")
+        if not result then return end
+        for _, instanceID in ipairs(result) do
+            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, instanceID)
+            if aura then
+                local iid, sid, expiry, duration = ExtractAura(aura)
+                if iid then
+                    unitAuraCache[unit][iid] = { spellId = sid, expirationTime = expiry, duration = duration }
                 end
             end
-        else
-            for i = 1, numMembers - 1 do
-                units[#units + 1] = "party" .. i
-            end
         end
-    end
-    
-    return units
-end
-
-local function ResyncUnit(unit)
-    unitAuraCache[unit] = {}
-    if not UnitExists(unit) then return end
-    local auras = C_UnitAuras.GetUnitAuras and
-                  C_UnitAuras.GetUnitAuras(unit, "HELPFUL|PLAYER")
-    if not auras then return end
-    for _, aura in ipairs(auras) do
-        local instanceID, sid, expiry, duration = ExtractAura(aura)
-        if instanceID then
-            unitAuraCache[unit][instanceID] = { spellId = sid, expirationTime = expiry, duration = duration }
-        end
-    end
-end
-
-local function ResyncUnitByCombatSafeInstanceIDs(unit)
-    unitAuraCache[unit] = {}
-    if not UnitExists(unit) then return end
-    local result = C_UnitAuras.GetUnitAuraInstanceIDs and
-                   C_UnitAuras.GetUnitAuraInstanceIDs(unit, "HELPFUL")
-    if not result then
-        return
-    end
-    for _, instanceID in ipairs(result) do
-        local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, instanceID)
-        if aura then
-            local iid, sid, expiry, duration = ExtractAura(aura)
-            if iid then
-                unitAuraCache[unit][iid] = { spellId = sid, expirationTime = expiry, duration = duration }
+    else
+        local auras = C_UnitAuras.GetUnitAuras and
+                      C_UnitAuras.GetUnitAuras(unit, "HELPFUL|PLAYER")
+        if not auras then return end
+        for _, aura in ipairs(auras) do
+            local instanceID, sid, expiry, duration = ExtractAura(aura)
+            if instanceID then
+                unitAuraCache[unit][instanceID] = { spellId = sid, expirationTime = expiry, duration = duration }
             end
         end
     end
@@ -263,13 +282,8 @@ end
 
 local function ResyncAll()
     unitAuraCache = {}
-    auraRestricted = false
     for _, unit in ipairs(GetGroupUnits()) do
-        if inCombat then
-            ResyncUnitByCombatSafeInstanceIDs(unit)
-        else
-            ResyncUnit(unit)
-        end
+        ResyncUnit(unit, inCombat)
     end
 end
 
@@ -277,11 +291,7 @@ local function HandleUnitAuraEvent(unit, info)
     if not unitAuraCache[unit] then return end
 
     if info == nil or info.isFullUpdate then
-        if inCombat then
-            ResyncUnitByCombatSafeInstanceIDs(unit)
-        else
-            ResyncUnit(unit)
-        end
+        ResyncUnit(unit, inCombat)
         return
     end
 
@@ -329,7 +339,7 @@ local function ScanGroupAuras()
     end
 
     local now = GetTime()
-    for unit, unitCache in pairs(unitAuraCache) do
+    for _, unitCache in pairs(unitAuraCache) do
         for instanceID, entry in pairs(unitCache) do
             local sid    = entry.spellId
             local expiry = entry.expirationTime or 0
@@ -337,13 +347,14 @@ local function ScanGroupAuras()
             if expiry == 0 or expiry < now or not auraData[sid] then
                 unitCache[instanceID] = nil
             else
-                auraData[sid].count = auraData[sid].count + 1
-                if expiry < auraData[sid].minExpiry then
-                    auraData[sid].minExpiry   = expiry
-                    auraData[sid].minDuration = entry.duration or 0
+                local d = auraData[sid]
+                d.count = d.count + 1
+                if expiry < d.minExpiry then
+                    d.minExpiry   = expiry
+                    d.minDuration = entry.duration or 0
                 end
-                if expiry > auraData[sid].maxExpiry then
-                    auraData[sid].maxExpiry = expiry
+                if expiry > d.maxExpiry then
+                    d.maxExpiry = expiry
                 end
             end
         end
@@ -363,19 +374,16 @@ local function FormatTime(seconds)
     end
 end
 
-local function GetFontPath(faceKey)
-    local face = DBVal(faceKey)
-    if LSM and face then
-        local path = LSM:Fetch("font", face)
-        if path then return path end
-    end
-    return "Fonts\\FRIZQT__.TTF"
-end
-
 local function ApplyLabelPoint(label, anchorKey, oxKey, oyKey)
     local pt = DBVal(anchorKey)
     label:ClearAllPoints()
     label:SetPoint(pt, label:GetParent(), pt, DBVal(oxKey), DBVal(oyKey))
+end
+
+local function UpdateLabelStyle(label, faceKey, sizeKey, outlineKey, colorKey, anchorKey, oxKey, oyKey)
+    label:SetFont(GetFontPath(faceKey), DBVal(sizeKey), DBVal(outlineKey))
+    label:SetTextColor(GetColorRGBA(colorKey))
+    ApplyLabelPoint(label, anchorKey, oxKey, oyKey)
 end
 
 local function GetOrCreateIcon(index)
@@ -390,7 +398,7 @@ local function GetOrCreateIcon(index)
 
     f.texture = f:CreateTexture(nil, "ARTWORK")
     f.texture:SetAllPoints()
-    f.texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.texture:SetTexCoord(ICON_TEX_COORD[1], ICON_TEX_COORD[2], ICON_TEX_COORD[3], ICON_TEX_COORD[4])
 
     f.cooldown = CreateFrame("Cooldown", nil, f, "CooldownFrameTemplate")
     f.cooldown:SetAllPoints(f)
@@ -404,65 +412,78 @@ local function GetOrCreateIcon(index)
     textHolder:SetFrameLevel(f:GetFrameLevel() + 2)
 
     f.count = textHolder:CreateFontString(nil, "OVERLAY")
-    f.count:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+    f.count:SetFont(DEFAULT_FONT_PATH, DEFAULTS.countSize, DEFAULTS.countOutline)
     f.count:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
 
     f.timer = textHolder:CreateFontString(nil, "OVERLAY")
-    f.timer:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
+    f.timer:SetFont(DEFAULT_FONT_PATH, DEFAULTS.timerSize, DEFAULTS.timerOutline)
     f.timer:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 1)
 
     f.border = CreateFrame("Frame", nil, display, "BackdropTemplate")
     f.border:SetFrameStrata("MEDIUM")
     f.border:SetFrameLevel(f:GetFrameLevel())
     f.border:Hide()
+    f.borderApplied = false
 
     icons[index] = f
     return f
 end
 
 local function UpdateDisplay()
-    local bgEnabled = DBVal("bgEnabled")
+    local bgEnabled  = DBVal("bgEnabled")
+    local inEditMode = LEM and LEM:IsInEditMode()
 
-    if not bgEnabled then
-        display:SetBackdrop(nil)
+    if not bgEnabled or inEditMode then
+        if not inEditMode then display:SetBackdrop(nil) end
+        bgBackdropApplied = false
         return
     end
 
-    display:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-        insets = { left = 0, right = 0, top = 0, bottom = 0 },
-    })
+    if not bgBackdropApplied then
+        display:SetBackdrop({
+            bgFile = EDITMODE_BG_FILE,
+            insets = { left = 0, right = 0, top = 0, bottom = 0 },
+        })
+        bgBackdropApplied = true
+    end
 
     local r, g, b = GetColorRGBA("bgColor")
     display:SetBackdropColor(r, g, b, OpacityVal("bgOpacity"))
 end
 
-local function UpdateIconBorder(ic, borderEnabled, edgeTex, edgeSize, iconSize)
+local function UpdateIconBorder(ic, borderEnabled, edgeTex, edgeSize)
     if not borderEnabled or not edgeTex or edgeSize <= 0 then
         ic.border:Hide()
+        ic.borderApplied = false
         return
     end
 
-    ic.border:ClearAllPoints()
-    ic.border:SetPoint("TOPLEFT",     ic, "TOPLEFT",     -edgeSize,  edgeSize)
-    ic.border:SetPoint("BOTTOMRIGHT", ic, "BOTTOMRIGHT",  edgeSize, -edgeSize)
+    if not ic.borderApplied or ic.lastBorderTex ~= edgeTex or ic.lastBorderSize ~= edgeSize then
+        ic.border:ClearAllPoints()
+        ic.border:SetPoint("TOPLEFT",     ic, "TOPLEFT",     -edgeSize,  edgeSize)
+        ic.border:SetPoint("BOTTOMRIGHT", ic, "BOTTOMRIGHT",  edgeSize, -edgeSize)
 
-    local half = edgeSize / 2
-    ic.border:SetBackdrop({
-        edgeFile = edgeTex,
-        edgeSize = edgeSize,
-        insets   = { left = half, right = half, top = half, bottom = half },
-    })
+        local half = edgeSize / 2
+        ic.border:SetBackdrop({
+            edgeFile = edgeTex,
+            edgeSize = edgeSize,
+            insets   = { left = half, right = half, top = half, bottom = half },
+        })
+        ic.lastBorderTex  = edgeTex
+        ic.lastBorderSize = edgeSize
+        ic.borderApplied  = true
+    end
 
     local r, g, b = GetColorRGBA("borderColor")
     ic.border:SetBackdropBorderColor(r, g, b, OpacityVal("borderOpacity"))
     ic.border:Show()
 end
 
-local function UpdateLabelStyle(label, faceKey, sizeKey, outlineKey, colorKey, anchorKey, oxKey, oyKey)
-    label:SetFont(GetFontPath(faceKey), DBVal(sizeKey), DBVal(outlineKey))
-    label:SetTextColor(GetColorRGBA(colorKey))
-    ApplyLabelPoint(label, anchorKey, oxKey, oyKey)
+local function ApplyEditModeBackdrop()
+    display:Show()
+    display:SetBackdrop(EDITMODE_BACKDROP)
+    display:SetBackdropColor(unpack(EDITMODE_BG_COLOR))
+    display:SetBackdropBorderColor(unpack(EDITMODE_BORDER_COLOR))
 end
 
 local function UpdateIcons()
@@ -484,14 +505,17 @@ local function UpdateIcons()
     local iconPad       = DBVal("iconPad")
     local opacity       = OpacityVal("iconOpacity")
     local borderEnabled = DBVal("borderEnabled")
+    local inEditMode    = LEM and LEM:IsInEditMode()
     local edgeTex, edgeSize = nil, 0
+
     if borderEnabled then
         local tex = DBVal("borderTexture")
         if tex and tex ~= "None" then
-            edgeTex  = (LSM and LSM:Fetch("border", tex)) or "Interface\\Buttons\\WHITE8x8"
+            edgeTex  = (LSM and LSM:Fetch("border", tex)) or EDITMODE_BG_FILE
         end
         edgeSize = edgeTex and DBVal("borderSize") or 0
     end
+
     local shown = 0
 
     for _, entry in ipairs(displayEntries) do
@@ -533,7 +557,6 @@ local function UpdateIcons()
                 ic.count:Hide()
             end
 
-            local inEditMode = LEM and LEM:IsInEditMode()
             if DBVal("timerEnabled") and (totalCount > 0 or inEditMode) then
                 UpdateLabelStyle(ic.timer, "timerFace", "timerSize", "timerOutline", "timerColor",
                                            "timerAnchor", "timerOffsetX", "timerOffsetY")
@@ -554,8 +577,7 @@ local function UpdateIcons()
                 ic.cooldown:Hide()
             end
 
-            UpdateIconBorder(ic, borderEnabled, edgeTex, edgeSize, iconSize)
-
+            UpdateIconBorder(ic, borderEnabled, edgeTex, edgeSize)
             ic:Show()
         end
     end
@@ -569,14 +591,14 @@ local function UpdateIcons()
         anchor:SetSize(shown * iconSize + (shown + 1) * iconPad, iconSize + iconPad * 2)
         display:SetAllPoints(anchor)
         display:Show()
-    elseif not (LEM and LEM:IsInEditMode()) then
+    elseif not inEditMode then
         display:Hide()
     end
 end
 
 local function StartTicker()
     if ticker then ticker:Cancel() end
-    ticker = C_Timer.NewTicker(0.1, function()
+    ticker = C_Timer.NewTicker(TICKER_INTERVAL, function()
         if DBVal("enabled") then UpdateIcons() end
     end)
 end
@@ -620,7 +642,7 @@ local function RebuildTrackedSpells()
                     dbKey    = spell.dbKey,
                     spellIDs = { spell.id },
                     color    = spell.color,
-                    texID    = info and info.iconID or 134400,
+                    texID    = info and info.iconID or FALLBACK_ICON,
                 }
                 table.insert(displayEntries, entry)
                 entryMap[spell.dbKey] = entry
@@ -638,34 +660,36 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             pendingUpdate = false
             HotTracker:UpdateState()
         end
+
     elseif event == "PLAYER_REGEN_DISABLED" then
         inCombat = true
         UpdateIcons()
+
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "PLAYER_ENTERING_WORLD" then
         RebuildTrackedSpells()
         ResyncAll()
         UpdateIcons()
+
     elseif event == "GROUP_ROSTER_UPDATE" then
         local currentUnits = {}
         for _, unit in ipairs(GetGroupUnits()) do
             currentUnits[unit] = true
             if not unitAuraCache[unit] then
-                if inCombat then
-                    ResyncUnitByCombatSafeInstanceIDs(unit)
-                else
-                    ResyncUnit(unit)
-                end
+                ResyncUnit(unit, inCombat)
             end
         end
         for unit in pairs(unitAuraCache) do
             if not currentUnits[unit] then unitAuraCache[unit] = nil end
         end
         UpdateIcons()
+
     elseif event == "UNIT_AURA" then
         local unit, info = ...
         if UnitIsUnit(unit, "player") then unit = "player" end
-        HandleUnitAuraEvent(unit, info)
-        UpdateIcons()
+        if unitAuraCache[unit] then
+            HandleUnitAuraEvent(unit, info)
+            UpdateIcons()
+        end
     end
 end)
 
@@ -723,9 +747,9 @@ local function DrpFont(name, dbKey, expKey)
     if LSM then
         for _, n in ipairs(LSM:List("font")) do vals[#vals + 1] = { text = n, value = n } end
     else
-        vals[1] = { text = "Friz Quadrata TT", value = "Friz Quadrata TT" }
+        vals[1] = { text = DEFAULT_FONT_FACE, value = DEFAULT_FONT_FACE }
     end
-    return Setting(ST.Dropdown, name, { dbKey = dbKey, default = "Friz Quadrata TT", values = vals, height = 300, hidden = expKey })
+    return Setting(ST.Dropdown, name, { dbKey = dbKey, default = DEFAULT_FONT_FACE, values = vals, height = 300, hidden = expKey })
 end
 
 local function DrpBorder(name, dbKey, expKey)
@@ -763,36 +787,36 @@ local function GetEditModeSettings()
     add(Sld("Opacity", "iconOpacity", 0, 100,  1, 100, "exp_icon"))
 
     add(Exp("exp_bg", "Background"))
-    add(Chk("Enable Background", "bgEnabled", false,          "exp_bg"))
-    add(Clr("Color",             "bgColor",                   "exp_bg"))
-    add(Sld("Opacity",           "bgOpacity", 0, 100, 1, 50,  "exp_bg"))
+    add(Chk("Enable Background", "bgEnabled", false,         "exp_bg"))
+    add(Clr("Color",             "bgColor",                  "exp_bg"))
+    add(Sld("Opacity",           "bgOpacity", 0, 100, 1, 50, "exp_bg"))
 
     add(Exp("exp_border", "Border"))
-    add(Chk("Enable Border", "borderEnabled", false,          "exp_border"))
-    add(DrpBorder("Texture", "borderTexture",                 "exp_border"))
-    add(Sld("Size",          "borderSize",    1, 32, 1, 12,   "exp_border"))
-    add(Clr("Color",         "borderColor",                   "exp_border"))
-    add(Sld("Opacity",       "borderOpacity", 0, 100, 1, 100, "exp_border"))
+    add(Chk("Enable Border",  "borderEnabled", false,           "exp_border"))
+    add(DrpBorder("Texture",  "borderTexture",                  "exp_border"))
+    add(Sld("Size",           "borderSize",    1, 32, 1, 12,   "exp_border"))
+    add(Clr("Color",          "borderColor",                    "exp_border"))
+    add(Sld("Opacity",        "borderOpacity", 0, 100, 1, 100, "exp_border"))
 
     add(Exp("exp_count", "Stack Count"))
-    add(Chk("Show Count", "countEnabled", true,              "exp_count"))
+    add(Chk("Show Count", "countEnabled", true,                   "exp_count"))
     add(Drp("Anchor",     "countAnchor",  ANCHOR_POINTS, "TOPLEFT", "exp_count"))
-    add(Sld("Offset X",   "countOffsetX", -30, 30, 1, 1,    "exp_count"))
-    add(Sld("Offset Y",   "countOffsetY", -30, 30, 1, -1,   "exp_count"))
-    add(DrpFont("Font",   "countFace",                       "exp_count"))
-    add(Sld("Font Size",  "countSize",    7, 24, 1, 11,      "exp_count"))
+    add(Sld("Offset X",   "countOffsetX", -30, 30, 1, 1,          "exp_count"))
+    add(Sld("Offset Y",   "countOffsetY", -30, 30, 1, -1,         "exp_count"))
+    add(DrpFont("Font",   "countFace",                             "exp_count"))
+    add(Sld("Font Size",  "countSize",    7, 24, 1, 11,            "exp_count"))
     add(Drp("Outline",    "countOutline", OUTLINE_VALUES, "OUTLINE", "exp_count"))
-    add(Clr("Color",      "countColor",                      "exp_count"))
+    add(Clr("Color",      "countColor",                            "exp_count"))
 
     add(Exp("exp_timer", "Timer"))
-    add(Chk("Show Timer", "timerEnabled", true,                   "exp_timer"))
+    add(Chk("Show Timer", "timerEnabled", true,                        "exp_timer"))
     add(Drp("Anchor",     "timerAnchor",  ANCHOR_POINTS, "BOTTOMRIGHT", "exp_timer"))
-    add(Sld("Offset X",   "timerOffsetX", -30, 30, 1, -1,         "exp_timer"))
-    add(Sld("Offset Y",   "timerOffsetY", -30, 30, 1,  1,         "exp_timer"))
-    add(DrpFont("Font",   "timerFace",                             "exp_timer"))
-    add(Sld("Font Size",  "timerSize",    7, 24, 1, 10,            "exp_timer"))
-    add(Drp("Outline",    "timerOutline", OUTLINE_VALUES, "OUTLINE", "exp_timer"))
-    add(Clr("Color",      "timerColor",                            "exp_timer"))
+    add(Sld("Offset X",   "timerOffsetX", -30, 30, 1, -1,             "exp_timer"))
+    add(Sld("Offset Y",   "timerOffsetY", -30, 30, 1,  1,             "exp_timer"))
+    add(DrpFont("Font",   "timerFace",                                 "exp_timer"))
+    add(Sld("Font Size",  "timerSize",    7, 24, 1, 10,                "exp_timer"))
+    add(Drp("Outline",    "timerOutline", OUTLINE_VALUES, "OUTLINE",   "exp_timer"))
+    add(Clr("Color",      "timerColor",                                "exp_timer"))
     add(Drp("Decimals",   "timerDecimals", {
         { text = "1",    value = 0 },
         { text = "1.1",  value = 1 },
@@ -802,11 +826,12 @@ local function GetEditModeSettings()
     add(Exp("exp_spells", "Tracked Spells"))
     local seenKeys = {}
     for className, spellList in pairs(CLASS_SPELLS) do
+        local classLabel = className:sub(1, 1) .. className:sub(2):lower()
         for _, spell in ipairs(spellList) do
             if not spell.hidden and not seenKeys[spell.dbKey] then
                 seenKeys[spell.dbKey] = true
                 local key   = spell.dbKey
-                local label = spell.name .. " (" .. className:sub(1, 1) .. className:sub(2):lower() .. ")"
+                local label = spell.name .. " (" .. classLabel .. ")"
                 add({
                     kind    = ST.Checkbox,
                     name    = label,
@@ -874,14 +899,7 @@ function HotTracker:UpdateState()
         StartTicker()
 
         if LEM and LEM:IsInEditMode() then
-            display:Show()
-            display:SetBackdrop({
-                bgFile   = "Interface\\Buttons\\WHITE8x8",
-                edgeFile = "Interface\\Buttons\\WHITE8x8",
-                edgeSize = 1,
-            })
-            display:SetBackdropColor(0, 0.2, 0.5, 0.5)
-            display:SetBackdropBorderColor(0, 0.5, 1, 1)
+            ApplyEditModeBackdrop()
         end
     else
         StopTicker()
@@ -894,7 +912,7 @@ function HotTracker:UpdateState()
 
     if LEM then
         if db.enabled and not anchor.editModeRegistered then
-            LEM:AddFrame(anchor, OnLayoutChanged, { point = "CENTER", x = 0, y = 150 }, "HoT Tracker")
+            LEM:AddFrame(anchor, OnLayoutChanged, { point = "CENTER", x = ANCHOR_DEFAULT_X, y = ANCHOR_DEFAULT_Y }, "HoT Tracker")
             LEM:AddFrameSettings(anchor, GetEditModeSettings())
             anchor.editModeRegistered = true
 
@@ -916,8 +934,8 @@ end
 
 function HotTracker:Initialize()
     anchor = CreateFrame("Frame", "ACT_HotTracker_Anchor", UIParent)
-    anchor:SetSize(200, 44)
-    anchor:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+    anchor:SetSize(ANCHOR_DEFAULT_W, ANCHOR_DEFAULT_H)
+    anchor:SetPoint("CENTER", UIParent, "CENTER", ANCHOR_DEFAULT_X, ANCHOR_DEFAULT_Y)
     anchor:SetFrameStrata("MEDIUM")
     anchor:Show()
 
@@ -932,32 +950,26 @@ function HotTracker:Initialize()
     if LEM then
         LEM:RegisterCallback("enter", function()
             if DBVal("enabled") then
-                display:Show()
-                display:SetBackdrop({
-                    bgFile   = "Interface\\Buttons\\WHITE8x8",
-                    edgeFile = "Interface\\Buttons\\WHITE8x8",
-                    edgeSize = 1,
-                })
-                display:SetBackdropColor(0, 0.2, 0.5, 0.5)
-                display:SetBackdropBorderColor(0, 0.5, 1, 1)
+                ApplyEditModeBackdrop()
+                bgBackdropApplied = false
             end
         end)
 
         LEM:RegisterCallback("exit", function()
             display:SetBackdrop(nil)
+            bgBackdropApplied = false
             UpdateIcons()
         end)
 
         LEM:RegisterCallback("layout", function(layoutName)
-            if not DBVal("enabled") then return end
-            if not LEM:IsInEditMode() then return end
+            if not DBVal("enabled") or not LEM:IsInEditMode() then return end
             local db  = GetDB()
             local pos = db and db.pos and db.pos[layoutName]
             anchor:ClearAllPoints()
             if pos then
                 anchor:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
             else
-                anchor:SetPoint("CENTER", UIParent, "CENTER", 0, 150)
+                anchor:SetPoint("CENTER", UIParent, "CENTER", ANCHOR_DEFAULT_X, ANCHOR_DEFAULT_Y)
             end
         end)
     end
