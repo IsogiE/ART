@@ -43,6 +43,7 @@ Tools\AuraCDM.lua
 Tools\Combat.lua
 Tools\General.lua
 Tools\Hots.lua
+Tools\PalaDispell.lua
 
 RaidGroups.lua
 Macros.lua
