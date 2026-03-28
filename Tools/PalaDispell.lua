@@ -365,10 +365,13 @@ local function RunAssignment()
                 slotTaken[si]  = true
                 healerUsed[ai] = true
                 if UnitIsUnit(v, "player") then
-                    myAssignedUnit  = info[1]
-                    myAssignedAuraID = info[3]
-                    DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                    C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                    local auraInfo = C_UnitAuras.GetAuraDataByAuraInstanceID(info[1], info[3])
+                    if auraInfo then
+                        myAssignedUnit  = info[1]
+                        myAssignedAuraID = info[3]
+                        DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
+                        C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                    end
                 end
                 break
             end
@@ -389,10 +392,13 @@ local function RunAssignment()
             nextSlot            = nextSlot + 1
 
             if UnitIsUnit(v, "player") then
-                myAssignedUnit  = info[1]
-                myAssignedAuraID = info[3]
-                DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                local auraInfo = C_UnitAuras.GetAuraDataByAuraInstanceID(info[1], info[3])
+                if auraInfo then
+                    myAssignedUnit  = info[1]
+                    myAssignedAuraID = info[3]
+                    DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
+                    C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                end
             end
         end
     end
