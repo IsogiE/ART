@@ -11,7 +11,7 @@ local active = false
 local healers = {}
 local dwarfs = {}
 local affected = {}
-local healerassigned = {}
+
 local lastAuraTime = nil
 local pendingUpdate = false
 
@@ -297,65 +297,76 @@ local function RunAssignment()
     end
 
     table.sort(affected, function(a, b)
+        local aDwarf = a[5] and 1 or 0
+        local bDwarf = b[5] and 1 or 0
+        if aDwarf ~= bDwarf then
+            return aDwarf < bDwarf
+        end
         return (a[2] or 999) < (b[2] or 999)
     end)
 
     lastAuraTime = nil
-    wipe(healerassigned)
 
-    -- Healers self-dispell
+    local available = {}
     for i, v in ipairs(healers) do
         if not UnitIsDeadOrGhost(v) then
-            for k, info in ipairs(affected) do
-                if UnitIsUnit(info[1], v) then
-                    info[4] = true
-                    healerassigned[i] = true
-                    if UnitIsUnit(v, "player") then
-                        myAssignedUnit = info[1]
-                        myAssignedAuraID = info[3]
-                        DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                        C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
-                        return
-                    end
-                    break
+            table.insert(available, v)
+        end
+    end
+
+    local slotTaken   = {} 
+    local healerUsed  = {} 
+    for ai, v in ipairs(available) do
+        for si, info in ipairs(affected) do
+            if not slotTaken[si] and UnitIsUnit(info[1], v) then
+                slotTaken[si]  = true
+                healerUsed[ai] = true
+                if UnitIsUnit(v, "player") then
+                    myAssignedUnit  = info[1]
+                    myAssignedAuraID = info[3]
+                    DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
+                    C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
                 end
+                break
             end
         end
     end
 
-    -- Assign unassigned healers to unassigned affected
-    for i, v in ipairs(healers) do
-        if (not UnitIsDeadOrGhost(v)) and not healerassigned[i] then
-            for k, info in ipairs(affected) do
-                if not info[4] then
-                    info[4] = true
-                    healerassigned[i] = true
-                    if UnitIsUnit(v, "player") then
-                        myAssignedUnit = info[1]
-                        myAssignedAuraID = info[3]
-                        DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                        C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
-                        return
-                    end
-                    break
-                end
+    local nextSlot = 1
+    for ai, v in ipairs(available) do
+        if not healerUsed[ai] then
+            while nextSlot <= #affected and slotTaken[nextSlot] do
+                nextSlot = nextSlot + 1
             end
+            if nextSlot > #affected then break end  -- no debuffs left to assign
+
+            local info = affected[nextSlot]
+            slotTaken[nextSlot] = true
+            healerUsed[ai]      = true
+            nextSlot            = nextSlot + 1
+
+            if UnitIsUnit(v, "player") then
+                myAssignedUnit  = info[1]
+                myAssignedAuraID = info[3]
+                DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
+                C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+            end
+        end
+    end
+
+    local now = GetTime()
+    for si, info in ipairs(affected) do
+        if info[5] and not slotTaken[si] and UnitIsUnit(info[1], "player") then
+            if (not dwarfs["player"]) or now >= dwarfs["player"] then
+                dwarfs["player"] = now + 121
+                DispellAssign:UpdateUI(true, "USE DWARF", true, "player")
+                C_Timer.After(15, function() DispellAssign:UpdateUI(false) end)
+            end
+            break
         end
     end
 
     wipe(affected)
-end
-
-local function RunDwarfCheck(unit)
-    if #affected > 15 then return end
-
-    local now = GetTime()
-    dwarfs[unit] = now + 121
-
-    if UnitIsUnit("player", unit) then
-        DispellAssign:UpdateUI(true, "USE DWARF", true, unit)
-        C_Timer.After(15, function() DispellAssign:UpdateUI(false) end)
-    end
 end
 
 local eventFrame = CreateFrame("Frame")
@@ -533,14 +544,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                         C_Timer.After(0.2, RunAssignment)
                     end
 
-                    if dwarfs[unit] and now > dwarfs[unit] then
-                        C_Timer.After(0.2, function()
-                            RunDwarfCheck(unit)
-                        end)
-                    else
-                        local index = UnitInRaid(unit) or 999
-                        table.insert(affected, {unit, index, auraInstanceID, false})
-                    end
+                    -- Dwarfs are always inserted into affected but with lowest priority
+                    local index = UnitInRaid(unit) or 999
+                    local isDwarf = dwarfs[unit] ~= nil
+                    table.insert(affected, {unit, index, auraInstanceID, false, isDwarf})
                 end
             end
         end
