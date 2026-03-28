@@ -59,6 +59,11 @@ local DEFAULTS = {
     nameColorMode   = "class",
     nameCustomColor = {1, 0.27, 1, 1},
     glowColor       = {0.247, 0.988, 0.247, 1},
+    glowType        = "Pixel",
+    glowLines       = 10,
+    glowThickness   = 3,
+    glowFrequency   = 3,
+    glowScale       = 10,
     pos             = {},
     audioType       = "sound",
     audioSound      = "Idiot",
@@ -129,7 +134,7 @@ local function GetGlowColorArray()
     return {0.247, 0.988, 0.247, 1}
 end
 
--- Applies a pixel glow
+-- Applies the selected glow
 local function ApplyGlow(unit)
     if not LGF or not LCG then return end
     local frame = LGF.GetUnitFrame(unit)
@@ -140,7 +145,24 @@ local function ApplyGlow(unit)
     end
 
     if not frame then return end
-    LCG.PixelGlow_Start(frame, GetGlowColorArray(), 10, nil, nil, 3, 0, 0, true, GLOW_KEY)
+    
+    local gType = DBVal("glowType")
+    local color = GetGlowColorArray()
+    local lines = DBVal("glowLines")
+    
+    local freq  = DBVal("glowFrequency") / 10
+    local scale = DBVal("glowScale") / 10
+    
+    if gType == "Pixel" then
+        LCG.PixelGlow_Start(frame, color, lines, freq, nil, DBVal("glowThickness"), 0, 0, true, GLOW_KEY)
+    elseif gType == "Autocast" then
+        LCG.AutoCastGlow_Start(frame, color, lines, freq, scale, 0, 0, GLOW_KEY)
+    elseif gType == "Button" then
+        LCG.ButtonGlow_Start(frame, color, freq)
+    elseif gType == "Proc" then
+        local duration = (freq ~= 0) and math.abs(1 / freq) or 1
+        LCG.ProcGlow_Start(frame, {color = color, duration = duration, key = GLOW_KEY})
+    end
 end
 
 local function RemoveGlow(unit)
@@ -152,7 +174,12 @@ local function RemoveGlow(unit)
     end
 
     if not frame then return end
+    
+    -- Stop all potential glows to ensure no ghosting when switching types
     LCG.PixelGlow_Stop(frame, GLOW_KEY)
+    LCG.AutoCastGlow_Stop(frame, GLOW_KEY)
+    LCG.ButtonGlow_Stop(frame)
+    LCG.ProcGlow_Stop(frame, GLOW_KEY)
 end
 
 local warnFrame = CreateFrame("Frame", "ACT_DispellAssign_WarnFrame", UIParent, "BackdropTemplate")
@@ -194,12 +221,25 @@ end
 local function PlaySafeTTS(text)
     if not (C_VoiceChat and C_VoiceChat.SpeakText) then return end
 
-    local targetVoiceID = DBVal("ttsVoice") or 0
-    local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
-    local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
-    local destination = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 0 
+    local targetVoiceID = tonumber(DBVal("ttsVoice")) or 0
 
-    C_VoiceChat.SpeakText(targetVoiceID, text, destination, rate, volume)
+    local validVoice = false
+    local voices = C_VoiceChat.GetTtsVoices()
+    if voices then
+        for _, voice in ipairs(voices) do
+            if voice.voiceID == targetVoiceID then
+                validVoice = true
+                break
+            end
+        end
+    end
+
+    if not validVoice then targetVoiceID = 0 end
+
+    local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate()) or 0
+    local destination = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 1
+
+    C_VoiceChat.SpeakText(targetVoiceID, text, destination, rate, 100)
 end
 
 local function PlayAlert(ttsText)
@@ -384,6 +424,21 @@ local function GetEditModeSettings()
     local function add(t) s[#s + 1] = t end
     local function setDB(key, v) local db = GetDB(); if db then db[key] = v; UpdateTextFormat(); if warnFrame:IsVisible() then warnText:SetText(GetFormattedAlertText("Dispel", false, "player")) end end end
 
+    local GLOW_TYPES = {
+        { text = "Pixel Glow", value = "Pixel" },
+        { text = "Autocast Shine", value = "Autocast" },
+        { text = "Action Button Glow", value = "Button" },
+        { text = "Proc Glow", value = "Proc" },
+    }
+
+    local function updateGlowProp(key, v)
+        setDB(key, v)
+        if LEM and LEM:IsInEditMode() then
+            RemoveGlow("player")
+            ApplyGlow("player")
+        end
+    end
+
     local fontVals = {}
     if LSM then
         for _, n in ipairs(LSM:List("font")) do fontVals[#fontVals + 1] = { text = n, value = n } end
@@ -440,19 +495,45 @@ local function GetEditModeSettings()
     })
 
     add({ 
-        kind = ST.ColorPicker, name = "Frame Glow Color", default = CreateColor(0.247, 0.988, 0.247, 1), hasOpacity = true, 
+        kind = ST.Dropdown, name = "Glow Type", default = "Pixel", values = GLOW_TYPES, 
+        hidden = function() return not DBVal("exp_glow") end, 
+        get = function() return DBVal("glowType") end, 
+        set = function(_, v) updateGlowProp("glowType", v) end 
+    })
+
+    add({ 
+        kind = ST.ColorPicker, name = "Glow Color", default = CreateColor(0.247, 0.988, 0.247, 1), hasOpacity = true, 
         hidden = function() return not DBVal("exp_glow") end, 
         get = function() return GetDBColor("glowColor") end, 
-        set = function(_, v) 
-            local db = GetDB(); 
-            if db then 
-                db["glowColor"] = v; 
-                if LEM and LEM:IsInEditMode() then
-                    RemoveGlow("player")
-                    ApplyGlow("player")
-                end
-            end 
-        end 
+        set = function(_, v) updateGlowProp("glowColor", v) end 
+    })
+
+    add({ 
+        kind = ST.Slider, name = "Lines/Particles", default = 10, minValue = 1, maxValue = 20, valueStep = 1, 
+        hidden = function() return not DBVal("exp_glow") or (DBVal("glowType") ~= "Pixel" and DBVal("glowType") ~= "Autocast") end, 
+        get = function() return DBVal("glowLines") end, 
+        set = function(_, v) updateGlowProp("glowLines", v) end 
+    })
+
+    add({ 
+        kind = ST.Slider, name = "Thickness", default = 3, minValue = 1, maxValue = 10, valueStep = 1, 
+        hidden = function() return not DBVal("exp_glow") or DBVal("glowType") ~= "Pixel" end, 
+        get = function() return DBVal("glowThickness") end, 
+        set = function(_, v) updateGlowProp("glowThickness", v) end 
+    })
+
+    add({ 
+        kind = ST.Slider, name = "Speed/Frequency", default = 3, minValue = 0, maxValue = 20, valueStep = 1, 
+        hidden = function() return not DBVal("exp_glow") end, 
+        get = function() return DBVal("glowFrequency") end, 
+        set = function(_, v) updateGlowProp("glowFrequency", v) end 
+    })
+
+add({ 
+        kind = ST.Slider, name = "Scale", default = 10, minValue = 5, maxValue = 30, valueStep = 1, 
+        hidden = function() return not DBVal("exp_glow") or DBVal("glowType") ~= "Autocast" end, 
+        get = function() return DBVal("glowScale") end, 
+        set = function(_, v) updateGlowProp("glowScale", v) end 
     })
 
     add({
@@ -484,12 +565,14 @@ local function GetEditModeSettings()
         hidden = function() return not DBVal("exp_audio") or DBVal("audioType") ~= "tts" end, 
         get = function() return DBVal("ttsVoice") end, 
         set = function(_, v) 
-            setDB("ttsVoice", v)
+            local numericVoiceID = tonumber(v) or 0
+            setDB("ttsVoice", numericVoiceID)
+            
             if C_VoiceChat and C_VoiceChat.SpeakText then
                 local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
                 local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
                 local dest = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 0
-                C_VoiceChat.SpeakText(v, "Voice test", dest, rate, volume)
+                C_VoiceChat.SpeakText(numericVoiceID, "Voice test", dest, rate, volume)
             end
         end 
     })
