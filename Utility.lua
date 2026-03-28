@@ -374,7 +374,7 @@ function NicknameModule:CreateConfigPanel(parent)
     end)
     hotTrackerCheck:SetPoint("LEFT", bcmCheck, "RIGHT", 250, 0)
 
-    local dispellAssignCheck = CreateCheckButton(configPanel, "Dispell Assignment", function(checked)
+    local dispellAssignCheck = CreateCheckButton(configPanel, "Vanguard Assignment", function(checked)
         if not NicknameModule.isInitialized or not ACT.db.profile.dispell_assign then return end
         ACT.db.profile.dispell_assign.enabled = checked
         if ACT.DispellAssign and ACT.DispellAssign.UpdateState then
