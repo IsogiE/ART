@@ -5,47 +5,219 @@ if not ACT then return end
 local DispellAssign = {}
 ACT.DispellAssign = DispellAssign
 
+local ENCOUNTER_ID = 3180
+
 local active = false
 local healers = {}
 local dwarfs = {}
 local affected = {}
 local healerassigned = {}
 local lastAuraTime = nil
+local pendingUpdate = false
 
 local myAssignedUnit = nil
 local myAssignedAuraID = nil
 
-local warnFrame = CreateFrame("Frame", "ACT_DispellAssign_WarnFrame", UIParent)
-warnFrame:SetSize(400, 100)
-warnFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 200) 
+local GLOW_KEY   = "ACT_DispellAssign"
+
+local LGF = LibStub and LibStub("LibGetFrame-1.0", true)
+local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
+local LEM = LibStub and LibStub("LibEditMode", true)
+local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+
+local DEFAULT_FONT_PATH = "Fonts\\FRIZQT__.TTF"
+local DEFAULT_FONT_FACE = "Friz Quadrata TT"
+
+local OUTLINE_VALUES = {
+    { text = "None",    value = ""             },
+    { text = "Outline", value = "OUTLINE"      },
+    { text = "Thick",   value = "THICKOUTLINE" },
+}
+
+local NAME_COLOR_MODES = {
+    { text = "Class Color",  value = "class"  },
+    { text = "Custom Color", value = "custom" },
+}
+
+local DEFAULTS = {
+    enabled         = false,
+    fontFace        = DEFAULT_FONT_FACE,
+    fontSize        = 28,
+    fontOutline     = "OUTLINE",
+    actionColor     = {0, 1, 0, 1},
+    dwarfColor      = {1, 0.84, 0, 1},
+    nameColorMode   = "class",
+    nameCustomColor = {1, 0.27, 1, 1},
+    glowColor       = {0.247, 0.988, 0.247, 1},
+    pos             = {},
+}
+
+local function GetDB()
+    if ACT.db and ACT.db.profile then
+        ACT.db.profile.dispell_assign = ACT.db.profile.dispell_assign or {}
+        local db = ACT.db.profile.dispell_assign
+        for k, v in pairs(DEFAULTS) do
+            if db[k] == nil then db[k] = v end
+        end
+        return db
+    end
+    return DEFAULTS
+end
+
+local function DBVal(key)
+    local db = GetDB()
+    return db and db[key] or DEFAULTS[key]
+end
+
+local function GetFontPath(faceKey)
+    local face = DBVal(faceKey)
+    if LSM and face then
+        local path = LSM:Fetch("font", face)
+        if path then return path end
+    end
+    return DEFAULT_FONT_PATH
+end
+
+local function GetColorHex(key)
+    local db = GetDB()
+    local val = db and db[key]
+    local r, g, b = 1, 1, 1
+    if val then
+        if type(val.GetRGBA) == "function" then
+            r, g, b = val:GetRGBA()
+        elseif type(val) == "table" then
+            r, g, b = val.r or val[1] or 1, val.g or val[2] or 1, val.b or val[3] or 1
+        end
+    end
+    return string.format("%02x%02x%02x", r * 255, g * 255, b * 255)
+end
+
+local function GetDBColor(key)
+    local db = GetDB()
+    local val = db and db[key]
+    if val then
+        if type(val.GetRGBA) == "function" then
+            return val
+        elseif type(val) == "table" then
+            return CreateColor(val.r or val[1] or 1, val.g or val[2] or 1, val.b or val[3] or 1, val.a or val[4] or 1)
+        end
+    end
+    return CreateColor(1, 1, 1, 1)
+end
+
+local function GetGlowColorArray()
+    local db = GetDB()
+    local c = db and db.glowColor or DEFAULTS.glowColor
+    if type(c.GetRGBA) == "function" then
+        return {c:GetRGBA()}
+    elseif type(c) == "table" then
+        return {c.r or c[1] or 1, c.g or c[2] or 1, c.b or c[3] or 1, c.a or c[4] or 1}
+    end
+    return {0.247, 0.988, 0.247, 1}
+end
+
+-- Applies a pixel glow
+local function ApplyGlow(unit)
+    if not LGF or not LCG then return end
+    local frame = LGF.GetUnitFrame(unit)
+
+    -- bit of a hail marry in case LFG doesn't work for danders
+    if not frame and DandersFrames_GetFrameForUnit then
+        frame = DandersFrames_GetFrameForUnit(unit)
+    end
+
+    if not frame then return end
+    LCG.PixelGlow_Start(frame, GetGlowColorArray(), 10, nil, nil, 3, 0, 0, true, GLOW_KEY)
+end
+
+local function RemoveGlow(unit)
+    if not LGF or not LCG then return end
+    local frame = LGF.GetUnitFrame(unit)
+
+    if not frame and DandersFrames_GetFrameForUnit then
+        frame = DandersFrames_GetFrameForUnit(unit)
+    end
+
+    if not frame then return end
+    LCG.PixelGlow_Stop(frame, GLOW_KEY)
+end
+
+local warnFrame = CreateFrame("Frame", "ACT_DispellAssign_WarnFrame", UIParent, "BackdropTemplate")
+warnFrame:SetSize(400, 80)
+warnFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 warnFrame:Hide()
 
 local warnText = warnFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
 warnText:SetPoint("CENTER")
 
-function DispellAssign:UpdateUI(show, text, isDwarf)
+local function UpdateTextFormat()
+    warnText:SetFont(GetFontPath("fontFace"), DBVal("fontSize"), DBVal("fontOutline"))
+end
+
+local function GetFormattedAlertText(actionText, isDwarf, targetUnit)
+    local actionHex = GetColorHex(isDwarf and "dwarfColor" or "actionColor")
+    
+    if isDwarf then
+        return string.format("|cff%s%s|r", actionHex, actionText)
+    end
+
+    local nameHex = "ffffffff"
+    local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
+
+    if DBVal("nameColorMode") == "class" then
+        if targetUnit then
+            local _, class = UnitClass(targetUnit)
+            if class and RAID_CLASS_COLORS[class] then
+                nameHex = RAID_CLASS_COLORS[class].colorStr:sub(3)
+            end
+        end
+    else
+        nameHex = GetColorHex("nameCustomColor")
+    end
+
+    return string.format("|cff%s%s|r |cff%s%s|r", actionHex, actionText, nameHex, name)
+end
+
+function DispellAssign:UpdateUI(show, actionText, isDwarf, targetUnit)
     if not show then
-        warnFrame:Hide()
+        if not (LEM and LEM:IsInEditMode()) then
+            warnFrame:Hide()
+        end
+        -- Remove glow from previous assign before clearing
+        if myAssignedUnit then
+            RemoveGlow(myAssignedUnit)
+        end
         myAssignedUnit = nil
         myAssignedAuraID = nil
         return
     end
 
-    warnText:SetText(text)
+    UpdateTextFormat()
+    warnText:SetText(GetFormattedAlertText(actionText, isDwarf, targetUnit))
     warnFrame:Show()
-    
-    -- TTS (Mirrors the WA's use of NSAPI, with a safe fallback)
-    if NSAPI and NSAPI.TTS then
-        NSAPI:TTS(isDwarf and "Use Dwarf" or "Dispel")
-    elseif C_VoiceChat and C_VoiceChat.SpeakText and Enum and Enum.VoiceTtsDestination then
-        C_VoiceChat.SpeakText(0, isDwarf and "Use Dwarf" or "Dispel", Enum.VoiceTtsDestination.LocalPlayback, 0, 100)
+
+    -- Apply the frame glow to the assigned person
+    if myAssignedUnit then
+        ApplyGlow(myAssignedUnit)
+    end
+
+if C_VoiceChat and C_VoiceChat.SpeakText then
+        local ttsText
+        if isDwarf then
+            ttsText = "Use Dwarf"
+        else
+            local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
+            ttsText = "Dispel " .. name
+        end
+        
+        C_VoiceChat.SpeakText(1, ttsText, 1, 0, 100)
     end
 end
 
 local function BuildRoster()
     wipe(healers)
     wipe(dwarfs)
-    
+
     local members = {}
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do table.insert(members, "raid"..i) end
@@ -54,6 +226,7 @@ local function BuildRoster()
         for i = 1, GetNumGroupMembers() - 1 do table.insert(members, "party"..i) end
     end
 
+    -- Healers + Dwarfs
     for _, unit in ipairs(members) do
         if UnitExists(unit) then
             if UnitGroupRolesAssigned(unit) == "HEALER" then
@@ -65,8 +238,8 @@ local function BuildRoster()
             end
         end
     end
-    
-    -- Insert Warlocks after healers
+
+    -- Warlocks after healers, 2nd class citizens
     for _, unit in ipairs(members) do
         if UnitExists(unit) then
             local _, _, class = UnitClass(unit)
@@ -78,9 +251,9 @@ local function BuildRoster()
 end
 
 local function RunAssignment()
-    if #affected > 15 then 
+    if #affected > 15 then
         wipe(affected)
-        return 
+        return
     end
 
     table.sort(affected, function(a, b)
@@ -90,7 +263,7 @@ local function RunAssignment()
     lastAuraTime = nil
     wipe(healerassigned)
 
-    -- Pass 1: Self-Dispel
+    -- Healers self-dispell
     for i, v in ipairs(healers) do
         if not UnitIsDeadOrGhost(v) then
             for k, info in ipairs(affected) do
@@ -100,18 +273,17 @@ local function RunAssignment()
                     if UnitIsUnit(v, "player") then
                         myAssignedUnit = info[1]
                         myAssignedAuraID = info[3]
-                        local name = UnitName(info[1]) or info[1]
-                        DispellAssign:UpdateUI(true, "|cff00ff00Dispel|r · |cffff44ff"..name.."|r", false)
+                        DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
                         C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
                         return
                     end
-                    break 
+                    break
                 end
-            end 
+            end
         end
     end
-    
-    -- Pass 2: Others
+
+    -- Assign unassigned healers to unassigned affected
     for i, v in ipairs(healers) do
         if (not UnitIsDeadOrGhost(v)) and not healerassigned[i] then
             for k, info in ipairs(affected) do
@@ -121,95 +293,267 @@ local function RunAssignment()
                     if UnitIsUnit(v, "player") then
                         myAssignedUnit = info[1]
                         myAssignedAuraID = info[3]
-                        local name = UnitName(info[1]) or info[1]
-                        DispellAssign:UpdateUI(true, "|cff00ff00Dispel|r · |cffff44ff"..name.."|r", false)
+                        DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
                         C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
                         return
                     end
-                    break 
+                    break
                 end
-            end 
+            end
         end
     end
-    
+
     wipe(affected)
+end
+
+local function RunDwarfCheck(unit)
+    if #affected > 15 then return end
+
+    local now = GetTime()
+    dwarfs[unit] = now + 121
+
+    if UnitIsUnit("player", unit) then
+        DispellAssign:UpdateUI(true, "USE DWARF", true, unit)
+        C_Timer.After(15, function() DispellAssign:UpdateUI(false) end)
+    end
 end
 
 local eventFrame = CreateFrame("Frame")
 
-function DispellAssign:Initialize()
-    eventFrame:RegisterEvent("ENCOUNTER_START")
-    eventFrame:RegisterEvent("ENCOUNTER_END")
-    eventFrame:RegisterEvent("UNIT_AURA")
-    eventFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+-- Edit Mode stuffs
+local function GetEditModeSettings()
+    if not LEM then return {} end
+    local ST = LEM.SettingType
 
-    eventFrame:SetScript("OnEvent", function(self, event, ...)
-        if event == "ENCOUNTER_START" then
-            active = true
-            wipe(affected)
-            DispellAssign:UpdateUI(false)
-            BuildRoster()
-            
-        elseif event == "ENCOUNTER_END" then
-            active = false
-            DispellAssign:UpdateUI(false)
-            wipe(affected)
-            
-        elseif event == "UNIT_AURA" then
-            local unit, updateInfo = ...
-            if not active then return end
-            
-            -- FIX FOR TAINT ERROR: Only process actual group members, ignore nameplates
-            if not (unit == "player" or string.match(unit, "^raid%d+$") or string.match(unit, "^party%d+$")) then
-                return
-            end
+    local s = {}
+    local function add(t) s[#s + 1] = t end
+    local function setDB(key, v) local db = GetDB(); if db then db[key] = v; UpdateTextFormat(); if warnFrame:IsVisible() then warnText:SetText(GetFormattedAlertText("Dispel", false, "player")) end end end
 
-            if updateInfo.addedAuras then
-                for i, auraData in ipairs(updateInfo.addedAuras) do
-                    local auraInstanceID = auraData.auraInstanceID
-                    local isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HARMFUL")
-                    
-                    if isDebuff and auraData.dispelName ~= nil then
-                        local now = GetTime()
-                        
-                        -- Batch timer (mirrors aura_env.last logic)
-                        if not lastAuraTime or lastAuraTime < now - 3 then
-                            lastAuraTime = now
-                            wipe(affected)
-                            C_Timer.After(0.2, RunAssignment)
-                        end
-                        
-                        -- Dwarf Check
-                        if dwarfs[unit] and now > dwarfs[unit] then
-                            dwarfs[unit] = now + 121
-                            if UnitIsUnit("player", unit) then
-                                DispellAssign:UpdateUI(true, "|cffffd700USE DWARF RACIAL|r", true)
-                                C_Timer.After(15, function() DispellAssign:UpdateUI(false) end)
-                            end
-                        else
-                            local index = UnitInRaid(unit) or 999
-                            table.insert(affected, {unit, index, auraInstanceID, false})
-                        end
+    local fontVals = {}
+    if LSM then
+        for _, n in ipairs(LSM:List("font")) do fontVals[#fontVals + 1] = { text = n, value = n } end
+    else
+        fontVals[1] = { text = DEFAULT_FONT_FACE, value = DEFAULT_FONT_FACE }
+    end
+
+    add({
+        kind = ST.Expander, name = "Text Style", default = true,
+        get = function() return DBVal("exp_text") end,
+        set = function(_, v) local db = GetDB(); if db then db["exp_text"] = v end end
+    })
+
+    add({ kind = ST.Dropdown, name = "Font", default = DEFAULT_FONT_FACE, values = fontVals, height = 300, hidden = function() return not DBVal("exp_text") end, get = function() return DBVal("fontFace") end, set = function(_, v) setDB("fontFace", v) end })
+    add({ kind = ST.Slider, name = "Font Size", default = 28, minValue = 10, maxValue = 72, valueStep = 1, hidden = function() return not DBVal("exp_text") end, get = function() return DBVal("fontSize") end, set = function(_, v) setDB("fontSize", v) end })
+    add({ kind = ST.Dropdown, name = "Outline", default = "OUTLINE", values = OUTLINE_VALUES, hidden = function() return not DBVal("exp_text") end, get = function() return DBVal("fontOutline") end, set = function(_, v) setDB("fontOutline", v) end })
+
+    add({
+        kind = ST.Expander, name = "Colors", default = true,
+        get = function() return DBVal("exp_colors") end,
+        set = function(_, v) local db = GetDB(); if db then db["exp_colors"] = v end end
+    })
+    
+    add({ kind = ST.ColorPicker, name = "Dispel Action Color", default = CreateColor(0, 1, 0, 1), hasOpacity = false, hidden = function() return not DBVal("exp_colors") end, get = function() return GetDBColor("actionColor") end, set = function(_, v) setDB("actionColor", v) end })
+    add({ kind = ST.ColorPicker, name = "Dwarf Action Color", default = CreateColor(1, 0.84, 0, 1), hasOpacity = false, hidden = function() return not DBVal("exp_colors") end, get = function() return GetDBColor("dwarfColor") end, set = function(_, v) setDB("dwarfColor", v) end })
+    
+    add({ kind = ST.Dropdown, name = "Target Name Color", default = "class", values = NAME_COLOR_MODES, hidden = function() return not DBVal("exp_colors") end, get = function() return DBVal("nameColorMode") end, set = function(_, v) setDB("nameColorMode", v) end })
+    add({ kind = ST.ColorPicker, name = "Custom Name Color", default = CreateColor(1, 0.27, 1, 1), hasOpacity = false, hidden = function() return not DBVal("exp_colors") or DBVal("nameColorMode") == "class" end, get = function() return GetDBColor("nameCustomColor") end, set = function(_, v) setDB("nameCustomColor", v) end })
+
+    add({
+        kind = ST.Expander, name = "Glow Settings", default = true,
+        get = function() return DBVal("exp_glow") end,
+        set = function(_, v) local db = GetDB(); if db then db["exp_glow"] = v end end
+    })
+
+    add({ 
+        kind = ST.ColorPicker, name = "Frame Glow Color", default = CreateColor(0.247, 0.988, 0.247, 1), hasOpacity = true, 
+        hidden = function() return not DBVal("exp_glow") end, 
+        get = function() return GetDBColor("glowColor") end, 
+        set = function(_, v) 
+            local db = GetDB(); 
+            if db then 
+                db["glowColor"] = v; 
+                if LEM and LEM:IsInEditMode() then
+                    RemoveGlow("player")
+                    ApplyGlow("player")
+                end
+            end 
+        end 
+    })
+
+    return s
+end
+
+local function OnLayoutChanged(frame, layoutName, point, x, y)
+    local db = GetDB()
+    if not db then return end
+    db.pos = db.pos or {}
+    db.pos[layoutName] = { point = point, x = x, y = y }
+end
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_REGEN_ENABLED" then
+        if pendingUpdate then
+            pendingUpdate = false
+            DispellAssign:UpdateState()
+        end
+
+    elseif event == "ENCOUNTER_START" then
+        local encounterID = select(1, ...)
+        if encounterID ~= ENCOUNTER_ID then return end
+
+        active = true
+        wipe(affected)
+        DispellAssign:UpdateUI(false)
+        BuildRoster()
+
+    elseif event == "ENCOUNTER_END" then
+        if not active then return end
+        active = false
+        DispellAssign:UpdateUI(false)
+        wipe(affected)
+
+    elseif event == "UNIT_AURA" then
+        local unit, updateInfo = ...
+        if not active then return end
+
+        if not (unit == "player" or string.match(unit, "^raid%d+$") or string.match(unit, "^party%d+$")) then
+            return
+        end
+
+        if updateInfo.addedAuras then
+            for i, auraData in ipairs(updateInfo.addedAuras) do
+                local auraInstanceID = auraData.auraInstanceID
+                local isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HARMFUL")
+
+                if isDebuff and auraData.dispelName ~= nil then
+                    local now = GetTime()
+
+                    if not lastAuraTime or lastAuraTime < now - 3 then
+                        lastAuraTime = now
+                        wipe(affected)
+                        C_Timer.After(0.2, RunAssignment)
+                    end
+
+                    if dwarfs[unit] and now > dwarfs[unit] then
+                        C_Timer.After(0.2, function()
+                            RunDwarfCheck(unit)
+                        end)
+                    else
+                        local index = UnitInRaid(unit) or 999
+                        table.insert(affected, {unit, index, auraInstanceID, false})
                     end
                 end
-            end
-            
-            -- Hide logic if aura drops (Mirrors WA removedAuraInstanceIDs loop)
-            if updateInfo.removedAuraInstanceIDs and myAssignedAuraID and UnitIsUnit(unit, myAssignedUnit) then
-                for i, id in ipairs(updateInfo.removedAuraInstanceIDs) do
-                    if id == myAssignedAuraID then
-                        DispellAssign:UpdateUI(false)
-                    end
-                end
-            end
-
-        elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
-            local u, _, spellID = ...
-            if UnitIsUnit(u, "player") and (spellID == 20594 or spellID == 265221) then
-                DispellAssign:UpdateUI(false)
             end
         end
-    end)
+
+        if updateInfo.removedAuraInstanceIDs and myAssignedAuraID and myAssignedUnit and UnitIsUnit(unit, myAssignedUnit) then
+            for i, id in ipairs(updateInfo.removedAuraInstanceIDs) do
+                if id == myAssignedAuraID then
+                    DispellAssign:UpdateUI(false)
+                end
+            end
+        end
+
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+        local u, _, spellID = ...
+        if UnitIsUnit(u, "player") and (spellID == 20594 or spellID == 265221) then
+            DispellAssign:UpdateUI(false)
+        end
+    end
+end)
+
+function DispellAssign:UpdateState()
+    if InCombatLockdown() then
+        pendingUpdate = true
+        eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+
+    local db = GetDB()
+
+    eventFrame:UnregisterAllEvents()
+
+    if db.enabled then
+        eventFrame:RegisterEvent("ENCOUNTER_START")
+        eventFrame:RegisterEvent("ENCOUNTER_END")
+        eventFrame:RegisterEvent("UNIT_AURA")
+        eventFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+
+        -- Register LEM if it's not already registered
+        if LEM and not warnFrame.editModeRegistered then
+            LEM:AddFrame(warnFrame, OnLayoutChanged, { point = "CENTER", x = 0, y = 0 }, "Vanguard Assignment")
+            LEM:AddFrameSettings(warnFrame, GetEditModeSettings())
+            warnFrame.editModeRegistered = true
+
+            if LEM.GetActiveLayoutName then
+                local layout = LEM:GetActiveLayoutName()
+                local pos = db.pos and db.pos[layout]
+                if pos then
+                    warnFrame:ClearAllPoints()
+                    warnFrame:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+                end
+            end
+        elseif LEM and warnFrame.editModeRegistered then
+             -- Unhide frame selection if we are re-enabling while inside edit mode
+            if LEM:IsInEditMode() and LEM.frameSelections and LEM.frameSelections[warnFrame] then
+                LEM.frameSelections[warnFrame]:Show()
+            end
+        end
+    else
+        -- Clean up
+        warnFrame:Hide()
+        active = false
+        wipe(affected)
+        myAssignedUnit = nil
+        myAssignedAuraID = nil
+
+        -- Hide from edit mode if it's currently showing
+        if LEM and warnFrame.editModeRegistered then
+            if LEM.frameSelections and LEM.frameSelections[warnFrame] then
+                LEM.frameSelections[warnFrame]:Hide()
+            end
+        end
+    end
+end
+
+function DispellAssign:Initialize()
+    if LEM then
+        LEM:RegisterCallback("enter", function()
+            if not DBVal("enabled") then return end
+            warnFrame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+            warnFrame:SetBackdropColor(0, 0.2, 0.5, 0.5)
+            UpdateTextFormat()
+            warnText:SetText(GetFormattedAlertText("Dispel", false, "player"))
+            warnFrame:Show()
+            ApplyGlow("player")
+        end)
+
+        LEM:RegisterCallback("exit", function()
+            if not DBVal("enabled") then return end
+            warnFrame:SetBackdrop(nil)
+            RemoveGlow("player")
+            if not myAssignedUnit then 
+                warnFrame:Hide()
+            else
+                warnText:SetText(GetFormattedAlertText("Dispel", false, myAssignedUnit))
+                ApplyGlow(myAssignedUnit)
+            end
+        end)
+
+        LEM:RegisterCallback("layout", function(layoutName)
+            if not DBVal("enabled") or not LEM:IsInEditMode() then return end
+            local db = GetDB()
+            local pos = db and db.pos and db.pos[layoutName]
+            warnFrame:ClearAllPoints()
+            if pos then
+                warnFrame:SetPoint(pos.point, UIParent, pos.point, pos.x, pos.y)
+            else
+                warnFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+            end
+        end)
+    end
+
+    self:UpdateState()
 end
 
 if ACT.db and ACT.db.profile then
@@ -221,4 +565,34 @@ else
         DispellAssign:Initialize()
         self:UnregisterEvent("PLAYER_LOGIN")
     end)
+end
+
+
+-- Debug shit
+SLASH_PALADISPELLTEST1 = "/pdtest"
+SlashCmdList["PALADISPELLTEST"] = function()
+    if ACT and ACT.DispellAssign then
+        print("Testing DispellAssign: Assigning to player...")
+        
+        myAssignedUnit = "player"
+        
+        ACT.DispellAssign:UpdateUI(true, "Dispel", false, "player")
+        
+        C_Timer.After(5, function() 
+            ACT.DispellAssign:UpdateUI(false) 
+        end)
+    end
+end
+
+SLASH_PALADISPELLDWARF1 = "/pddwarf"
+SlashCmdList["PALADISPELLDWARF"] = function()
+    if ACT and ACT.DispellAssign then
+        print("Testing DispellAssign: Dwarf Racial...")
+        
+        ACT.DispellAssign:UpdateUI(true, "USE DWARF", true, "player")
+        
+        C_Timer.After(5, function() 
+            ACT.DispellAssign:UpdateUI(false) 
+        end)
+    end
 end
