@@ -25,6 +25,10 @@ local LCG = LibStub and LibStub("LibCustomGlow-1.0", true)
 local LEM = LibStub and LibStub("LibEditMode", true)
 local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 
+if LSM then
+    LSM:Register("sound", "Idiot", "Interface\\AddOns\\ACT\\media\\sounds\\Idiot.ogg")
+end
+
 local DEFAULT_FONT_PATH = "Fonts\\FRIZQT__.TTF"
 local DEFAULT_FONT_FACE = "Friz Quadrata TT"
 
@@ -39,6 +43,11 @@ local NAME_COLOR_MODES = {
     { text = "Custom Color", value = "custom" },
 }
 
+local AUDIO_TYPE_VALUES = {
+    { text = "Sound", value = "sound" },
+    { text = "TTS",   value = "tts"   },
+}
+
 local DEFAULTS = {
     enabled         = false,
     fontFace        = DEFAULT_FONT_FACE,
@@ -50,6 +59,9 @@ local DEFAULTS = {
     nameCustomColor = {1, 0.27, 1, 1},
     glowColor       = {0.247, 0.988, 0.247, 1},
     pos             = {},
+    audioType       = "sound",
+    audioSound      = "Idiot",
+    ttsVoice        = 0,
 }
 
 local function GetDB()
@@ -178,6 +190,36 @@ local function GetFormattedAlertText(actionText, isDwarf, targetUnit)
     return string.format("|cff%s%s|r |cff%s%s|r", actionHex, actionText, nameHex, name)
 end
 
+local function PlaySafeTTS(text)
+    if not (C_VoiceChat and C_VoiceChat.SpeakText) then return end
+
+    local targetVoiceID = DBVal("ttsVoice") or 0
+    local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
+    local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
+    local destination = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 0 
+
+    C_VoiceChat.SpeakText(targetVoiceID, text, destination, rate, volume)
+end
+
+local function PlayAlert(ttsText)
+    local audioType = DBVal("audioType")
+    if audioType == "sound" then
+        local soundKey = DBVal("audioSound")
+        local soundPath = LSM and LSM:Fetch("sound", soundKey)
+        
+        -- Fallback if LSM fetch fails but it's the default sound
+        if not soundPath and soundKey == "Idiot" then
+            soundPath = "Interface\\AddOns\\ACT\\media\\sounds\\Idiot.ogg"
+        end
+        
+        if soundPath then
+            PlaySoundFile(soundPath, "Master")
+        end
+    else
+        PlaySafeTTS(ttsText)
+    end
+end
+
 function DispellAssign:UpdateUI(show, actionText, isDwarf, targetUnit)
     if not show then
         if not (LEM and LEM:IsInEditMode()) then
@@ -201,17 +243,15 @@ function DispellAssign:UpdateUI(show, actionText, isDwarf, targetUnit)
         ApplyGlow(myAssignedUnit)
     end
 
-if C_VoiceChat and C_VoiceChat.SpeakText then
-        local ttsText
-        if isDwarf then
-            ttsText = "Use Dwarf"
-        else
-            local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
-            ttsText = "Dispel " .. name
-        end
-        
-        C_VoiceChat.SpeakText(1, ttsText, 1, 0, 100)
+    local ttsText
+    if isDwarf then
+        ttsText = "Use Dwarf"
+    else
+        local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
+        ttsText = "Dispel " .. name
     end
+    
+    PlayAlert(ttsText)
 end
 
 local function BuildRoster()
@@ -336,6 +376,26 @@ local function GetEditModeSettings()
         fontVals[1] = { text = DEFAULT_FONT_FACE, value = DEFAULT_FONT_FACE }
     end
 
+    local soundVals = {}
+    if LSM then
+        for _, n in ipairs(LSM:List("sound")) do soundVals[#soundVals + 1] = { text = n, value = n } end
+    else
+        soundVals[1] = { text = "Idiot", value = "Idiot" }
+    end
+
+    local ttsVals = {}
+    if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+        local voices = C_VoiceChat.GetTtsVoices()
+        if voices then
+            for _, voice in ipairs(voices) do
+                table.insert(ttsVals, { text = voice.name, value = voice.voiceID })
+            end
+        end
+    end
+    if #ttsVals == 0 then
+        table.insert(ttsVals, { text = "Default System Voice", value = 0 })
+    end
+
     add({
         kind = ST.Expander, name = "Text Style", default = true,
         get = function() return DBVal("exp_text") end,
@@ -377,6 +437,45 @@ local function GetEditModeSettings()
                     ApplyGlow("player")
                 end
             end 
+        end 
+    })
+
+    add({
+        kind = ST.Expander, name = "Sound Settings", default = true,
+        get = function() return DBVal("exp_audio") end,
+        set = function(_, v) local db = GetDB(); if db then db["exp_audio"] = v end end
+    })
+
+    add({ 
+        kind = ST.Dropdown, name = "Alert Type", default = "sound", values = AUDIO_TYPE_VALUES, 
+        hidden = function() return not DBVal("exp_audio") end, 
+        get = function() return DBVal("audioType") end, 
+        set = function(_, v) setDB("audioType", v) end 
+    })
+
+    add({ 
+        kind = ST.Dropdown, name = "Sound File", default = "Idiot", values = soundVals, height = 300,
+        hidden = function() return not DBVal("exp_audio") or DBVal("audioType") ~= "sound" end, 
+        get = function() return DBVal("audioSound") end, 
+        set = function(_, v) 
+            setDB("audioSound", v)
+            local path = LSM and LSM:Fetch("sound", v)
+            if path then PlaySoundFile(path, "Master") end
+        end 
+    })
+
+    add({ 
+        kind = ST.Dropdown, name = "TTS Voice", default = 0, values = ttsVals, height = 300,
+        hidden = function() return not DBVal("exp_audio") or DBVal("audioType") ~= "tts" end, 
+        get = function() return DBVal("ttsVoice") end, 
+        set = function(_, v) 
+            setDB("ttsVoice", v)
+            if C_VoiceChat and C_VoiceChat.SpeakText then
+                local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
+                local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
+                local dest = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 0
+                C_VoiceChat.SpeakText(v, "Voice test", dest, rate, volume)
+            end
         end 
     })
 
