@@ -11,6 +11,7 @@ local active = false
 local healers = {}
 local dwarfs = {}
 local affected = {}
+local assignTimer = nil
 
 local lastAuraTime = nil
 local pendingUpdate = false
@@ -302,6 +303,9 @@ local function RunAssignment()
         if aDwarf ~= bDwarf then
             return aDwarf < bDwarf
         end
+        if a[2] == b[2] then
+            return a[3] < b[3] 
+        end
         return (a[2] or 999) < (b[2] or 999)
     end)
 
@@ -531,24 +535,33 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
 
         if updateInfo.addedAuras then
+            local batchTriggered = false
+            
             for i, auraData in ipairs(updateInfo.addedAuras) do
                 local auraInstanceID = auraData.auraInstanceID
                 local isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HARMFUL")
 
                 if isDebuff and auraData.dispelName ~= nil then
-                    local now = GetTime()
-
-                    if not lastAuraTime or lastAuraTime < now - 3 then
-                        lastAuraTime = now
-                        wipe(affected)
-                        C_Timer.After(0.2, RunAssignment)
-                    end
-
-                    -- Dwarfs are always inserted into affected but with lowest priority
                     local index = UnitInRaid(unit) or 999
                     local isDwarf = dwarfs[unit] ~= nil
-                    table.insert(affected, {unit, index, auraInstanceID, false, isDwarf})
+                    
+                    local alreadyAdded = false
+                    for _, v in ipairs(affected) do
+                        if v[3] == auraInstanceID then alreadyAdded = true; break end
+                    end
+
+                    if not alreadyAdded then
+                        table.insert(affected, {unit, index, auraInstanceID, false, isDwarf})
+                        batchTriggered = true
+                    end
                 end
+            end
+
+            if batchTriggered then
+                if assignTimer then
+                    assignTimer:Cancel()
+                end
+                assignTimer = C_Timer.NewTimer(0.25, RunAssignment)
             end
         end
 
