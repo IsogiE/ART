@@ -50,6 +50,7 @@ local function InitializeDatabase()
     if not profile.combat_timer then profile.combat_timer = { enabled = false } end
     if not profile.general_pack then profile.general_pack = { enabled = false } end
     if not profile.hot_tracker then profile.hot_tracker = { enabled = false } end
+    if not profile.dispell_assign then profile.dispell_assign = { enabled = false } end
 
     local db = profile.nicknames
     local playerRealmName = RealmIncludedName("player")
@@ -86,6 +87,11 @@ local function InitializeDatabase()
     if ACT.HotTracker then
         if ACT.HotTracker.Initialize then ACT.HotTracker:Initialize() end
         if ACT.HotTracker.UpdateState then ACT.HotTracker:UpdateState() end
+    end
+
+    if ACT.DispellAssign then
+        if ACT.DispellAssign.Initialize then ACT.DispellAssign:Initialize() end
+        if ACT.DispellAssign.UpdateState then ACT.DispellAssign:UpdateState() end
     end
 end
 
@@ -368,6 +374,15 @@ function NicknameModule:CreateConfigPanel(parent)
     end)
     hotTrackerCheck:SetPoint("LEFT", bcmCheck, "RIGHT", 250, 0)
 
+    local dispellAssignCheck = CreateCheckButton(configPanel, "Dispell Assignment", function(checked)
+        if not NicknameModule.isInitialized or not ACT.db.profile.dispell_assign then return end
+        ACT.db.profile.dispell_assign.enabled = checked
+        if ACT.DispellAssign and ACT.DispellAssign.UpdateState then
+            ACT.DispellAssign:UpdateState()
+        end
+    end)
+    dispellAssignCheck:SetPoint("TOPLEFT", hotTrackerCheck, "BOTTOMLEFT", 0, -5)
+
     configPanel.OnShow = function()
         if not NicknameModule.isInitialized then return end
         local profile = ACT.db.profile
@@ -406,6 +421,9 @@ function NicknameModule:CreateConfigPanel(parent)
         end
         if profile.hot_tracker then
             SetState(hotTrackerCheck, profile.hot_tracker.enabled)
+        end
+        if profile.dispell_assign then
+            SetState(dispellAssignCheck, profile.dispell_assign.enabled)
         end
     end
 
