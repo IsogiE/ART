@@ -237,9 +237,8 @@ local function PlaySafeTTS(text)
     if not validVoice then targetVoiceID = 0 end
 
     local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate()) or 0
-    local destination = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 1
 
-    C_VoiceChat.SpeakText(targetVoiceID, text, destination, rate, 100)
+    C_VoiceChat.SpeakText(targetVoiceID, text, rate, 100, false)
 end
 
 local function PlayAlert(ttsText)
@@ -571,8 +570,7 @@ add({
             if C_VoiceChat and C_VoiceChat.SpeakText then
                 local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
                 local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
-                local dest = Enum and Enum.VoiceTtsDestination and Enum.VoiceTtsDestination.LocalPlayback or 0
-                C_VoiceChat.SpeakText(numericVoiceID, "Voice test", dest, rate, volume)
+                C_VoiceChat.SpeakText(numericVoiceID, "Voice test", rate, volume, false)
             end
         end 
     })
