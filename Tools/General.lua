@@ -430,6 +430,7 @@ local function IsSoulstoneReady()
 end
 
 local function DoesGroupHaveSoulstone()
+    if InCombatLockdown() then return false end
     local ssSpellID = 20707
     local function HasSS(unit)
         if not unit or not UnitExists(unit) then
@@ -440,7 +441,7 @@ local function DoesGroupHaveSoulstone()
             if not aura then
                 break
             end
-            if aura.spellId == ssSpellID then
+            if aura.spellId and not issecretvalue(aura.spellId) and aura.spellId == ssSpellID then
                 return true
             end
         end
