@@ -202,7 +202,8 @@ local function GetFormattedAlertText(actionText, isDwarf, targetUnit)
     end
 
     local nameHex = "ffffffff"
-    local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
+    local nick = targetUnit and ACT:GetNickname(targetUnit)
+    local name = targetUnit and ((nick ~= "" and nick) or UnitName(targetUnit)) or "Unknown"
 
     if DBVal("nameColorMode") == "class" then
         if targetUnit then
@@ -287,7 +288,8 @@ function DispellAssign:UpdateUI(show, actionText, isDwarf, targetUnit)
     if isDwarf then
         ttsText = "Use Dwarf"
     else
-        local name = targetUnit and (ACT:GetNickname(targetUnit) or UnitName(targetUnit)) or "Unknown"
+        local nick = targetUnit and ACT:GetNickname(targetUnit)
+        local name = targetUnit and ((nick ~= "" and nick) or UnitName(targetUnit)) or "Unknown"
         ttsText = "Dispel " .. name
     end
     
