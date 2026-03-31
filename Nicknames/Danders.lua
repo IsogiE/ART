@@ -11,14 +11,14 @@ local function Update(unit)
 
     if not unitFrame then return end
 
-    DandersFrames:UpdateNameText(unitFrame)
+    DandersFrames:UpdateName(unitFrame) 
 end
 
 local function UpdateAll()
     if not DandersFrames then return end
 
     for unitFrame in DandersFrames:IterateCompactFrames() do
-        DandersFrames:UpdateNameText(unitFrame)
+        DandersFrames:UpdateName(unitFrame) 
     end
 end
 
