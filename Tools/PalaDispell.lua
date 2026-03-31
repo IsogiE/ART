@@ -12,6 +12,7 @@ local healers = {}
 local dwarfs = {}
 local affected = {}
 local assignTimer = nil
+local uiClearTimer = nil
 
 local lastAuraTime = nil
 local pendingUpdate = false
@@ -333,6 +334,13 @@ local function BuildRoster()
 end
 
 local function RunAssignment()
+
+    if myAssignedUnit then
+        RemoveGlow(myAssignedUnit)
+        myAssignedUnit = nil
+        myAssignedAuraID = nil
+    end
+    
     if #affected > 15 then
         wipe(affected)
         return
@@ -372,7 +380,10 @@ local function RunAssignment()
                         myAssignedUnit  = info[1]
                         myAssignedAuraID = info[3]
                         DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                        C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                        if uiClearTimer then uiClearTimer:Cancel() end
+                        uiClearTimer = C_Timer.NewTimer(9, function() DispellAssign:UpdateUI(false) end)
+                    else
+                        DispellAssign:UpdateUI(false)
                     end
                 end
                 break
@@ -399,7 +410,10 @@ local function RunAssignment()
                     myAssignedUnit  = info[1]
                     myAssignedAuraID = info[3]
                     DispellAssign:UpdateUI(true, "Dispel", false, myAssignedUnit)
-                    C_Timer.After(9, function() DispellAssign:UpdateUI(false) end)
+                    if uiClearTimer then uiClearTimer:Cancel() end
+                    uiClearTimer = C_Timer.NewTimer(9, function() DispellAssign:UpdateUI(false) end)
+                else
+                    DispellAssign:UpdateUI(false)
                 end
             end
         end
@@ -411,7 +425,8 @@ local function RunAssignment()
             if (not dwarfs["player"]) or now >= dwarfs["player"] then
                 dwarfs["player"] = now + 121
                 DispellAssign:UpdateUI(true, "USE DWARF", true, "player")
-                C_Timer.After(15, function() DispellAssign:UpdateUI(false) end)
+                if uiClearTimer then uiClearTimer:Cancel() end
+                uiClearTimer = C_Timer.NewTimer(9, function() DispellAssign:UpdateUI(false) end)
             end
             break
         end
