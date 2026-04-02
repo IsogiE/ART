@@ -235,17 +235,31 @@ local function CheckAlerts()
 end
 
 local function GetHealthstoneCharges(bag, slot)
-    scanTooltip:ClearLines()
-    scanTooltip:SetBagItem(bag, slot)
+    if C_TooltipInfo then
+        local tooltipData = C_TooltipInfo.GetBagItem(bag, slot)
+        if tooltipData and tooltipData.lines then
+            for _, line in ipairs(tooltipData.lines) do
+                if line.leftText then
+                    local count = line.leftText:match("(%d+) Charge")
+                    if count then
+                        return tonumber(count)
+                    end
+                end
+            end
+        end
+    else
+        scanTooltip:ClearLines()
+        scanTooltip:SetBagItem(bag, slot)
 
-    for i = 1, scanTooltip:NumLines() do
-        local line = _G[scanTooltip:GetName() .. "TextLeft" .. i]
-        if line then
-            local text = line:GetText()
-            if text then
-                local count = text:match("(%d+) Charge")
-                if count then
-                    return tonumber(count)
+        for i = 1, scanTooltip:NumLines() do
+            local line = _G[scanTooltip:GetName() .. "TextLeft" .. i]
+            if line then
+                local text = line:GetText()
+                if text then
+                    local count = text:match("(%d+) Charge")
+                    if count then
+                        return tonumber(count)
+                    end
                 end
             end
         end
@@ -277,8 +291,7 @@ local function HasFullHealthstone()
     return false
 end
 
-local function StopHealthstoneScan()
-    if InCombatLockdown() then return end
+local function StopHealthstoneScan()    
     if GeneralPack.timeoutTimer then
         GeneralPack.timeoutTimer:Cancel()
         GeneralPack.timeoutTimer = nil
@@ -309,7 +322,7 @@ local function StartHealthstoneScan()
     if GeneralPack.timeoutTimer then
         GeneralPack.timeoutTimer:Cancel()
     end
-    GeneralPack.timeoutTimer = C_Timer.After(5, StopHealthstoneScan)
+    GeneralPack.timeoutTimer = C_Timer.After(10, StopHealthstoneScan)
 end
 
 local function IsSpellOnCooldown(spellID)
