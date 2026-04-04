@@ -25,6 +25,7 @@ Core.lua
 Home.lua
 
 Utility.lua
+Combat.lua
 
 Nicknames\Comms.lua
 Nicknames\Blizzard.lua
@@ -40,10 +41,14 @@ Nicknames\LiquidAPI.lua
 Tools\BCM.lua
 Tools\Whisper.lua
 Tools\AuraCDM.lua
-Tools\Combat.lua
-Tools\General.lua
-Tools\Hots.lua
-Tools\PalaDispell.lua
+
+Combat\Timer.lua
+Combat\General.lua
+Combat\Hots.lua
+
+Combat\Voidspire\PalaDispell.lua
+Combat\Queldanas\Feather.lua
+Combat\Queldanas\Dirge.lua
 
 RaidGroups.lua
 Macros.lua
