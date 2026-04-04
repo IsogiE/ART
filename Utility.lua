@@ -43,14 +43,9 @@ local function InitializeDatabase()
     if not profile.bcm_settings then
         profile.bcm_settings = { essential_centering = false, utility_centering = false }
     end
-    if profile.bcm_settings.utility_centering == nil then profile.bcm_settings.utility_centering = false end
-
+    
     if not profile.whisper_settings then profile.whisper_settings = { enabled = false } end
     if not profile.cdm_settings then profile.cdm_settings = { global_ignore_aura_override = false } end
-    if not profile.combat_timer then profile.combat_timer = { enabled = false } end
-    if not profile.general_pack then profile.general_pack = { enabled = false } end
-    if not profile.hot_tracker then profile.hot_tracker = { enabled = false } end
-    if not profile.dispell_assign then profile.dispell_assign = { enabled = false } end
 
     local db = profile.nicknames
     local playerRealmName = RealmIncludedName("player")
@@ -72,26 +67,6 @@ local function InitializeDatabase()
     if ACT.AuraOverride then
         if ACT.AuraOverride.Initialize then ACT.AuraOverride:Initialize() end
         if ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
-    end
-
-    if ACT.CombatTimer then
-        if ACT.CombatTimer.Initialize then ACT.CombatTimer:Initialize() end
-        if ACT.CombatTimer.UpdateState then ACT.CombatTimer:UpdateState() end
-    end
-
-    if ACT.GeneralPack then
-        if ACT.GeneralPack.Initialize then ACT.GeneralPack:Initialize() end
-        if ACT.GeneralPack.UpdateState then ACT.GeneralPack:UpdateState() end
-    end
-
-    if ACT.HotTracker then
-        if ACT.HotTracker.Initialize then ACT.HotTracker:Initialize() end
-        if ACT.HotTracker.UpdateState then ACT.HotTracker:UpdateState() end
-    end
-
-    if ACT.DispellAssign then
-        if ACT.DispellAssign.Initialize then ACT.DispellAssign:Initialize() end
-        if ACT.DispellAssign.UpdateState then ACT.DispellAssign:UpdateState() end
     end
 end
 
@@ -167,15 +142,15 @@ function ACT:HasNickname(unit)
     return realmIncludedName and ACT.db.profile.nicknames[realmIncludedName] ~= nil
 end
 
-function ACT:GetNickname(unit)
-    return ACT:GetRawNickname(unit)
-end
-
 function ACT:GetRawNickname(unit)
     if not NicknameModule.isInitialized or not ACT.db.profile.nicknames then return UnitNameUnmodified(unit) end
     if not unit or not UnitExists(unit) or not UnitIsPlayer(unit) then return UnitNameUnmodified(unit) end
     local realmIncludedName = RealmIncludedName(unit)
     return (realmIncludedName and ACT.db.profile.nicknames[realmIncludedName]) or UnitNameUnmodified(unit)
+end
+
+function ACT:GetNickname(unit)
+    return ACT:GetRawNickname(unit)
 end
 
 function ACT:GetCharacterInGroup(nickname)
@@ -210,11 +185,7 @@ local function CreateCheckButton(parent, label, onClick)
     check.Text:SetPoint("LEFT", check, "RIGHT", 5, 0)
     check:SetScript("OnClick", function(self)
         local checked = self:GetChecked()
-        if checked then
-            self.Text:SetTextColor(1, 0.82, 0)
-        else
-            self.Text:SetTextColor(0.5, 0.5, 0.5)
-        end
+        self.Text:SetTextColor(checked and 1 or 0.5, checked and 0.82 or 0.5, checked and 0 or 0.5)
         if onClick then onClick(checked) end
     end)
     return check
@@ -226,7 +197,6 @@ function NicknameModule:CreateConfigPanel(parent)
         self.configPanel:ClearAllPoints()
         self.configPanel:SetAllPoints(parent)
         self.configPanel:Show()
-        if self.configPanel.OnShow then self.configPanel:OnShow() end
         return self.configPanel
     end
 
@@ -281,15 +251,6 @@ function NicknameModule:CreateConfigPanel(parent)
         local checkButton = CreateCheckButton(configPanel, data.name, function(checked)
             if not NicknameModule.isInitialized or not ACT.db.profile.nickname_integrations then return end
             ACT.db.profile.nickname_integrations[data.key] = checked
-            if checked then
-                if NicknameModule.nicknameFunctions[data.key] and NicknameModule.nicknameFunctions[data.key].Enable then
-                    NicknameModule.nicknameFunctions[data.key].Enable()
-                end
-            else
-                if NicknameModule.nicknameFunctions[data.key] and NicknameModule.nicknameFunctions[data.key].Disable then
-                    NicknameModule.nicknameFunctions[data.key].Disable()
-                end
-            end
         end)
 
         if data.key == "Blizzard" then
@@ -302,7 +263,6 @@ function NicknameModule:CreateConfigPanel(parent)
             checkButton:SetPoint("TOPLEFT", lastCheckButton, "BOTTOMLEFT", 0, -5)
             lastCheckButton = checkButton
         end
-
         addOnNameToCheckButton[data.key] = checkButton
     end
 
@@ -318,7 +278,6 @@ function NicknameModule:CreateConfigPanel(parent)
     utilityLabel:SetText("Utility Settings")
 
     local bcmCheck = CreateCheckButton(configPanel, "Essential Cooldown Bar Centering", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.bcm_settings then return end
         ACT.db.profile.bcm_settings.essential_centering = checked
         if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
         StaticPopup_Show("ACT_UTILITY_RELOAD")
@@ -326,7 +285,6 @@ function NicknameModule:CreateConfigPanel(parent)
     bcmCheck:SetPoint("TOPLEFT", utilityLabel, "BOTTOMLEFT", 0, -10)
 
     local bcmUtilityCheck = CreateCheckButton(configPanel, "Utility Cooldown Bar Centering", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.bcm_settings then return end
         ACT.db.profile.bcm_settings.utility_centering = checked
         if ACT.BCM and ACT.BCM.UpdateState then ACT.BCM:UpdateState() end
         StaticPopup_Show("ACT_UTILITY_RELOAD")
@@ -334,100 +292,37 @@ function NicknameModule:CreateConfigPanel(parent)
     bcmUtilityCheck:SetPoint("TOPLEFT", bcmCheck, "BOTTOMLEFT", 0, -5)
 
     local whisperCheck = CreateCheckButton(configPanel, "Whisper Sound Notifications", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.whisper_settings then return end
         ACT.db.profile.whisper_settings.enabled = checked
         if ACT.WhisperNotify and ACT.WhisperNotify.UpdateState then ACT.WhisperNotify:UpdateState() end
     end)
     whisperCheck:SetPoint("TOPLEFT", bcmUtilityCheck, "BOTTOMLEFT", 0, -5)
 
     local cdmOverrideCheck = CreateCheckButton(configPanel, "Remove CDM Aura Duration", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.cdm_settings then return end
         ACT.db.profile.cdm_settings.global_ignore_aura_override = checked
         if ACT.AuraOverride and ACT.AuraOverride.UpdateState then ACT.AuraOverride:UpdateState() end
     end)
     cdmOverrideCheck:SetPoint("TOPLEFT", whisperCheck, "BOTTOMLEFT", 0, -5)
 
-    local combatTimerCheck = CreateCheckButton(configPanel, "Enable Combat Timer", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.combat_timer then return end
-        ACT.db.profile.combat_timer.enabled = checked
-        if ACT.CombatTimer and ACT.CombatTimer.UpdateState then
-            ACT.CombatTimer:UpdateState()
-        end
-    end)
-    combatTimerCheck:SetPoint("TOPLEFT", cdmOverrideCheck, "BOTTOMLEFT", 0, -5)
-
-    local generalPackCheck = CreateCheckButton(configPanel, "General WA Pack Replacement", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.general_pack then return end
-        ACT.db.profile.general_pack.enabled = checked
-        if ACT.GeneralPack and ACT.GeneralPack.UpdateState then
-            ACT.GeneralPack:UpdateState()
-        end
-    end)
-    generalPackCheck:SetPoint("TOPLEFT", combatTimerCheck, "BOTTOMLEFT", 0, -5)
-
-    local hotTrackerCheck = CreateCheckButton(configPanel, "HoT Tracker", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.hot_tracker then return end
-        ACT.db.profile.hot_tracker.enabled = checked
-        if ACT.HotTracker and ACT.HotTracker.UpdateState then
-            ACT.HotTracker:UpdateState()
-        end
-    end)
-    hotTrackerCheck:SetPoint("LEFT", bcmCheck, "RIGHT", 250, 0)
-
-    local dispellAssignCheck = CreateCheckButton(configPanel, "Vanguard Assignment", function(checked)
-        if not NicknameModule.isInitialized or not ACT.db.profile.dispell_assign then return end
-        ACT.db.profile.dispell_assign.enabled = checked
-        if ACT.DispellAssign and ACT.DispellAssign.UpdateState then
-            ACT.DispellAssign:UpdateState()
-        end
-    end)
-    dispellAssignCheck:SetPoint("TOPLEFT", hotTrackerCheck, "BOTTOMLEFT", 0, -5)
-
-    configPanel.OnShow = function()
+    configPanel:SetScript("OnShow", function()
         if not NicknameModule.isInitialized then return end
         local profile = ACT.db.profile
-
-        if configPanel.nicknameEditBox then
-            configPanel.nicknameEditBox:SetText(profile.nickname or "")
-        end
-
-        for addOnName, checkButton in pairs(addOnNameToCheckButton) do
-            local isChecked = profile.nickname_integrations and profile.nickname_integrations[addOnName] or false
-            checkButton:SetChecked(isChecked)
-            checkButton.Text:SetTextColor(isChecked and 1 or 0.5, isChecked and 0.82 or 0.5, isChecked and 0 or 0.5)
-        end
-        NicknameModule:UpdateCheckButtons()
+        if configPanel.nicknameEditBox then configPanel.nicknameEditBox:SetText(profile.nickname or "") end
 
         local function SetState(btn, val)
             btn:SetChecked(val)
             btn.Text:SetTextColor(val and 1 or 0.5, val and 0.82 or 0.5, val and 0 or 0.5)
         end
 
-        if profile.bcm_settings then
-            SetState(bcmCheck, profile.bcm_settings.essential_centering)
-            SetState(bcmUtilityCheck, profile.bcm_settings.utility_centering)
+        for addOnName, checkButton in pairs(addOnNameToCheckButton) do
+            SetState(checkButton, profile.nickname_integrations[addOnName] or false)
         end
-        if profile.whisper_settings then
-            SetState(whisperCheck, profile.whisper_settings.enabled)
-        end
-        if profile.cdm_settings then
-            SetState(cdmOverrideCheck, profile.cdm_settings.global_ignore_aura_override)
-        end
-        if profile.combat_timer then
-            SetState(combatTimerCheck, profile.combat_timer.enabled)
-        end
-        if profile.general_pack then
-            SetState(generalPackCheck, profile.general_pack.enabled)
-        end
-        if profile.hot_tracker then
-            SetState(hotTrackerCheck, profile.hot_tracker.enabled)
-        end
-        if profile.dispell_assign then
-            SetState(dispellAssignCheck, profile.dispell_assign.enabled)
-        end
-    end
 
-    configPanel:SetScript("OnShow", configPanel.OnShow)
+        SetState(bcmCheck, profile.bcm_settings.essential_centering)
+        SetState(bcmUtilityCheck, profile.bcm_settings.utility_centering)
+        SetState(whisperCheck, profile.whisper_settings.enabled)
+        SetState(cdmOverrideCheck, profile.cdm_settings.global_ignore_aura_override)
+        NicknameModule:UpdateCheckButtons()
+    end)
 
     return configPanel
 end
