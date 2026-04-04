@@ -44,6 +44,7 @@ local chatmsgs = {
 }
 
 local inEncounter = false
+local dirgeCastCount = 1
 
 local function GetConfig()
     local db = ACT.db.profile
@@ -166,6 +167,11 @@ local tankIcon = squadFrame:CreateTexture(nil, "OVERLAY")
 tankIcon:SetAtlas("groupfinder-icon-role-large-tank")
 tankIcon:SetSize(30, 30)
 tankIcon:SetPoint("CENTER", redCircle, "TOP", 0, 0)
+
+local squadArrow = squadFrame:CreateTexture(nil, "OVERLAY")
+squadArrow:SetSize(32, 32)
+squadArrow:SetPoint("TOP", squadFrame, "TOP", 0, -4)
+squadArrow:Hide()
 
 local squadDisplay = {}
 for i = 1, 5 do
@@ -298,11 +304,44 @@ end
 local currentSequence = 0
 local hideTimer = nil
 
+local function UpdateDirectionArrow()
+    local _, _, difficultyID = GetInstanceInfo()
+    if difficultyID == 16 or DEBUG_MODE then
+        if dirgeCastCount % 2 == 0 then
+            squadArrow:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up")
+            for i = 1, 5 do
+                local rev = 6 - i 
+                squadDisplay[i]:ClearAllPoints()
+                squadDisplay[i]:SetPoint(SQUAD_POSITIONS[rev].point, squadFrame, SQUAD_POSITIONS[rev].point, SQUAD_POSITIONS[rev].x, SQUAD_POSITIONS[rev].y)
+            end
+        else
+            squadArrow:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+            for i = 1, 5 do
+                squadDisplay[i]:ClearAllPoints()
+                squadDisplay[i]:SetPoint(SQUAD_POSITIONS[i].point, squadFrame, SQUAD_POSITIONS[i].point, SQUAD_POSITIONS[i].x, SQUAD_POSITIONS[i].y)
+            end
+        end
+        squadArrow:Show()
+    else
+        squadArrow:Hide()
+        for i = 1, 5 do
+            squadDisplay[i]:ClearAllPoints()
+            squadDisplay[i]:SetPoint(SQUAD_POSITIONS[i].point, squadFrame, SQUAD_POSITIONS[i].point, SQUAD_POSITIONS[i].x, SQUAD_POSITIONS[i].y)
+        end
+    end
+end
+
 local function HideAllRunes()
     for i = 1, 5 do
         squadDisplay[i]:Hide()
         barDisplay[i]:Hide()
     end
+    
+    if currentSequence > 0 and inEncounter then
+        dirgeCastCount = dirgeCastCount + 1
+        UpdateDirectionArrow()
+    end
+    
     currentSequence = 0
     squadFrame:Hide()
     barFrame:Hide()
@@ -317,8 +356,10 @@ encounterFrame:SetScript("OnEvent", function(self, event, ...)
         if encounterID == ENCOUNTER_ID or DEBUG_MODE then
             inEncounter = true
             currentSequence = 0
+            dirgeCastCount = 1
             hideTimer = nil
             StopTTS()
+            UpdateDirectionArrow()
 
             C_Timer.After(0, function()
                 for i = 1, 5 do
@@ -570,6 +611,7 @@ function DeathDirge:UpdateState()
             inEncounter = true
             currentSequence = 0
             buttonsContent:Show()
+            UpdateDirectionArrow()
         end
     else
         chatListenerFrame:UnregisterAllEvents()
@@ -605,6 +647,9 @@ function DeathDirge:Initialize()
             
             squadFrame:Show()
             barFrame:Show()
+            
+            squadArrow:SetTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
+            squadArrow:Show()
 
             for i = 1, 5 do
                 local msg = chatmsgs[shapeNames[i]]
@@ -617,6 +662,7 @@ function DeathDirge:Initialize()
 
         LEM:RegisterCallback("exit", function()
             buttonsContent:SetAlpha(1)
+            UpdateDirectionArrow()
             
             if not GetConfig().enabled then return end
 
