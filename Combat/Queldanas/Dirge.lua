@@ -63,6 +63,9 @@ local function GetConfig()
     cfg.button_order = cfg.button_order or {}
     cfg.show_buttons = cfg.show_buttons or {}
 
+    cfg.ttsEnabled = cfg.ttsEnabled == nil and false or cfg.ttsEnabled
+    cfg.ttsVoice = cfg.ttsVoice or 0
+
     return cfg
 end
 
@@ -249,6 +252,49 @@ local function ApplyLayoutConfig(layoutName)
     if pBar then barAnchor:ClearAllPoints(); barAnchor:SetPoint(pBar.point, UIParent, pBar.point, pBar.x, pBar.y) end
 end
 
+local ttsTicker = nil
+
+local function PlaySafeTTS(text)
+    local cfg = GetConfig()
+    if not cfg.ttsEnabled then return end
+    if not (C_VoiceChat and C_VoiceChat.SpeakText) then return end
+
+    local targetVoiceID = tonumber(cfg.ttsVoice) or 0
+    local validVoice = false
+    local voices = C_VoiceChat.GetTtsVoices()
+    
+    if voices then
+        for _, voice in ipairs(voices) do
+            if voice.voiceID == targetVoiceID then
+                validVoice = true
+                break
+            end
+        end
+    end
+
+    if not validVoice then targetVoiceID = 0 end
+
+    local rate = (C_TTSSettings and C_TTSSettings.GetSpeechRate()) or 0
+    C_VoiceChat.SpeakText(targetVoiceID, text, rate, 100, false)
+end
+
+local function StopTTS()
+    if ttsTicker then
+        ttsTicker:Cancel()
+        ttsTicker = nil
+    end
+end
+
+local function StartTTSSequence()
+    StopTTS()
+    local ttsStep = 2
+    
+    ttsTicker = C_Timer.NewTicker(2, function()
+        PlaySafeTTS(tostring(ttsStep))
+        ttsStep = ttsStep + 1
+    end, 4)
+end
+
 local currentSequence = 0
 local hideTimer = nil
 
@@ -260,6 +306,7 @@ local function HideAllRunes()
     currentSequence = 0
     squadFrame:Hide()
     barFrame:Hide()
+    StopTTS()
 end
 
 local encounterFrame = CreateFrame("Frame")
@@ -271,6 +318,7 @@ encounterFrame:SetScript("OnEvent", function(self, event, ...)
             inEncounter = true
             currentSequence = 0
             hideTimer = nil
+            StopTTS()
 
             C_Timer.After(0, function()
                 for i = 1, 5 do
@@ -287,6 +335,7 @@ encounterFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "ENCOUNTER_END" then
         if not DEBUG_MODE then
             inEncounter = false
+            StopTTS()
             C_Timer.After(0, function()
                 buttonsContent:Hide()
                 HideAllRunes()
@@ -304,6 +353,10 @@ chatListenerFrame:SetScript("OnEvent", function(self, event, msg)
     currentSequence = currentSequence + 1
     local pos = currentSequence
 
+    if pos == 1 then
+        StartTTSSequence()
+    end
+
     C_Timer.After(0, function()
         squadDisplay[pos]:SetFormattedText("%s%s%s", "|T7412681:28:28:0:0:512:512:", msg, "|t")
         squadDisplay[pos]:Show()
@@ -313,8 +366,10 @@ chatListenerFrame:SetScript("OnEvent", function(self, event, msg)
         barDisplay[pos]:Show()
         barFrame:Show()
 
-        if hideTimer then hideTimer:Cancel() end
-        hideTimer = C_Timer.NewTimer(15, HideAllRunes)
+        if pos == 1 then
+            if hideTimer then hideTimer:Cancel() end
+            hideTimer = C_Timer.NewTimer(15, HideAllRunes)
+        end
     end)
 end)
 
@@ -356,6 +411,19 @@ function DeathDirge:UpdateState()
             LEM:AddFrame(barAnchor, function(f, layout, point, x, y)
                 GetConfig().pos_bar[layout] = { point = point, x = x, y = y }
             end, { point = "CENTER", x = 0, y = 50 }, "Dirge Bar")
+
+            local ttsVals = {}
+            if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+                local voices = C_VoiceChat.GetTtsVoices()
+                if voices then
+                    for _, voice in ipairs(voices) do
+                        table.insert(ttsVals, { text = voice.name, value = voice.voiceID })
+                    end
+                end
+            end
+            if #ttsVals == 0 then
+                table.insert(ttsVals, { text = "Default System Voice", value = 0 })
+            end
 
             local buttonsSettings = {
                 {
@@ -443,6 +511,33 @@ function DeathDirge:UpdateState()
                         GetConfig().scale_squad[layout] = scale
                         squadAnchor:SetScale(scale)
                     end
+                },
+                {
+                    kind = LEM.SettingType.Divider,
+                    name = "Audio Cues"
+                },
+                {
+                    kind = LEM.SettingType.Checkbox,
+                    name = "Enable TTS Countdown",
+                    get = function(layout) return GetConfig().ttsEnabled end,
+                    set = function(layout, val) GetConfig().ttsEnabled = val end
+                },
+                { 
+                    kind = LEM.SettingType.Dropdown, 
+                    name = "TTS Voice", 
+                    values = ttsVals,
+                    hidden = function(layout) return not GetConfig().ttsEnabled end, 
+                    get = function(layout) return GetConfig().ttsVoice or 0 end, 
+                    set = function(layout, val) 
+                        local numericVoiceID = tonumber(val) or 0
+                        GetConfig().ttsVoice = numericVoiceID
+                        
+                        if C_VoiceChat and C_VoiceChat.SpeakText then
+                            local rate = C_TTSSettings and C_TTSSettings.GetSpeechRate() or 0
+                            local volume = C_TTSSettings and C_TTSSettings.GetSpeechVolume() or 100
+                            C_VoiceChat.SpeakText(numericVoiceID, "Voice test", rate, volume, false)
+                        end
+                    end 
                 }
             })
 
@@ -482,6 +577,7 @@ function DeathDirge:UpdateState()
         buttonsContent:Hide()
         squadFrame:Hide()
         barFrame:Hide()
+        StopTTS()
         
         UnregisterStateDriver(secureAnchor, "visibility")
         secureAnchor:Hide()
