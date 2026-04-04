@@ -33,7 +33,7 @@ local SQUAD_POSITIONS = {
     { point = "CENTER", x = -28, y = 38 },  -- #5 Top Left
 }
 
-local shapeNames = {"1", "2", "3", "4", "5"}
+local shapeNames = {"4", "6", "7", "2", "3"}
 
 local inEncounter = false
 
