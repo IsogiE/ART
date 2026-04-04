@@ -35,6 +35,14 @@ local SQUAD_POSITIONS = {
 
 local shapeNames = {"4", "6", "7", "2", "3"}
 
+local chatmsgs = {
+    ["2"] = "26:105:297:373",
+    ["3"] = "6:124:383:501",
+    ["4"] = "19:113:4:88",
+    ["6"] = "6:121:86:201",
+    ["7"] = "14:120:207:288",
+}
+
 local inEncounter = false
 
 local function GetConfig()
@@ -110,7 +118,7 @@ for i = 1, 5 do
     local chatChannel = DEBUG_MODE and "/s " or "/raid "
     
     btn:SetAttribute("type1", "macro")
-    btn:SetAttribute("macrotext1", chatChannel .. shapeNames[i])
+    btn:SetAttribute("macrotext1", chatChannel .. chatmsgs[shapeNames[i]])
     btn:SetAttribute("useOnKeyDown", false)
     btn:RegisterForClicks("AnyUp", "AnyDown")
     btn:SetFrameStrata("HIGH")
@@ -243,7 +251,6 @@ end
 
 local currentSequence = 0
 local hideTimer = nil
-local ICON_STR = "\124TInterface\\TargetingFrame\\UI-RaidTargetingIcon_"
 
 local function HideAllRunes()
     for i = 1, 5 do
@@ -298,11 +305,11 @@ chatListenerFrame:SetScript("OnEvent", function(self, event, msg)
     local pos = currentSequence
 
     C_Timer.After(0, function()
-        squadDisplay[pos]:SetFormattedText("%s%s%s", ICON_STR, msg, ":28\124t")
+        squadDisplay[pos]:SetFormattedText("%s%s%s", "|T7412681:28:28:0:0:512:512:", msg, "|t")
         squadDisplay[pos]:Show()
         squadFrame:Show()
 
-        barDisplay[pos]:SetFormattedText("%s%s%s", ICON_STR, msg, ":24\124t")
+        barDisplay[pos]:SetFormattedText("%s%s%s", "|T7412681:24:24:0:0:512:512:", msg, "|t")
         barDisplay[pos]:Show()
         barFrame:Show()
 
@@ -504,9 +511,10 @@ function DeathDirge:Initialize()
             barFrame:Show()
 
             for i = 1, 5 do
-                squadDisplay[i]:SetFormattedText("%s%s%s", ICON_STR, shapeNames[i], ":28\124t")
+                local msg = chatmsgs[shapeNames[i]]
+                squadDisplay[i]:SetFormattedText("%s%s%s", "|T7412681:28:28:0:0:512:512:", msg, "|t")
                 squadDisplay[i]:Show()
-                barDisplay[i]:SetFormattedText("%s%s%s", ICON_STR, shapeNames[i], ":24\124t")
+                barDisplay[i]:SetFormattedText("%s%s%s", "|T7412681:24:24:0:0:512:512:", msg, "|t")
                 barDisplay[i]:Show()
             end
         end)
@@ -523,6 +531,20 @@ function DeathDirge:Initialize()
                 for i = 1, 5 do
                     squadDisplay[i]:Hide()
                     barDisplay[i]:Hide()
+                end
+            else
+                if currentSequence == 0 then
+                    squadFrame:Hide()
+                    barFrame:Hide()
+                    for i = 1, 5 do
+                        squadDisplay[i]:Hide()
+                        barDisplay[i]:Hide()
+                    end
+                else
+                    for i = currentSequence + 1, 5 do
+                        squadDisplay[i]:Hide()
+                        barDisplay[i]:Hide()
+                    end
                 end
             end
         end)
