@@ -17,6 +17,8 @@ local LEM = LibStub and LibStub("LibEditMode", true)
 local DEBUG_MODE = false
 local ENCOUNTER_ID = 3183
 
+DeathDirge.isAuthorized = true
+
 local RUNE_TEX_COORDS = {
     {0.000, 0.208, 0.28, 0.72}, -- 1
     {0.204, 0.410, 0.28, 0.72}, -- 2
@@ -348,10 +350,78 @@ local function HideAllRunes()
     StopTTS()
 end
 
+function DeathDirge:CheckNoteAuthorization()
+    local noteText = ""
+
+    if VMRT and VMRT.Note and VMRT.Note.Text1 then
+        noteText = VMRT.Note.Text1
+    end
+
+    if not noteText or noteText == "" then return true end
+
+    local lowerNote = string.lower(noteText)
+    local block = string.match(lowerNote, "dirgestart(.-)dirgeend")
+
+    if not block then return true end
+
+    local playerName = string.lower(UnitName("player") or "")
+    local realmName = string.lower(GetRealmName() or "")
+    realmName = string.gsub(realmName, "%s+", "")
+    local fullPlayerName = playerName .. "-" .. realmName
+    
+    local nickname = nil
+    if ACT and ACT.GetNickname then
+        local actNick = ACT:GetNickname("player")
+        if actNick then
+            nickname = string.lower(actNick)
+        end
+    end
+
+    for word in string.gmatch(block, "%S+") do
+        if word == playerName or word == fullPlayerName or (nickname and word == nickname) then
+            return true
+        end
+    end
+
+    return false
+end
+
+function DeathDirge:UpdateAuthorization()
+    local auth = self:CheckNoteAuthorization()
+    if self.isAuthorized ~= auth then
+        self.isAuthorized = auth
+        self:UpdateState()
+    end
+end
+
+function DeathDirge:WatchNotes()
+    local updateQueued = false
+
+    local function QueueNoteUpdate()
+        if not updateQueued then
+            updateQueued = true
+            C_Timer.After(1, function()
+                updateQueued = false
+                DeathDirge:UpdateAuthorization()
+            end)
+        end
+    end
+
+    if MRTNote and MRTNote.text then
+        hooksecurefunc(MRTNote.text, "SetText", QueueNoteUpdate)
+    end
+
+    QueueNoteUpdate()
+end
+
 local encounterFrame = CreateFrame("Frame")
 
 encounterFrame:SetScript("OnEvent", function(self, event, ...)
-    if event == "ENCOUNTER_START" then
+    if event == "PLAYER_REGEN_ENABLED" then
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        DeathDirge:UpdateState()
+        return
+    elseif event == "ENCOUNTER_START" then
         local encounterID = ...
         if encounterID == ENCOUNTER_ID or DEBUG_MODE then
             inEncounter = true
@@ -369,7 +439,9 @@ encounterFrame:SetScript("OnEvent", function(self, event, ...)
                 squadFrame:Hide()
                 barFrame:Hide()
                 
-                buttonsContent:Show() 
+                if DeathDirge.isAuthorized then
+                    buttonsContent:Show() 
+                end
             end)
         end
 
@@ -434,10 +506,15 @@ function DeathDirge:UpdateState()
         encounterFrame:RegisterEvent("ENCOUNTER_START")
         encounterFrame:RegisterEvent("ENCOUNTER_END")
         
-        if DEBUG_MODE then
-            RegisterStateDriver(secureAnchor, "visibility", "show")
+        if self.isAuthorized then
+            if DEBUG_MODE then
+                RegisterStateDriver(secureAnchor, "visibility", "show")
+            else
+                RegisterStateDriver(secureAnchor, "visibility", "[combat] show; hide")
+            end
         else
-            RegisterStateDriver(secureAnchor, "visibility", "[combat] show; hide")
+            RegisterStateDriver(secureAnchor, "visibility", "hide")
+            buttonsContent:Hide()
         end
 
         if LEM and not buttonsAnchor.editModeRegistered then
@@ -610,7 +687,7 @@ function DeathDirge:UpdateState()
         if DEBUG_MODE then
             inEncounter = true
             currentSequence = 0
-            buttonsContent:Show()
+            if self.isAuthorized then buttonsContent:Show() end
             UpdateDirectionArrow()
         end
     else
@@ -632,6 +709,8 @@ function DeathDirge:UpdateState()
 end
 
 function DeathDirge:Initialize()
+    self:WatchNotes()
+
     if LEM then
         LEM:RegisterCallback("enter", function()
             if not GetConfig().enabled then return end
@@ -675,6 +754,10 @@ function DeathDirge:Initialize()
                     barDisplay[i]:Hide()
                 end
             else
+                if not self.isAuthorized then
+                    buttonsContent:Hide()
+                end
+                
                 if currentSequence == 0 then
                     squadFrame:Hide()
                     barFrame:Hide()
