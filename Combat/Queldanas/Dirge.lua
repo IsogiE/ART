@@ -15,7 +15,7 @@ table.insert(ACT.RegisteredMechanics, {
 local LEM = LibStub and LibStub("LibEditMode", true)
 
 local DEBUG_MODE = false
-local ENCOUNTER_ID = 2265
+local ENCOUNTER_ID = 3183
 
 local RUNE_TEX_COORDS = {
     {0.000, 0.208, 0.28, 0.72}, -- 1
